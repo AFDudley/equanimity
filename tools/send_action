@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+"""
+send_action
+
+Created by AFD on 2013-08-05.
+Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
+"""
+"""Automatically passes for localhost defender.
+   Executes any command as atkr or dfndr"""
+""" ./send_action host player action unitID target"""
+import argparse
+
+parser = argparse.ArgumentParser(description="Sends Action to battle_server at localhost. \
+Defaults to sending a pass action as 'dfndr'")
+parser.add_argument('-H', '--host', default='127.0.0.1', help="ip of server")
+#test_client assumes port 8888
+#parser.add_argument('-P','--port', type=int, default="8888",
+#                    help="Port server is listening on.")
+
+parser.add_argument('-p', '--player', choices=['dfndr', 'atkr'],
+                    default='dfndr', help="Which player is sending the command? \
+                    'dfndr' or 'atkr'.")
+parser.add_argument('-a', '--action', choices=['pass','move','attack'], default='pass',
+                    help="Action to be taken, 'pass', 'move' or 'attack'.")
+parser.add_argument('-u', '--uid', type=int, default=None,
+                    help="unitID of actor.")
+parser.add_argument('-t', '--target', type=tuple, default=None,
+                    help="action is applied to target")
+args = parser.parse_args()
+import sys, os
+sys.path.append(os.getcwd())
+from equanimity_client import test_client
+t = test_client(args.host)
+cookie = t.login(args.player, args.player)[0]['set-cookie']
+print t.battle("process_action", [[args.uid, args.action, args.target]], cookie)[1]
