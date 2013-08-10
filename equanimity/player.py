@@ -8,7 +8,7 @@ import persistent
 
 class Player(persistent.Persistent):
     """Object that contains player infomration."""
-    def __init__(self, username, password=None):
+    def __init__(self, username, password=None, squads=None):
         persistent.Persistent.__init__(self)
         self.username = username
         self.email = None
@@ -17,6 +17,7 @@ class Player(persistent.Persistent):
             self.password = password
         else:
             self.password = None
+        self.squads  = squads
         self.Fields  = persistent.mapping.PersistentMapping()
         self.cookie   = None
         self.roads    = None

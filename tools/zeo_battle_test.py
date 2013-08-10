@@ -10,8 +10,8 @@ world = zeo.root
 f = world['Fields']['(0, 0)']
 atkr_name, atksquad = f.attackerqueue[0] 
 defsquad = f.get_defenders()
-dfndr = Player(f.owner, [defsquad])
-atkr = Player(atkr_name, [atksquad])
+dfndr = Player(f.owner, squads=[defsquad])
+atkr = Player(atkr_name, squads=[atksquad])
 f.game = Game(grid=f.grid, defender=dfndr, attacker=atkr)
 f._p_changed = 1
 transaction.commit()

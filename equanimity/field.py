@@ -56,8 +56,8 @@ class Field(persistent.Persistent):
         #load the battlefield with players (and squads)
         atkr_name, atksquad = self.attackerqueue[0] #TODO change to pop 
         defsquad = self.get_defenders()
-        dfndr = Player(self.owner, [defsquad])
-        atkr = Player(atkr_name, [atksquad])
+        dfndr = Player(self.owner, squads=[defsquad])
+        atkr = Player(atkr_name, squads=[atksquad])
         #TODO write a new game object.
         self.game = Game(grid=self.grid, defender=dfndr, attacker=atkr)
         #place units on battlefield
