@@ -1,3 +1,9 @@
+"""
+server.py
+
+Created by AFD on 2013-08-05.
+Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
+"""
 import threading
 from gevent import monkey; monkey.patch_all()
 from pyramid.config import Configurator
