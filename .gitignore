@@ -4,3 +4,4 @@ DBs/*
 web/*
 *.pyc
 ._*
+.noseids
