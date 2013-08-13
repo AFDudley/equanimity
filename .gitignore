@@ -5,3 +5,5 @@ web/*
 *.pyc
 ._*
 .noseids
+venv
+virtualenv
