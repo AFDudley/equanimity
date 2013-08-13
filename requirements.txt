@@ -7,3 +7,4 @@ flask
 flask-login
 flask-bcrypt
 flask-seasurf
+flask-ZODB
