@@ -1,10 +1,11 @@
 import os
+from formencode import variabledecode
 from formencode.htmlfill import render as render_form
 from flask.ext.seasurf import SeaSurf
 from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager
-from flask import Flask
+from flask import Flask, g, abort, request
 
 
 """ ZODB """
@@ -65,6 +66,15 @@ def inject_context_processors(app):
         return dict(render_form=render_form)
 
 
+def attach_before_request_handlers(app):
+    @app.before_request
+    def load_form_data():
+        try:
+            g.form_data = variabledecode.variable_decode(request.form)
+        except ValueError:
+            abort(400)
+
+
 def create_app(subdomain=''):
 
     """ App """
@@ -90,5 +100,8 @@ def create_app(subdomain=''):
 
     """ Templates """
     inject_context_processors(app)
+
+    """ Request management """
+    attach_before_request_handlers(app)
 
     return app

@@ -52,12 +52,12 @@ class Player(Persistent, UserMixin):
 
 
     @classmethod
-    def email_available(cls):
+    def email_available(cls, email):
         # TODO --
         return True
 
     @classmethod
-    def username_available(cls):
+    def username_available(cls, username):
         # TODO --
         return True
 
@@ -70,3 +70,8 @@ class Player(Persistent, UserMixin):
     def get(cls, uid):
         # TODO --
         return None
+
+    @classmethod
+    def create_from_form(cls, form):
+        # TODO --
+        pass

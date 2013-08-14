@@ -4,7 +4,10 @@
 
 <h1>Signup</h1>
 
+<p>{{ errors }}</p>
+
 <form action="{{ url_for('users.signup') }}" method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
 <p><input name="username" placeholder="Username" type="text" /></p>
 <p><input name="email" placeholder="Email" type="text" /></p>
 <p><input name="password" placeholder="Password" type="password" /></p>

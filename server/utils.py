@@ -18,3 +18,13 @@ def construct_full_url(url):
     parsed = parsed._replace(scheme=scheme, netloc=netloc, path=path)
     return urlunparse(parsed)
 
+
+class AttributeDict(dict):
+    """ Object that allows .attr access to a dictionary """
+    def __setattr__(self, k, v):
+        return dict.__setitem__(self, k, v)
+
+    def __getattribute__(self, key):
+        if key in self:
+            return dict.__getitem__(self, key)
+        return object.__getattribute__(self, key)

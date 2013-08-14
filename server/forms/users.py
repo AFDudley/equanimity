@@ -41,6 +41,7 @@ class PasswordValidator(FancyValidator):
 
 
 class LoginForm(Schema):
+    allow_extra_fields = True
     order = ['username', 'password']
     username = Pipe(NotEmpty(), UnicodeString(min=USERNAME_LEN['min'],
                                               max=USERNAME_LEN['max']),
@@ -51,6 +52,7 @@ class LoginForm(Schema):
 
 
 class SignupForm(Schema):
+    allow_extra_fields = True
     username = Pipe(NotEmpty(), UnicodeString(min=USERNAME_LEN['min'],
                                               max=USERNAME_LEN['max']),
                     UniqueValidator(available=Player.username_available,

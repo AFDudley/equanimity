@@ -4,7 +4,10 @@
 
 <h1>Login</h1>
 
+<p>{{ errors }}</p>
+
 <form action="{{ url_for('users.login') }}" method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
 <p><input name="username" placeholder="Username" type="text" /></p>
 <p><input name="password" placeholder="Password" type="password" /></p>
 <p><input value="Submit" type="submit" /></p>
