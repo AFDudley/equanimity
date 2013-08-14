@@ -1,6 +1,5 @@
-import os.path
-from datetime import datetime
-
+import os
+from formencode.htmlfill import render as render_form
 from flask.ext.seasurf import SeaSurf
 from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
@@ -60,6 +59,12 @@ def load_config(app, subdomain):
         app.config['STATIC_ROOT'] = construct_full_url(static_root)
 
 
+def inject_context_processors(app):
+    @app.context_processor
+    def inject_template_globals():
+        return dict(render_form=render_form)
+
+
 def create_app(subdomain=''):
 
     """ App """
@@ -82,5 +87,8 @@ def create_app(subdomain=''):
 
     """ Blueprints """
     register_blueprints(app)
+
+    """ Templates """
+    inject_context_processors(app)
 
     return app

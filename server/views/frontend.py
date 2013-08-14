@@ -1,8 +1,8 @@
-from flask import Blueprint
+from flask import Blueprint, render_template
 
 frontend = Blueprint('frontend', __name__, url_prefix='')
 
 
 @frontend.route('/')
 def index():
-    return 'Equanimity'
+    return render_template('frontend/index.html')
