@@ -1,9 +1,15 @@
 import os.path
 from datetime import datetime
 
+from flask.ext.seasurf import SeaSurf
+from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager
 from flask import Flask
+
+
+""" ZODB """
+db = ZODB()
 
 
 """ Bcrypt """
@@ -11,14 +17,29 @@ bcrypt = Bcrypt()
 
 """ Login """
 login_manager = LoginManager()
-login_manager.login_view = 'players.login'
-login_manager.refresh_view = 'players.login'
-login_manager.session_protection = 'strong'
+
+""" CSRF """
+csrf = SeaSurf()
+
+
+def setup_login_manager(app):
+    login_manager.login_view = 'users.login'
+    login_manager.refresh_view = 'users.login'
+    login_manager.session_protection = 'strong'
+    login_manager.init_app(app)
+
+    from equanimity.player import Player
+
+    @login_manager.user_loader
+    def load_user(uid):
+        return Player.get(uid)
 
 
 def register_blueprints(app):
     from views.frontend import frontend
+    from views.users import users
     app.register_blueprint(frontend)
+    app.register_blueprint(users)
 
 
 def load_config(app, subdomain):
@@ -32,9 +53,10 @@ def load_config(app, subdomain):
         app.config['SERVER_NAME'] = server_name
 
     # make sure STATIC_ROOT is of the correct form
+    # This is for hosting static content on a separate domain or sub-url
     static_root = app.config.get('STATIC_ROOT')
     if static_root:
-        from gweb.utils import construct_full_url
+        from server.utils import construct_full_url
         app.config['STATIC_ROOT'] = construct_full_url(static_root)
 
 
@@ -46,11 +68,17 @@ def create_app(subdomain=''):
     """ Config """
     load_config(app, subdomain)
 
+    """ ZODB """
+    db.init_app(app)
+
     """ Bcrypt """
     bcrypt.init_app(app)
 
+    """ CSRF """
+    csrf.init_app(app)
+
     """ Login """
-    login_manager.init_app(app, add_context_processor=True)
+    setup_login_manager(app)
 
     """ Blueprints """
     register_blueprints(app)
