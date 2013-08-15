@@ -2,10 +2,11 @@
 
 {% block content %}
 
-{% if current_user.is_active() %}
-<p><a href="{{ url_for('users.logout') }}">Logout</a></p>
-{% else %}
+{% if current_user.is_anonymous() %}
 <p><a href="{{ url_for('users.login') }}">Login</a></p>
 <p><a href="{{ url_for('users.signup') }}">Signup</a></p>
+{% else %}
+<p>Hi, {{ current_user.display_username }}</p>
+<p><a href="{{ url_for('users.logout') }}">Logout</a></p>
 {% endif %}
 {% endblock content %}
