@@ -26,6 +26,7 @@ class Player(Persistent, UserMixin):
         self.set_email(email)
         self.set_password(password)
         self.created_at = datetime.utcnow()
+        self.last_login = self.created_at
         self.login_count = 0
         self.squads = squads
         self.Fields = PersistentMapping()
