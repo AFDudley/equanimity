@@ -1,4 +1,5 @@
 import os
+import logging
 from formencode import variabledecode
 from formencode.htmlfill import render as render_form
 from flask.ext.seasurf import SeaSurf
@@ -75,6 +76,25 @@ def attach_before_request_handlers(app):
             abort(400)
 
 
+def attach_loggers(app):
+    log_format = ('%(asctime)s [%(pathname)s:%(lineno)d:%(levelname)s] '
+                  '%(message)s')
+    app.debug_log_format = log_format
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter(log_format))
+    loggers = ['ZEO']
+    loggers = [logging.getLogger(log) for log in loggers]
+    if not app.config['DEBUG']:
+        loggers.append(app.logger)
+    for logger in loggers:
+        logger.addHandler(stream_handler)
+        logger.setLevel(logging.WARNING)
+    if app.config['DEBUG'] or app.config.get('DEBUG_LOGGING'):
+        app.logger.setLevel(logging.DEBUG)
+    else:
+        app.logger.setLevel(logging.INFO)
+
+
 def create_app(subdomain=''):
 
     """ App """
@@ -82,6 +102,9 @@ def create_app(subdomain=''):
 
     """ Config """
     load_config(app, subdomain)
+
+    """ Logging """
+    attach_loggers(app)
 
     """ ZODB """
     db.init_app(app)

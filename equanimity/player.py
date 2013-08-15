@@ -6,7 +6,9 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from persistent.mapping import PersistentMapping
 from persistent import Persistent
+from datetime import datetime
 from flask.ext.login import UserMixin
+from flask import current_app
 from server import bcrypt, db
 
 
@@ -19,9 +21,12 @@ class Player(Persistent, UserMixin):
     """Object that contains player infomration."""
     def __init__(self, username, email, password, squads=None):
         Persistent.__init__(self)
+        self.uid = db['player_uid'].get_next_id()
         self.set_username(username)
         self.set_email(email)
         self.set_password(password)
+        self.created_at = datetime.utcnow()
+        self.login_count = 0
         self.squads = squads
         self.Fields = PersistentMapping()
         self.cookie = None
@@ -41,37 +46,45 @@ class Player(Persistent, UserMixin):
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password, password)
 
+    def persist(self):
+        db['player'][self.uid] = self
+        db['player_username'][self.username] = self
+        db['player_email'][self.email] = self
+
+    def login(self):
+        self.last_login = datetime.utcnow()
+        self.login_count += 1
+
+    @classmethod
+    def email_available(cls, email):
+        return (cls.get_by_email(email) is None)
+
+    @classmethod
+    def username_available(cls, username):
+        return (cls.get_by_username(username) is None)
+
+    @classmethod
+    def get_by_username(cls, username):
+        return db['player_username'].get(username.lower())
+
+    @classmethod
+    def get_by_email(cls, email):
+        return db['player_email'].get(email.lower())
+
+    @classmethod
+    def get(cls, uid):
+        try:
+            uid = int(uid)
+        except Exception as e:
+            msg = 'Invalid user id .get(): {0}'
+            current_app.logger.warning(msg.format(uid))
+            return
+        return db['player'].get(uid)
+
     """ Flask-Login interface
         http://flask-login.readthedocs.org/en/latest/#your-user-class
         Interface methods not defined here are inherited from UserMixin
     """
 
     def get_id(self):
-        # TODO -- unique id for player?
-        return unicode(self.username)
-
-
-    @classmethod
-    def email_available(cls, email):
-        # TODO --
-        return True
-
-    @classmethod
-    def username_available(cls, username):
-        # TODO --
-        return True
-
-    @classmethod
-    def get_by_username(cls, username):
-        # TODO --
-        return None
-
-    @classmethod
-    def get(cls, uid):
-        # TODO --
-        return None
-
-    @classmethod
-    def create_from_form(cls, form):
-        # TODO --
-        pass
+        return unicode(self.uid)

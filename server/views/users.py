@@ -37,6 +37,13 @@ def signup():
         return render_template('users/signup.html', form=form,
                                errors=e.unpack_errors())
     user = Player(form['username'], form['email'], form['password'])
+    if login_user(user, remember=True):
+        user.login()
+        user.persist()
+    else:
+        # Inactive user
+        abort(500)
+
     flash('Created new user "{0}"'.format(user.display_username))
     return home()
 
@@ -47,15 +54,17 @@ def login():
     form = LoginForm()
     if request.method == 'GET':
         return render_template('users/login.html', form=form)
+    state = AttributeDict()
     try:
-        form = form.to_python(g.form_data, state=AttributeDict())
+        form = form.to_python(g.form_data, state=state)
     except Invalid as e:
         return render_template('users/login.html', form=form,
                                errors=e.unpack_errors())
-    if login_user(form.user, remember=True):
-        form.user.login()
-        flash('Logged in as "{0}"'.format(form.user.display_username))
+    if login_user(state.user, remember=True):
+        state.user.login()
+        flash('Logged in as "{0}"'.format(state.user.display_username))
     else:
+        # Inactive user
         abort(500)
     return home()
 
