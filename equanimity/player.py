@@ -28,7 +28,6 @@ class Player(Persistent, UserMixin):
         self.created_at = datetime.utcnow()
         self.last_login = self.created_at
         self.login_count = 0
-        self.suspended = False
         self.squads = squads
         self.Fields = PersistentMapping()
         self.cookie = None
@@ -87,9 +86,6 @@ class Player(Persistent, UserMixin):
         http://flask-login.readthedocs.org/en/latest/#your-user-class
         Interface methods not defined here are inherited from UserMixin
     """
-
-    def is_active(self):
-        return (not self.suspended)
 
     def get_id(self):
         return unicode(self.uid)

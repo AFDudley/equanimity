@@ -184,16 +184,6 @@ class LoginTest(UserTestBase):
         self.assertIn('Currently logged in', r.data)
         self.assertLoggedIn()
 
-    def test_login_suspended(self):
-        self.assertNotLoggedIn()
-        self.assertUserExists()
-        user = self.get_user()
-        user.suspended = True
-        transaction.commit()
-        r = self.login(check_status=False)
-        self.assert500(r)
-        self.assertNotLoggedIn()
-
     def test_logout(self):
         self.login()
         self.assertLoggedIn()
