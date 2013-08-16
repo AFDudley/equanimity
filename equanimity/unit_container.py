@@ -5,9 +5,9 @@ Created by AFD on 2013-03-06.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from UserList import UserList
+import weapons
 from stone import Stone
 from const import ELEMENTS, OPP, ORTH, WEP_LIST
-#from weapons import Sword, Bow, Glove, Wand
 from units import Unit, Scient
 
 
@@ -48,14 +48,17 @@ class Container(UserList):
         return self.val
 
     def __setitem__(self, key, val):
-        size = self.unit_size(key)
-        if self.free_spaces < size:
+        old = self[key]
+        old_size = self.unit_size(old)
+        size = self.unit_size(val)
+        if self.free_spaces + old_size < size:
             msg = "There is not enough space in this container for this unit"
             raise Exception(msg)
-        list.__setitem__(self, key, val)
-        self.val += val.value()
-        self.free_spaces -= size
-        key.container = self
+        super(Container, self).__setitem__(key, val)
+        self.val += val.value() - old.value()
+        self.free_spaces += old_size - size
+        val.container = self
+        old.container = None
 
     def __delitem__(self, key):
         self.data[key].container = None
@@ -63,7 +66,6 @@ class Container(UserList):
         self.free_spaces += self.unit_size(self[key])
         self.data.__delitem__(key)
         self.val -= temp
-
 
 class Squad(Container):
     """contains a number of Units. Takes a list of Units"""
@@ -84,7 +86,7 @@ class Squad(Container):
                         s[o] = 2
                     for wep in WEP_LIST:
                         scient = Scient(element, s)
-                        scient.equip(eval(wep)(element, Stone()))
+                        scient.equip(getattr(weapons, wep)(element, Stone()))
                         scient.name = "Ms. " + wep
                         self.append(scient)
                 if self.name is None:
@@ -108,14 +110,12 @@ class Squad(Container):
             return fmt.format(name=self.name, value=self.val,
                               space=self.free_spaces)
         else:
-            if self.val > 0:
-                s = ''
-                for i in range(len(self)):
-                    s += str(i) + ': ' + str(self[i].name) + '\n'
-                fmt = ("Name: {name}, Value: {value}, Free spaces: {space} \n"
-                       "{names}")
-                return fmt.format(name=self.name, value=self.val,
-                                  space=self.free_spaces, names=s)
+            s = ['{0}: {1}'.format(i, t.name) for i, t in enumerate(self)]
+            s = '\n'.join(s)
+            fmt = ("Name: {name}, Value: {value}, Free spaces: {space} \n"
+                   "{names}")
+            return fmt.format(name=self.name, value=self.val,
+                              space=self.free_spaces, names=s)
 
-    #def __call__(self, more=None):
-        #return self.__repr__(more=more)
+    def __call__(self, more=None):
+        return self.__repr__(more=more)

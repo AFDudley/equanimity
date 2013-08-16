@@ -131,7 +131,7 @@ class Part(object):
         return self.nescient.hp
 
     @hp.setter
-    def hp_fset(self, hp):
+    def hp(self, hp):
         self.nescient.hp = hp
 
 
