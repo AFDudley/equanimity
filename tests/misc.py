@@ -4,6 +4,7 @@ from server import create_app, attach_loggers
 from server.utils import AttributeDict, construct_full_url
 from base import FlaskTest
 
+
 class AttributeDictTest(TestCase):
 
     def test_attribute_dict(self):

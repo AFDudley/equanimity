@@ -1,4 +1,3 @@
-import transaction
 from base import FlaskTestDB
 
 
@@ -106,37 +105,37 @@ class SignupTest(UserTestBase):
     def test_bad_username(self):
         data = self.get_create_user_data()
         data['username'] = 'x' * 1024
-        r = self.create_user(data=data)
+        self.create_user(data=data)
         self.assertUserNotExists()
 
     def test_missing_username(self):
         data = self.get_create_user_data()
         del data['username']
-        r = self.create_user(data=data)
+        self.create_user(data=data)
         self.assertUserNotExists()
 
     def test_bad_password(self):
         data = self.get_create_user_data()
         data['password'] = 'xxx'
-        r = self.create_user(data=data)
+        self.create_user(data=data)
         self.assertUserNotExists()
 
     def test_missing_password(self):
         data = self.get_create_user_data()
         del data['password']
-        r = self.create_user(data=data)
+        self.create_user(data=data)
         self.assertUserNotExists()
 
     def test_bad_email(self):
         data = self.get_create_user_data()
         data['email'] = 'gmail.com'
-        r = self.create_user(data=data)
+        self.create_user(data=data)
         self.assertUserNotExists()
 
     def test_missing_email(self):
         data = self.get_create_user_data()
         del data['email']
-        r = self.create_user(data=data)
+        self.create_user(data=data)
         self.assertUserNotExists()
 
     def test_signup_page(self):

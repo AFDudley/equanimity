@@ -3,7 +3,7 @@ from formencode import Invalid
 from flask.ext.login import (login_required, login_user, logout_user,
                              current_user)
 from flask import (Blueprint, redirect, url_for, flash, render_template,
-                   request, g, abort)
+                   request, g)
 from equanimity.player import Player
 from server.utils import AttributeDict
 from server.forms.users import LoginForm, SignupForm

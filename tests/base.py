@@ -5,7 +5,6 @@ from mock import Mock
 from flask import url_for, json
 from voluptuous import Schema as JSONSchema, Invalid as InvalidJSONSchema
 from formencode import variabledecode
-from server.utils import AttributeDict
 from server import db, create_app
 from tools.init_db import init_db
 
