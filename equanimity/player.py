@@ -76,7 +76,7 @@ class Player(Persistent, UserMixin):
     def get(cls, uid):
         try:
             uid = int(uid)
-        except Exception as e:
+        except Exception:
             msg = 'Invalid user id .get(): {0}'
             current_app.logger.warning(msg.format(uid))
             return
