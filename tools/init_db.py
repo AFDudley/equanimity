@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# Sys.path hack so we can import the app modules from tools/ folder
-import sys
-sys.path.insert(0, '..')
+from common import hack_syspath
+hack_syspath(__file__)
 
 import transaction
 import argparse
