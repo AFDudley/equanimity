@@ -8,3 +8,5 @@ ZODB_STORAGE = 'memory://'
 STATIC_ROOT = 'http://127.0.0.1/'
 
 CSRF_ENABLED = False
+
+BCRYPT_LOG_ROUNDS = 1

@@ -13,6 +13,12 @@ from units import Unit, Scient
 
 class Container(UserList):
     """contains units"""
+
+    def __init__(self, data=None, free_spaces=8):
+        super(Container, self).__init__()
+        self.val = 0
+        self.free_spaces = free_spaces
+
     def unit_size(self, obj):
         if not isinstance(obj, Unit):
             raise TypeError("Containers are only for Units")
@@ -21,28 +27,6 @@ class Container(UserList):
                 return 1
             else:
                 return 2
-
-    def __init__(self, data=None, free_spaces=8):
-        UserList.__init__(self)
-        self.val = 0
-        self.free_spaces = free_spaces
-
-    def __setitem__(self, key, val):
-        size = self.unit_size(key)
-        if self.free_spaces < size:
-            msg = "There is not enough space in this container for this unit"
-            raise Exception(msg)
-        list.__setitem__(self, key, val)
-        self.val += val.value()
-        self.free_spaces -= size
-        key.container = self
-
-    def __delitem__(self, key):
-        self.data[key].container = None
-        temp = self[key].value()
-        self.free_spaces += self.unit_size(self[key])
-        self.data.__delitem__(key)
-        self.val -= temp
 
     def append(self, item):
         size = self.unit_size(item)
@@ -63,15 +47,28 @@ class Container(UserList):
     def value(self):
         return self.val
 
+    def __setitem__(self, key, val):
+        size = self.unit_size(key)
+        if self.free_spaces < size:
+            msg = "There is not enough space in this container for this unit"
+            raise Exception(msg)
+        list.__setitem__(self, key, val)
+        self.val += val.value()
+        self.free_spaces -= size
+        key.container = self
+
+    def __delitem__(self, key):
+        self.data[key].container = None
+        temp = self[key].value()
+        self.free_spaces += self.unit_size(self[key])
+        self.data.__delitem__(key)
+        self.val -= temp
+
 
 class Squad(Container):
     """contains a number of Units. Takes a list of Units"""
-    def hp(self):
-        """Returns the total HP of the Squad."""
-        return sum([unit.hp for unit in self])
-
     def __init__(self, data=None, name=None, kind=None, element=None):
-        Container.__init__(self, data=None, free_spaces=8)
+        super(Squad, self).__init__(data=None, free_spaces=8)
         self.name = name
         if data is None:
             # The code below creates 4 units of element with a comp
@@ -100,6 +97,10 @@ class Squad(Container):
         else:
             self.append(data)
 
+    def hp(self):
+        """Returns the total HP of the Squad."""
+        return sum([unit.hp for unit in self])
+
     def __repr__(self, more=None):
         """This could be done better..."""
         if more is None:
@@ -116,5 +117,5 @@ class Squad(Container):
                 return fmt.format(name=self.name, value=self.val,
                                   space=self.free_spaces, names=s)
 
-    def __call__(self, more=None):
-        return self.__repr__(more=more)
+    #def __call__(self, more=None):
+        #return self.__repr__(more=more)

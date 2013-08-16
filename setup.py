@@ -21,16 +21,14 @@ class Test(Command):
     description = 'Test Equanimity source code'
     user_options = [('run-failed', None,
                      'Run only the previously failed tests.'),
-                    ('nose-only', None, 'Run only the nose tests.'),
-                    ('with-integration', None,
-                     'Run the integration/live tests')]
+                    ('nose-only', None, 'Run only the nose tests.')]
     boolean_options = ['run-failed', 'nose-only']
 
     def initialize_options(self):
         self.run_failed = False
         # Disable the flake8 tests in pypy due to bug in pep8 module
         self.nose_only = pypy
-        self.with_integration = False
+        #self.with_integration = False
         self.flake8 = 'flake8 server/ equanimity/'
 
     def finalize_options(self):
@@ -64,8 +62,8 @@ class Test(Command):
 
     def _get_nose_command(self):
         testfiles = self._get_py_files('tests/')
-        if self.with_integration:
-            testfiles += self._get_py_files('tests/', 'integration/')
+        #if self.with_integration:
+            #testfiles += self._get_py_files('tests/', 'integration/')
         if not testfiles:
             print('No tests found.')
             return
@@ -86,7 +84,7 @@ class Test(Command):
         # TODO -- check that flake8, nosetests are installed
         cmds = [self._get_nose_command()]
         if not self.nose_only:
-            self._no_print_statements()
+            #self._no_print_statements()
             self._remove_coverage()
             cmds = [self.flake8] + cmds
         cmds = filter(bool, cmds)

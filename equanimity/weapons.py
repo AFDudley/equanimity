@@ -9,12 +9,13 @@ from stone import Stone
 
 class Weapon(Stone):
     """Scients Equip weapons to do damage"""
-    def __init__(self, element, comp, wep_type, kind=None):
+    kind = None
+
+    def __init__(self, element, comp, wep_type):
         #this should return the correct weapon based on . (?)
-        Stone.__init__(self, comp)
+        super(Weapon, self).__init__(comp)
         self.type = wep_type
         self.element = element
-        self.kind = kind
 
     def map_to_grid(self, origin, grid_size):
         #TODO move to battlefield
@@ -87,23 +88,26 @@ class Weapon(Stone):
 
 class Sword(Weapon):
     """Close range physial weapon"""
+    kind = 'p'
+
     def __init__(self, element, comp):
-        Weapon.__init__(self, element, comp, 'Sword')
-        self.kind = 'p'
+        super(Sword, self).__init__(element, comp, 'Sword')
 
 
 class Bow(Weapon):
     """Long range physical weapon"""
+    kind = 'p'
+
     def __init__(self, element, comp):
-        Weapon.__init__(self, element, comp, 'Bow')
-        self.kind = 'p'
+        super(Bow, self).__init__(element, comp, 'Bow')
 
 
 class Wand(Weapon):
     """Long range magical weapon"""
+    kind = 'm'
+
     def __init__(self, element, comp):
-        Weapon.__init__(self, element, comp, 'Wand')
-        self.kind = 'm'
+        super(Wand, self).__init__(element, comp, 'Wand')
 
     def make_pattern(self, origin, distance, pointing):
         """generates a pattern based on an origin, distance, and
@@ -138,7 +142,8 @@ class Wand(Weapon):
 
 class Glove(Weapon):
     """Close range magical weapon"""
+    kind = 'm'
+
     def __init__(self, element, comp):
-        Weapon.__init__(self, element, comp, 'Glove')
-        self.kind = 'm'
+        super(Glove, self).__init__(element, comp, 'Glove')
         self.time = 3

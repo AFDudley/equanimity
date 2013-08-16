@@ -21,7 +21,7 @@ class Unit(Stone):
         if comp[OPP[element]] != 0:
             raise ValueError("Units' opposite element must equal 0.")
 
-        Stone.__init__(self, comp)
+        super(Unit, self).__init__(comp)
         now = datetime.utcnow()
         self.element = element
         if name is None:
@@ -35,9 +35,6 @@ class Unit(Stone):
         self.fed_on = None
         self.val = self.value()
         self.id = id(self)
-
-    def __repr__(self):
-        return self.name
 
     def calcstats(self):
         self.p = (2 * (self.comp[F] + self.comp[E]) + self.comp[I] +
@@ -57,9 +54,11 @@ class Unit(Stone):
         self.hp = 4 * ((self.pdef + self.mdef) + self.value())
 
     def stats(self):
-        return {'p': self.p, 'm': self.m, 'atk': self.atk, 'defe': self.defe,
-                'pdef': self.pdef, 'patk': self.patk, 'mdef': self.mdef,
-                'matk': self.matk, 'hp': self.hp}
+        stats = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
+        return dict(zip(stats, [getattr(self, s) for s in stats]))
+
+    def __repr__(self):
+        return self.name
 
 
 class Scient(Unit):
@@ -71,15 +70,6 @@ class Scient(Unit):
       F: fire, I: ice, W: wind}
     """
 
-    def equip(self, weapon):
-        self.weapon = weapon
-
-    def unequip(self):
-        """removes weapon from scient, returns weapon."""
-        weapon = self.weapon
-        self.weapon = None
-        return weapon
-
     def __init__(self, element, comp, name=None, weapon=None,
                  weapon_bonus=None, location=None, sex='female'):
         for orth in ORTH[element]:
@@ -87,7 +77,7 @@ class Scient(Unit):
                 raise ValueError("Scients' orthogonal elements cannot be "
                                  "more than half the primary element's "
                                  "value.")
-        Unit.__init__(self, element, comp, name, location, sex)
+        super(Scient, self).__init__(element, comp, name, location, sex)
         self.move = 4
         self.weapon = weapon
         if weapon_bonus is None:
@@ -120,41 +110,33 @@ class Scient(Unit):
             raise Exception("Primary element of stone must match that of "
                             "scient")
 
+    def equip(self, weapon):
+        self.weapon = weapon
+
+    def unequip(self):
+        """removes weapon from scient, returns weapon."""
+        weapon = self.weapon
+        self.weapon = None
+        return weapon
+
 
 class Part(object):
-    '''
-    @property
-    def pdef(self):
-        return self.nescient.pdef
-    '''
-
-    def hp_fget(self):
-        return self.nescient.hp
-
-    def hp_fset(self, hp):
-        self.nescient.hp = hp
-
-    hp = property(hp_fget, hp_fset)
 
     def __init__(self, nescient, location=None):
         self.nescient = nescient
         self.location = location
 
+    @property
+    def hp(self):
+        return self.nescient.hp
+
+    @hp.setter
+    def hp_fset(self, hp):
+        self.nescient.hp = hp
+
 
 class Nescient(Unit):
     """A non-playable unit."""
-
-    def take_body(self, new_body):
-        """Takes locations from new_body and applies them to body."""
-        for part in new_body:
-            new_body[part].nescient = self
-            self.body = new_body
-
-    def calcstats(self):
-        Unit.calcstats(self)
-        self.atk = (2 * (self.comp[F] + self.comp[I]) + self.comp[E] +
-                    self.comp[W]) + (4 * self.value())
-        self.hp = self.hp * 4  # This is an open question.
 
     def __init__(self, element, comp, name=None, weapon=None,
                  location=None, sex='female', facing=None,
@@ -171,7 +153,7 @@ class Nescient(Unit):
                 raise ValueError("Nescients' orthogonal value cannot exceed "
                                  "the primary element value.")
 
-        Unit.__init__(self, element, comp, name, location, sex)
+        super(Nescient, self).__init__(element, comp, name, location, sex)
         self.move = 4
         #Set nescient type.
         if self.element == 'Earth':
@@ -211,3 +193,15 @@ class Nescient(Unit):
         self.location = location  # ...
         self.facing = facing
         self.weapon = self  # hack for attack logic.
+
+    def take_body(self, new_body):
+        """Takes locations from new_body and applies them to body."""
+        for part in new_body:
+            new_body[part].nescient = self
+            self.body = new_body
+
+    def calcstats(self):
+        Unit.calcstats(self)
+        self.atk = (2 * (self.comp[F] + self.comp[I]) + self.comp[E] +
+                    self.comp[W]) + (4 * self.value())
+        self.hp = self.hp * 4  # This is an open question.

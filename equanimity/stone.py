@@ -10,12 +10,12 @@ from const import ELEMENTS
 
 
 class Stone(Persistent, Mapping):
-    """ugh."""
+    # Limit should be overwritten by classes that inherit from Stone.
+    limit = {'Earth': 255, 'Fire': 255, 'Ice': 255, 'Wind': 255}
+
     def __init__(self, comp=None):
-        #Limit should be overwritten by classes that inherit from Stone.
-        self.limit = {'Earth': 255, 'Fire': 255, 'Ice': 255, 'Wind': 255}
+        Persistent.__init__(self)
         self.comp = {'Earth': 0, 'Fire': 0, 'Ice': 0, 'Wind': 0}
-        #self.id = randint(1000000000, 2**32)
         if isinstance(comp, Stone):
             self.comp = comp.comp
         if comp is None:
@@ -35,39 +35,12 @@ class Stone(Persistent, Mapping):
                     else:
                         raise AttributeError
 
-    def __iter__(self):
-        return iter(self.comp)
-
-    def __contains__(self, value):
-        return value in self.comp
-
-    def __getitem__(self, key):
-        return self.comp[key]
-
-    def __setitem__(self, key, value):
-        if value <= self.limit[key]:
-            self.comp[key] = value
-        else:
-            err = "Tried setting {0} beyond its limit of {1}"
-            raise AttributeError(err.format((key, str(self.limit[key]))))
-
-    def __len__(self):
-        return len(self.comp)
-
-    """
-    __hash__ and __cmp__ are hacks to get around scients being mutable.
-    I think the answer is to actually make stones immutable and
-    have imbue return a different stone.
-    """
-
-    def __hash__(self):
-        return id(self)
-
     def imbue(self, stone):
         """adds the values of stone.comp to self.comp up to self.limit.
            leaves any remaining point in stone and returns stone."""
+        # Type checking isn't really necessary...
         if not isinstance(stone, Stone):
-            raise TypeError("Stone must be a stone.")
+            raise TypeError("Stone must be a Stone.")
         for s in ELEMENTS:
             if (self.comp[s] + stone[s]) <= self.limit[s]:
                 self.comp[s] += stone[s]
@@ -108,3 +81,31 @@ class Stone(Persistent, Mapping):
 
     def value(self):
         return sum(self.comp.values())
+
+    def __iter__(self):
+        return iter(self.comp)
+
+    def __contains__(self, value):
+        return value in self.comp
+
+    def __getitem__(self, key):
+        return self.comp[key]
+
+    def __setitem__(self, key, value):
+        if value <= self.limit[key]:
+            self.comp[key] = value
+        else:
+            err = "Tried setting {0} beyond its limit of {1}"
+            raise AttributeError(err.format((key, str(self.limit[key]))))
+
+    def __len__(self):
+        return len(self.comp)
+
+    """
+    __hash__ and __cmp__ are hacks to get around scients being mutable.
+    I think the answer is to actually make stones immutable and
+    have imbue return a different stone.
+    """
+
+    def __hash__(self):
+        return id(self)
