@@ -8,3 +8,4 @@ web/*
 venv
 virtualenv
 .coverage
+zeo_dev.conf

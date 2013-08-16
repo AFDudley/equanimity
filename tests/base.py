@@ -17,8 +17,7 @@ class FlaskTest(TestCase):
 
     def setUp(self):
         self.old_env = os.environ.get('EQUANIMITY_SERVER_SETTINGS')
-        os.environ['EQUANIMITY_SERVER_SETTINGS'] = '../config/test.py'
-        self.app = create_app()
+        self.app = create_app(config='test')
         self.app.testing = True
         self.client = self.app.test_client()
         self.client.__enter__()

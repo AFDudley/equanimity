@@ -43,8 +43,10 @@ def register_blueprints(app):
     app.register_blueprint(users)
 
 
-def load_config(app, subdomain):
-    if os.environ.get('EQUANIMITY_SERVER_SETTINGS') is not None:
+def load_config(app, subdomain, config=None):
+    if config is not None:
+        app.config.from_object('config.{0}'.format(config))
+    elif 'EQUANIMITY_SERVER_SETTINGS' in os.environ:
         app.config.from_envvar('EQUANIMITY_SERVER_SETTINGS')
     else:
         app.config.from_object('config.dev')
@@ -95,13 +97,13 @@ def attach_loggers(app):
         app.logger.setLevel(logging.INFO)
 
 
-def create_app(subdomain=''):
+def create_app(subdomain='', config=None):
 
     """ App """
     app = Flask(__name__)
 
     """ Config """
-    load_config(app, subdomain)
+    load_config(app, subdomain, config=config)
 
     """ Logging """
     attach_loggers(app)

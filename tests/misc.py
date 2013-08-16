@@ -1,3 +1,4 @@
+import os
 from unittest import TestCase
 from mock import patch
 from server import create_app, attach_loggers
@@ -44,16 +45,28 @@ class UtilsTest(TestCase):
 class AppInitTest(TestCase):
 
     def test_subdomain_create_app(self):
-        app = create_app(subdomain='dog')
+        app = create_app(subdomain='dog', config='test')
         self.assertTrue(app.config['SERVER_NAME'].startswith('dog'))
 
     def test_logger_setup_no_debug(self):
         # There's nothing to really test besides to make sure the code
         # doesn't crash.  This only affects the logging levels set
-        app = create_app()
+        app = create_app(config='test')
         app.config['DEBUG'] = False
         app.config['DEBUG_LOGGING'] = False
         attach_loggers(app)
+
+    def test_envvar_config_load(self):
+        old = os.environ.get('EQUANIMITY_SERVER_SETTINGS')
+        os.environ['EQUANIMITY_SERVER_SETTINGS'] = '../config/test.py'
+        e = None
+        try:
+            app = create_app()
+        except Exception as e:
+            raise
+        finally:
+            if old is not None:
+                os.environ['EQUANIMITY_SERVER_SETTINGS'] = old
 
 
 class RequestFormDecodeTest(FlaskTest):
