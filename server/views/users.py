@@ -56,7 +56,7 @@ def login():
     except Invalid as e:
         return render_template('users/login.html', form=form,
                                errors=e.unpack_errors())
-    login_user(state.user, remember=True):
+    login_user(state.user, remember=True)
     state.user.login()
     flash('Logged in as "{0}"'.format(state.user.display_username))
     return home()
