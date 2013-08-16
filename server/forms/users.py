@@ -11,9 +11,6 @@ class UniqueValidator(FancyValidator):
     messages = dict(unavailable='%(name)s is not available.')
 
     def _validate_python(self, value, state):
-        if self.available is None:
-            err = 'You must define an availability method for this validator.'
-            raise UserWarning(err)
         if not self.available(value):
             raise Invalid(self.message('unavailable', state, name=self.name),
                           value, state)

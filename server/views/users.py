@@ -37,13 +37,9 @@ def signup():
         return render_template('users/signup.html', form=form,
                                errors=e.unpack_errors())
     user = Player(form['username'], form['email'], form['password'])
-    if login_user(user, remember=True):
-        user.login()
-        user.persist()
-    else:
-        # Inactive user
-        abort(500)
-
+    login_user(user, remember=True)
+    user.login()
+    user.persist()
     flash('Created new user "{0}"'.format(user.display_username))
     return home()
 

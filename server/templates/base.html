@@ -7,8 +7,27 @@
 </head>
 
 <body>
+
+<div class="main">
+
+<div class="messages">
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+</div>
+
+<div class="content">
 {% block content %}
 {% endblock content %}
+</div>
+</div>
+
 </body>
 
 {% block script %}

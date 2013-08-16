@@ -1,7 +1,8 @@
 from unittest import TestCase
-from server import create_app
+from mock import patch
+from server import create_app, attach_loggers
 from server.utils import AttributeDict, construct_full_url
-
+from base import FlaskTest
 
 class AttributeDictTest(TestCase):
 
@@ -44,3 +45,20 @@ class AppInitTest(TestCase):
     def test_subdomain_create_app(self):
         app = create_app(subdomain='dog')
         self.assertTrue(app.config['SERVER_NAME'].startswith('dog'))
+
+    def test_logger_setup_no_debug(self):
+        # There's nothing to really test besides to make sure the code
+        # doesn't crash.  This only affects the logging levels set
+        app = create_app()
+        app.config['DEBUG'] = False
+        app.config['DEBUG_LOGGING'] = False
+        attach_loggers(app)
+
+
+class RequestFormDecodeTest(FlaskTest):
+
+    @patch('server.variabledecode.variable_decode')
+    def test_bad_request_form(self, mock_decode):
+        mock_decode.side_effect = ValueError
+        r = self.post('users.login')
+        self.assert400(r)
