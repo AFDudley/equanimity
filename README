@@ -1,0 +1,23 @@
+## Setting up environment
+
+# Create virtualenv
+mkdir venv
+virtualenv -p /usr/bin/python venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+## Running the application server
+runzeo -C zeo/zeoWorld.conf &
+source venv/bin/activate
+./run.py
+
+## Running the tests
+source venv/bin/activate
+./setup.py test --nose-only
+
+Coverage statements should print to the terminal when running the tests.
+--nose-only indicates to run only the nose test runner, and not the pep8 and pyflakes checkers
+The pep8 and pyflakes checkers ("flake8") will be run in the future, but the existing equanimity code
+is not ready for it yet.
