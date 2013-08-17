@@ -11,6 +11,8 @@ from datetime import datetime
 
 
 class Unit(Stone):
+    attrs = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
+
     def __init__(self, element, comp, name=None, location=None, sex='female'):
         if not element in ELEMENTS:
             fmt = "Invalid element: {0}, valid elements are {1}"
@@ -54,8 +56,7 @@ class Unit(Stone):
         self.hp = 4 * ((self.pdef + self.mdef) + self.value())
 
     def stats(self):
-        stats = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
-        return dict(zip(stats, [getattr(self, s) for s in stats]))
+        return dict(zip(self.attrs, [getattr(self, s) for s in self.attrs]))
 
     def __repr__(self):
         return self.name
@@ -98,17 +99,16 @@ class Scient(Unit):
     def imbue(self, stone):
         """add stone to scient's comp, if legal"""
         comp = stone.comp
-        if comp[OPP[self.element]] == 0:
-            for orth in ORTH[self.element]:
-                if ((comp[orth] + self.comp[orth]) >
-                        ((comp[self.element] + self.comp[self.element]) / 2)):
-                    raise ValueError("Scients' orthogonal elements cannot be"
-                                     "more than half the primary element's "
-                                     "value.")
-            super(Scient, self).imbue(stone)
-        else:
+        if comp[OPP[self.element]] != 0:
             raise Exception("Primary element of stone must match that of "
                             "scient")
+        for orth in ORTH[self.element]:
+            if (comp[orth] + self.comp[orth] >
+                    comp[self.element] + (self.comp[self.element] / 2)):
+                raise ValueError("Scients' orthogonal elements cannot be"
+                                 "more than half the primary element's "
+                                 "value.")
+        return super(Scient, self).imbue(stone)
 
     def equip(self, weapon):
         self.weapon = weapon

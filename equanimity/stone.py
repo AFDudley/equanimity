@@ -11,11 +11,10 @@ from const import ELEMENTS
 
 class Stone(Persistent, Mapping):
     # Limit should be overwritten by classes that inherit from Stone.
-    limit = {'Earth': 255, 'Fire': 255, 'Ice': 255, 'Wind': 255}
-
     def __init__(self, comp=None):
         Persistent.__init__(self)
         self.comp = {'Earth': 0, 'Fire': 0, 'Ice': 0, 'Wind': 0}
+        self.limit = {'Earth': 255, 'Fire': 255, 'Ice': 255, 'Wind': 255}
         if isinstance(comp, Stone):
             self.comp = comp.comp
         if comp is None:
@@ -71,6 +70,9 @@ class Stone(Persistent, Mapping):
 
     def value(self):
         return sum(self.comp.values())
+
+    def __repr__(self):
+        return '<Stone {comp}>'.format(comp=self.comp)
 
     def __iter__(self):
         return iter(self.comp)

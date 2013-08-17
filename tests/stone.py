@@ -23,9 +23,8 @@ class StoneTest(TestCase):
         t = Stone(create_comp(ice=128, fire=255))
         self.assertEqual(t, s.imbue(t))
         self.assertEqual(t.value(), 128)
-        self.assertEqual(s.value(), 256 + 255)
-        self.assertEqual(s.comp, create_comp(earth=128, ice=128,
-                                                   fire=255))
+        self.assertEqual(s.value(), 128 + 128 + 255)
+        self.assertEqual(s.comp, create_comp(earth=128, ice=128, fire=255))
         self.assertEqual(t.comp, create_comp(fire=128))
 
     def test_imbue_stone_incomplete_comp(self):

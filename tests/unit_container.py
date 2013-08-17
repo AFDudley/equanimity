@@ -2,6 +2,7 @@ from unittest import TestCase
 from equanimity.unit_container import Container, Squad
 from equanimity.units import Scient, Nescient
 from equanimity.const import E, F, I, W, COMP, WEP_LIST
+from base import create_comp
 
 
 class ContainerTest(TestCase):
@@ -9,8 +10,8 @@ class ContainerTest(TestCase):
     def setUp(self):
         super(ContainerTest, self).setUp()
         self.c = Container()
-        self.s = Scient(E, {E: 128, F: 32, I: 32, W: 0})
-        self.nes = Nescient(E, {E: 128, F: 32, I: 0, W: 0})
+        self.s = Scient(E, create_comp(earth=128, fire=32, ice=32))
+        self.nes = Nescient(E, create_comp(earth=128))
 
     def test_unit_size(self):
         self.assertRaises(TypeError, self.c.append, object())

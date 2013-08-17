@@ -12,4 +12,4 @@ class AutoID(Persistent):
         return self.uid
 
     def __str__(self):
-        return u'<AutoID [{0}]>'.format(self.uid)
+        return u'<AutoID {name} [{uid}]>'.format(name=self.name, uid=self.uid)
