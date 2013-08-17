@@ -59,10 +59,21 @@ class AppInitTest(TestCase):
     def test_envvar_config_load(self):
         old = os.environ.get('EQUANIMITY_SERVER_SETTINGS')
         os.environ['EQUANIMITY_SERVER_SETTINGS'] = '../config/test.py'
-        e = None
         try:
             app = create_app()
-        except Exception as e:
+        except Exception:
+            raise
+        finally:
+            if old is not None:
+                os.environ['EQUANIMITY_SERVER_SETTINGS'] = old
+
+    def test_config_dev_default_load(self):
+        old = os.environ.get('EQUANIMITY_SERVER_SETTINGS')
+        if old is not None:
+            del os.environ['EQUANIMITY_SERVER_SETTINGS']
+        try:
+            create_app(config=None)
+        except Exception:
             raise
         finally:
             if old is not None:

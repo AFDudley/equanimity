@@ -17,43 +17,23 @@ class Weapon(Stone):
         self.type = wep_type
         self.element = element
 
+    def get_attack_pattern(self):
+        return [(0, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (-1, 1), (1, 1),
+                (1, -1)]
+
     def map_to_grid(self, origin, grid_size):
         #TODO move to battlefield
         """maps pattern to grid centered on origin.
         Returns list of tiles on grid. (Lots of room for optimization)"""
         orix, oriy = origin
         tiles = []
-        if self.type != 'Wand':
-            if self.type == 'Bow':
-                no_hit = 4  # the scient move value
-                mini = -(2 * no_hit)
-                maxi = -mini + 1
-                dist = range(mini, maxi)
-                attack_pattern = []
-                #???
-                [[attack_pattern.append((x, y)) for y in dist
-                  if (no_hit < (abs(x) + abs(y)) < maxi)] for x in dist]
-            else:
-                attack_pattern = [(0, -1), (1, 0), (0, 1), (-1, 0), (-1, -1),
-                                  (-1, 1), (1, 1), (1, -1)]
-
-            for i in attack_pattern:
-                x, y = (i[0] + origin[0]), (i[1] + origin[1])
-                if 0 <= x < grid_size[0]:
-                    if 0 <= y < grid_size[1]:
-                        tiles.append((x, y))
-            return tiles
-        else:
-            direction = {0: 'West', 1: 'North', 2: 'East', 3: 'South'}
-            maxes = (origin[0], origin[1], (grid_size[0] - 1 - origin[0]),
-                     (grid_size[1] - 1 - origin[1]),)
-            tiles = []
-            for i in direction:
-                for j in self.make_pattern(origin, maxes[i], direction[i]):
-                    if 0 <= j[0] < grid_size[0]:
-                        if 0 <= j[1] < grid_size[1]:
-                            tiles.append(j)
-            return tiles
+        attack_pattern = self.get_attack_pattern()
+        for i in attack_pattern:
+            x, y = (i[0] + origin[0]), (i[1] + origin[1])
+            if 0 <= x < grid_size[0]:
+                if 0 <= y < grid_size[1]:
+                    tiles.append((x, y))
+        return tiles
 
     def make_pattern(self, origin, distance, pointing):
         """generates a pattern based on an origin, distance, and
@@ -101,6 +81,16 @@ class Bow(Weapon):
     def __init__(self, element, comp):
         super(Bow, self).__init__(element, comp, 'Bow')
 
+    def get_attack_pattern(self):
+        no_hit = 4  # the scient move value
+        mini = -(2 * no_hit)
+        maxi = -mini + 1
+        dist = range(mini, maxi)
+        attack_pattern = []
+        [[attack_pattern.append((x, y)) for y in dist
+          if (no_hit < (abs(x) + abs(y)) < maxi)] for x in dist]
+        return attack_pattern
+
 
 class Wand(Weapon):
     """Long range magical weapon"""
@@ -108,6 +98,9 @@ class Wand(Weapon):
 
     def __init__(self, element, comp):
         super(Wand, self).__init__(element, comp, 'Wand')
+
+    def get_attack_pattern(self):
+        raise UserWarning('Wand doesn\'t use an attack pattern')
 
     def make_pattern(self, origin, distance, pointing):
         """generates a pattern based on an origin, distance, and
@@ -138,6 +131,18 @@ class Wand(Weapon):
                     pattern.append((src[0] - (1 + half),
                                    (src[1] - in_range[j])))
         return pattern
+
+    def map_to_grid(self, origin, grid_size):
+        direction = {0: 'West', 1: 'North', 2: 'East', 3: 'South'}
+        maxes = (origin[0], origin[1], (grid_size[0] - 1 - origin[0]),
+                 (grid_size[1] - 1 - origin[1]),)
+        tiles = []
+        for i in direction:
+            for j in self.make_pattern(origin, maxes[i], direction[i]):
+                if 0 <= j[0] < grid_size[0]:
+                    if 0 <= j[1] < grid_size[1]:
+                        tiles.append(j)
+        return tiles
 
 
 class Glove(Weapon):
