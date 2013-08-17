@@ -25,15 +25,7 @@ class Stone(Persistent, Mapping):
             if sorted(self.comp) == sorted(comp):
                 self.comp = dict(comp)
             else:
-                if len(comp) != 4 and len(comp) != 0:
-                    raise ValueError
-                for element in xrange(4):
-                    if type(comp[element]) != int:
-                        raise TypeError
-                    if 0 <= comp[element] <= self.limit[ELEMENTS[element]]:
-                        self.comp[ELEMENTS[element]] = comp[element]
-                    else:
-                        raise AttributeError
+                raise ValueError('Invalid comp: {0}'.format(comp))
 
     def imbue(self, stone):
         """adds the values of stone.comp to self.comp up to self.limit.
@@ -51,8 +43,6 @@ class Stone(Persistent, Mapping):
                 self.comp[s] += r
 
         if stone.value() == 0:
-            # TODO -- im not sure this del does what is expected...
-            del stone
             return
         else:
             return stone
@@ -96,7 +86,7 @@ class Stone(Persistent, Mapping):
             self.comp[key] = value
         else:
             err = "Tried setting {0} beyond its limit of {1}"
-            raise AttributeError(err.format((key, str(self.limit[key]))))
+            raise AttributeError(err.format(key, str(self.limit[key])))
 
     def __len__(self):
         return len(self.comp)
