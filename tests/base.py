@@ -9,6 +9,10 @@ from server import db, create_app
 from tools.init_db import init_db
 
 
+def create_comp(earth=0, wind=0, fire=0, ice=0):
+    return dict(Earth=earth, Wind=wind, Fire=fire, Ice=ice)
+
+
 class FlaskTest(TestCase):
 
     # If xhr is True, requests will add X-Requested-With and return response

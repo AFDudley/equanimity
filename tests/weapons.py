@@ -1,19 +1,14 @@
 from unittest import TestCase
 from equanimity.const import E
 from equanimity.weapons import Sword, Bow, Glove, Wand, Weapon
+from base import create_comp
 
 
-class WeaponTestBase(TestCase):
-
-    def _create_comp(self, earth=0, wind=0, fire=0, ice=0):
-        return dict(Earth=earth, Wind=wind, Fire=fire, Ice=ice)
-
-
-class WeaponTest(WeaponTestBase):
+class WeaponTest(TestCase):
 
     def setUp(self):
         super(WeaponTest, self).setUp()
-        self.w = Weapon(E, self._create_comp(earth=128), 'Gun')
+        self.w = Weapon(E, create_comp(earth=128), 'Gun')
 
     def test_map_to_grid(self):
         origin = (4, 4)
@@ -42,20 +37,20 @@ class WeaponTest(WeaponTestBase):
         self.assertEqual(self.w.get_attack_pattern(), p)
 
 
-class SwordTest(WeaponTestBase):
+class SwordTest(TestCase):
 
     def test_sword(self):
-        comp = self._create_comp(earth=128)
+        comp = create_comp(earth=128)
         s = Sword(E, comp)
         self.assertEqual(s.comp, comp)
         self.assertEqual(s.type, 'Sword')
 
 
-class BowTest(WeaponTestBase):
+class BowTest(TestCase):
 
     def setUp(self):
         super(BowTest, self).setUp()
-        self.comp = self._create_comp(earth=128)
+        self.comp = create_comp(earth=128)
         self.w = Bow(E, self.comp)
 
     def test_bow(self):
@@ -83,21 +78,21 @@ class BowTest(WeaponTestBase):
         self.assertEqual(grid, expected)
 
 
-class GloveTest(WeaponTestBase):
+class GloveTest(TestCase):
 
     def test_glove(self):
-        comp = self._create_comp(earth=128)
+        comp = create_comp(earth=128)
         s = Glove(E, comp)
         self.assertEqual(s.comp, comp)
         self.assertEqual(s.type, 'Glove')
         self.assertEqual(s.time, 3)
 
 
-class WandTest(WeaponTestBase):
+class WandTest(TestCase):
 
     def setUp(self):
         super(WandTest, self).setUp()
-        self.comp = self._create_comp(earth=128)
+        self.comp = create_comp(earth=128)
         self.w = Wand(E, self.comp)
 
     def test_wand(self):

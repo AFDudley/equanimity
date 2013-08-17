@@ -105,7 +105,7 @@ class Scient(Unit):
                     raise ValueError("Scients' orthogonal elements cannot be"
                                      "more than half the primary element's "
                                      "value.")
-            Stone.imbue(self, stone)
+            super(Scient, self).imbue(stone)
         else:
             raise Exception("Primary element of stone must match that of "
                             "scient")
@@ -201,7 +201,7 @@ class Nescient(Unit):
             self.body = new_body
 
     def calcstats(self):
-        Unit.calcstats(self)
+        super(Nescient, self).calcstats()
         self.atk = (2 * (self.comp[F] + self.comp[I]) + self.comp[E] +
                     self.comp[W]) + (4 * self.value())
         self.hp = self.hp * 4  # This is an open question.
