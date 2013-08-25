@@ -171,9 +171,7 @@ class Battlefield(object):
         # instead of [x][y] indexing
         """places new_body on grid, place body in nescient."""
         if not self.can_move_nescient(new_body, nescient):
-            print str(nescient)
-            msg = 'Not enough space to move {0}'.format(nescient)
-            raise ValueError(msg)
+            raise ValueError('Not enough space to move {0}'.format(nescient))
         for part in new_body.itervalues():
             x, y = part.location
             self.grid[x][y].contents = part
