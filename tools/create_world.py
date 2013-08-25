@@ -2,32 +2,41 @@
 
 from common import hack_syspath
 hack_syspath(__file__)
+import argparse
+import transaction
 
 """creates the World object and populates it with fields. VERY DESTRUCTIVE."""
 from equanimity.const import WEP_LIST
-from equanimity.stone import Stone, Component
+from equanimity.stone import Stone
 from equanimity.player import Player
 from equanimity.world import World
-from server import db, create_app
+from server import create_app
 
 
-def create_world():
+def create_world(force=False):
+    if force:
+        World.erase()
     w = World()
     w.create()
 
-    p = Player('dfndr', 'dfndr@test.com', 'dfndr')
-    p.persist()
-    q = Player('atkr', 'atkr@test.com', 'atkr')
-    q.persist()
+    p = Player.get_by_username('dfndr')
+    if p is None:
+        p = Player('dfndr', 'dfndr@test.com', 'dfndr')
+        p.persist()
+    q = Player.get_by_username('atkr')
+    if q is None:
+        q = Player('atkr', 'atkr@test.com', 'atkr')
+        q.persist()
+    transaction.commit()
 
-    w.award_field(w.player, '(0, 0)', p)
-    w.award_field(w.player, '(0, 1)', q)
+    w.award_field(w.player, (0, 0), p)
+    w.award_field(w.player, (0, 1), q)
 
     # fields are automatically populated with Ice mins.
     # below we create attacking Fire mins.
     # get fields
-    df = p.fields['(0, 0)']
-    af = q.fields['(0, 1)']
+    df = p.fields[(0, 0)]
+    af = q.fields[(0, 1)]
     # get stronghold.
     afs = af.stronghold
 
@@ -63,6 +72,14 @@ def create_world():
     w.move_squad(af, -1, df)
 
 
+def get_args():
+    p = argparse.ArgumentParser()
+    p.add_argument('--force', action='store_true',
+                   help='Force create a new world')
+    return p.parse_args()
+
+
 if __name__ == '__main__':
+    args = get_args()
     with create_app().test_request_context():
-        create_world()
+        create_world(force=args.force)

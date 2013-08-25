@@ -6,7 +6,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from collections import Mapping
 from persistent import Persistent
-from const import ELEMENTS, E, F, I, W
+from const import ELEMENTS
 
 
 class Component(dict):

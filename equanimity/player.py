@@ -4,6 +4,7 @@ player.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
+import transaction
 from persistent.mapping import PersistentMapping
 from persistent import Persistent
 from datetime import datetime
@@ -32,6 +33,9 @@ class Player(Persistent, UserMixin):
         self.created_at = datetime.utcnow()
         self.last_login = self.created_at
         self.login_count = 0
+        self.reset_world_state(squads=squads)
+
+    def reset_world_state(self, squads=None):
         self.squads = squads
         self.fields = PersistentMapping()
         self.cookie = None
@@ -55,10 +59,12 @@ class Player(Persistent, UserMixin):
         db['player'][self.uid] = self
         db['player_username'][self.username] = self
         db['player_email'][self.email] = self
+        transaction.commit()
 
     def login(self):
         self.last_login = datetime.utcnow()
         self.login_count += 1
+        transaction.commit()
 
     def is_world(self):
         return False
@@ -96,6 +102,9 @@ class Player(Persistent, UserMixin):
 
     def get_id(self):
         return unicode(self.uid)
+
+    def __repr__(self):
+        return '<{0}: {1}>'.format(self.__class__.__name__, self.uid)
 
 
 class WorldPlayer(Player):

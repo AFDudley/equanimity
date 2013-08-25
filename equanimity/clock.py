@@ -35,7 +35,7 @@ class Clock():
         return named_nums.get(num)
 
     def update(self):
-        since_dob = (now() - self.DOB).total_seconds()
+        since_dob = (now() - self.dob).total_seconds()
         dur = self.duration
         uot_num = {}
         uot_name = {}
@@ -48,8 +48,8 @@ class Clock():
 
     def __init__(self, addr=('localhost', 9100)):
         world = Zeo(addr)
-        self.DOB = copy.deepcopy(world.root['DOB'])
-        self.duration = {'day': copy.deepcopy(world.root['dayLength'])}
+        self.dob = copy.deepcopy(world.root['dob'])
+        self.duration = {'day': copy.deepcopy(world.root['day_length'])}
         self.duration['week'] = self.duration['day'] * 6
         self.duration['month'] = self.duration['week'] * 5
         self.duration['season'] = self.duration['month'] * 3
@@ -64,10 +64,10 @@ class Clock():
         world.db.close()
 
     def since_dob(self, uot=None):
-        """Returns total seconds since DOB in game Units of Time.
+        """Returns total seconds since dob in game Units of Time.
         or seconds."""
         if uot is None:
-            return (now() - self.DOB).total_seconds()
+            return (now() - self.dob).total_seconds()
         else:
             self.update()
             return self.uot_num[uot]
