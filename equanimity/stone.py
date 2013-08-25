@@ -6,10 +6,11 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from collections import Mapping
 from persistent import Persistent
-from const import ELEMENTS
+from const import ELEMENTS, ORTH, OPP
 
 
 class Component(dict):
+
     def __init__(self, value=None):
         """ All elements are set to value """
         _value = value
@@ -20,6 +21,12 @@ class Component(dict):
             self[e] = value
         if _value is not None:
             self._sanity_check()
+
+    def orth(self, element):
+        return [self[k] for k in ORTH[element]]
+
+    def opp(self, element):
+        return self[OPP[element]]
 
     @classmethod
     def create(cls, *args, **kwargs):
@@ -56,6 +63,8 @@ class Component(dict):
     def from_sequence(cls, tup):
         """ Create given an iterable """
         c = cls()
+        if len(tup) != len(ELEMENTS):
+            raise ValueError('Missing or excessive elements: {0}'.format(tup))
         for e, v in zip(ELEMENTS, tup):
             c[e] = v
         c._sanity_check()
@@ -65,6 +74,8 @@ class Component(dict):
     def from_dict(cls, d):
         """ Create given a dict. The keys of the dict should match those in
         const.ELEMENTS """
+        if sorted(d.keys()) != sorted(ELEMENTS):
+            raise ValueError('Invalid dict: {0}'.format(d))
         c = cls()
         c.update(d)
         c._sanity_check()
@@ -74,6 +85,10 @@ class Component(dict):
         for e in ELEMENTS:
             if self[e] < 0 or self[e] > 255:
                 raise ValueError('Element {0} is {1}'.format(e, self[e]))
+
+    def __repr__(self):
+        s = ['{0}: {1}'.format(e, self[e]) for e in ELEMENTS]
+        return ', '.join(s)
 
 
 class Stone(Persistent, Mapping):
@@ -123,6 +138,12 @@ class Stone(Persistent, Mapping):
                     s[e] = comp[e]
         return s
 
+    def orth(self, element):
+        return self.comp.orth(element)
+
+    def opp(self, element):
+        return self.comp.opp(element)
+
     def tup(self):
         tup = ()
         for key in sorted(self.comp):
@@ -133,7 +154,7 @@ class Stone(Persistent, Mapping):
         return sum(self.comp.values())
 
     def __repr__(self):
-        return '<Stone {comp}>'.format(comp=self.comp)
+        return '<Stone: {comp}>'.format(comp=self.comp)
 
     def __iter__(self):
         return iter(self.comp)

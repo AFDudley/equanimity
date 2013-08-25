@@ -144,12 +144,12 @@ class Nescient(Unit):
         if body is None:
             body = {'head':  None, 'left': None, 'right': None, 'tail': None}
         comp = Stone(comp)
-        for orth in ORTH[element]:
-            if comp[orth] != 0:
-                if comp[OPP[orth]] != 0:
-                    raise ValueError("Nescients' cannot have values greater "
-                                     "than zero for both orthogonal elements.")
-            elif comp[orth] > comp[element]:
+        orth = comp.orth(element)
+        if all(orth):
+            raise ValueError("Nescients' cannot have values greater than zero "
+                             "for both orthogonal elements.")
+        for o in orth:
+            if o > comp[element]:
                 raise ValueError("Nescients' orthogonal value cannot exceed "
                                  "the primary element value.")
 

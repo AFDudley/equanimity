@@ -168,6 +168,14 @@ class NescientTest(TestCase):
             else:
                 self.assertTrue(False)
 
+    def test_create_bad(self):
+        # both orthogonals > 0
+        self.assertRaises(ValueError, Nescient, E,
+                          create_comp(earth=100, fire=50, ice=50))
+        # orthogonals exceeding primary element
+        self.assertRaises(ValueError, Nescient, E,
+                          create_comp(earth=100, fire=150))
+
     def test_take_body(self):
         nes = Nescient(I, create_comp(ice=128))
         body = nes.body

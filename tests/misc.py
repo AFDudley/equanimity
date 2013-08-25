@@ -60,7 +60,7 @@ class AppInitTest(TestCase):
         old = os.environ.get('EQUANIMITY_SERVER_SETTINGS')
         os.environ['EQUANIMITY_SERVER_SETTINGS'] = '../config/test.py'
         try:
-            app = create_app()
+            create_app()
         except Exception:
             raise
         finally:

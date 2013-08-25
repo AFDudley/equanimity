@@ -29,7 +29,7 @@ class Test(Command):
         # Disable the flake8 tests in pypy due to bug in pep8 module
         self.nose_only = pypy
         #self.with_integration = False
-        self.flake8 = 'flake8 server/ equanimity/'
+        self.flake8 = 'flake8 server/ equanimity/ tests/ setup.py'
 
     def finalize_options(self):
         pass
