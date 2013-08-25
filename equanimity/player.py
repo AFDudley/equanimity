@@ -9,6 +9,7 @@ from persistent import Persistent
 from datetime import datetime
 from flask.ext.login import UserMixin
 from flask import current_app
+from const import WORLD_UID
 from server import bcrypt, db
 
 
@@ -25,11 +26,14 @@ class Player(Persistent, UserMixin):
         self.set_username(username)
         self.set_email(email)
         self.set_password(password)
+        self._set_defaults(squads=squads)
+
+    def _set_defaults(self, squads=None):
         self.created_at = datetime.utcnow()
         self.last_login = self.created_at
         self.login_count = 0
         self.squads = squads
-        self.Fields = PersistentMapping()
+        self.fields = PersistentMapping()
         self.cookie = None
         self.roads = None
         self.treaties = None
@@ -55,6 +59,9 @@ class Player(Persistent, UserMixin):
     def login(self):
         self.last_login = datetime.utcnow()
         self.login_count += 1
+
+    def is_world(self):
+        return False
 
     @classmethod
     def email_available(cls, email):
@@ -89,3 +96,20 @@ class Player(Persistent, UserMixin):
 
     def get_id(self):
         return unicode(self.uid)
+
+
+class WorldPlayer(Player):
+
+    def __init__(self):
+        Persistent.__init__(self)
+        self.uid = WORLD_UID
+        self.set_username('World')
+        self.email = ''
+        self.password = ''
+        self._set_defaults()
+
+    def persist(self):
+        db['player'][self.uid] = self
+
+    def is_world(self):
+        return True

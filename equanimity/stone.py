@@ -6,25 +6,88 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from collections import Mapping
 from persistent import Persistent
-from const import ELEMENTS
+from const import ELEMENTS, E, F, I, W
+
+
+class Component(dict):
+    def __init__(self, value=None):
+        """ All elements are set to value """
+        _value = value
+        if value is None:
+            value = -1
+        super(Component, self).__init__()
+        for e in ELEMENTS:
+            self[e] = value
+        if _value is not None:
+            self._sanity_check()
+
+    @classmethod
+    def create(cls, *args, **kwargs):
+        """ A meta-create function that allows initialization of a
+        Component in multiple ways
+
+        e.g.
+        Component({'Earth': 0, 'Wind': 100, 'Fire': 70, 'Ice': 0})
+        Component((0, 100, 70, 0))
+        Component(earth=0, wind=100, fire=70, ice=0)
+
+        """
+        if len(args) == 4:
+            return cls.from_sequence(args)
+        elif len(args) == 1:
+            val = args[0]
+            if isinstance(val, Mapping):
+                return cls.from_dict(val)
+            else:
+                return cls.from_sequence(val)
+        else:
+            return cls.from_keys(**kwargs)
+
+    @classmethod
+    def from_keys(cls, earth=0, fire=0, ice=0, wind=0):
+        """ Create using keyword arguments """
+        c = cls()
+        for e, v in zip(ELEMENTS, [earth, fire, ice, wind]):
+            c[e] = v
+        c._sanity_check()
+        return c
+
+    @classmethod
+    def from_sequence(cls, tup):
+        """ Create given an iterable """
+        c = cls()
+        for e, v in zip(ELEMENTS, tup):
+            c[e] = v
+        c._sanity_check()
+        return c
+
+    @classmethod
+    def from_dict(cls, d):
+        """ Create given a dict. The keys of the dict should match those in
+        const.ELEMENTS """
+        c = cls()
+        c.update(d)
+        c._sanity_check()
+        return c
+
+    def _sanity_check(self):
+        for e in ELEMENTS:
+            if self[e] < 0 or self[e] > 255:
+                raise ValueError('Element {0} is {1}'.format(e, self[e]))
 
 
 class Stone(Persistent, Mapping):
     # Limit should be overwritten by classes that inherit from Stone.
     def __init__(self, comp=None):
         Persistent.__init__(self)
-        self.comp = {'Earth': 0, 'Fire': 0, 'Ice': 0, 'Wind': 0}
-        self.limit = {'Earth': 255, 'Fire': 255, 'Ice': 255, 'Wind': 255}
-        if isinstance(comp, Stone):
-            self.comp = comp.comp
         if comp is None:
-            comp = self.comp
+            comp = Component(0)
+        elif isinstance(comp, Stone):
+            comp = comp.comp
         else:
-            iter(comp)
-            if sorted(self.comp) == sorted(comp):
-                self.comp = dict(comp)
-            else:
-                raise ValueError('Invalid comp: {0}'.format(comp))
+            comp = Component.create(comp)
+        self.comp = comp
+        self.limit = Component(255)
 
     def imbue(self, stone):
         """adds the values of stone.comp to self.comp up to self.limit.
@@ -41,9 +104,7 @@ class Stone(Persistent, Mapping):
                 stone[s] -= r
                 self.comp[s] += r
 
-        if stone.value() == 0:
-            return
-        else:
+        if stone.value():
             return stone
 
     def split(self, comp):

@@ -96,7 +96,7 @@ class Silo(Stone):
                 """s = self.transmute(comp)
                 return s"""
 
-    def imbue_list(self, loS):
+    def imbue_list(self, los):
         """surplus is destroyed."""
-        for stone in loS:
+        for stone in los:
             self.imbue(stone)

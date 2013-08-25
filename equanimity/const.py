@@ -33,3 +33,5 @@ EQUIP_LIMIT = {'Sword': 1, 'Bow': 1, 'Wand': 1, 'Glove': 1}
 KINDS = ('Stone', 'Weapon', 'Nescient', 'Scient')
 SEX = ('female', 'male')
 OPPSEX = {'female': 'male', 'male': 'female'}
+
+WORLD_UID = 0
