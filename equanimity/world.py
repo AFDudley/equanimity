@@ -6,26 +6,25 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from datetime import datetime
 
-from ZEO import ClientStorage
-from ZODB import DB
 import transaction
 import persistent
 #ZODB needs to log stuff
 import logging
 logging.basicConfig()
 
-from stone import Stone
 from field import Field
 from zeo import Zeo
 from player import Player
 
-class World(Zeo): #this object needs to be refactored.
+
+class World(Zeo):  # this object needs to be refactored.
     def __init__(self, addr=('localhost', 9100)):
-        Zeo.__init__(self, addr)
-    
+        super(World, self).__init__(addr)
+
     def make_Fields(self, range_x, range_y):
         """creates all Fields used in a game."""
-        #right now the World and the Fields are square, they should both be hexagons.
+        # right now the World and the Fields are square,
+        # they should both be hexagons.
         wf0 = self.root['Players']['World'].Fields
         wf1 = self.root['Fields']
         for coord_x in xrange(range_x):
@@ -35,37 +34,37 @@ class World(Zeo): #this object needs to be refactored.
                 wf0[str(world_coord)] = f
                 wf1[str(world_coord)] = f
                 transaction.commit()
-        return 
-        
+        return
+
     def setup(self, version, x, y):
-        self.root['dayLength'] = 240 #length of game day in seconds.
-        self.root['resigntime'] = 21600#amount of time in seconds before attacker is forced to resign.
-        self.root['maxduration'] = 5040 #in gametime days (5040 is one generation, two weeks real-time)
+        self.root['dayLength'] = 240  # length of game day in seconds.
+        self.root['resigntime'] = 21600  # amount of time in seconds before
+                                         # attacker is forced to resign.
+        self.root['maxduration'] = 5040  # in gametime days (5040 is one
+                                         # generation, two weeks real-time)
         self.root['version'] = version
         self.root['x'] = x
         self.root['y'] = y
         self.root['DOB'] = datetime.utcnow()
         #Fields should be a frozendict
         #http://stackoverflow.com/questions/2703599/what-would-be-a-frozen-dict
-        self.root['Fields']  = persistent.mapping.PersistentMapping()
+        self.root['Fields'] = persistent.mapping.PersistentMapping()
         self.root['Players'] = persistent.mapping.PersistentMapping()
         self.player = Player('World', None)
         self.root['Players']['World'] = self.player
         return transaction.commit()
-        
+
     def create(self, version=0.0, x=2, y=2):
         #there should be a more elegant way of doing this.
-        try: #If the world version is the same, do nothing.
+        try:  # If the world version is the same, do nothing.
             if self.root['version'] == version:
-                return Exception("The ZODB already contains a world of that version.")
-            else:
-                pass
+                msg = "The ZODB already contains a world of that version."
+                return Exception(msg)
         except:
             pass
         self.setup(version, x, y)
         self.make_Fields(self.root['x'], self.root['y'])
-        return
-        
+
     def add_player(self, player):
         if not(player.username in self.root.keys()):
             self.root['Players'][player.username] = player
@@ -73,8 +72,8 @@ class World(Zeo): #this object needs to be refactored.
             return transaction.commit()
         else:
             raise Exception("A player with that name is already registered, "
-                             "use another name.")
-    
+                            "use another name.")
+
     def delete_player(self, player):
         """removes a player from the database and returns their fields to
         the world."""
@@ -82,20 +81,23 @@ class World(Zeo): #this object needs to be refactored.
             self.award_field(player, field, 'World')
         del self.root['Players'][player]
         return transaction.commit()
-    
-    def set_password(self, player, new_hash): pass
-    def set_email(self, player, email): pass
-    
-    def award_field(self, old_owner, Field_coords, new_owner):
+
+    def set_password(self, player, new_hash):
+        pass
+
+    def set_email(self, player, email):
+        pass
+
+    def award_field(self, old_owner, field_coords, new_owner):
         """Transfers a field from one owner to another."""
         #is this atomic?
-        self.root['Players'][new_owner].Fields[str(Field_coords)] = \
-        self.root['Players'][old_owner].Fields[str(Field_coords)]
-        del self.root['Players'][old_owner].Fields[str(Field_coords)]
-        self.root['Players'][new_owner].Fields[str(Field_coords)].owner =\
-        new_owner
+        p = self.roots['Players']
+        c = str(field_coords)
+        p[new_owner].Fields[c] = p[old_owner].Fields[c]
+        del p[old_owner].Fields[c]
+        p[new_owner].Fields[c].owner = new_owner
         return transaction.commit()
-    
+
     def move_squad(self, src, squad_num, dest):
         """Moves a squad from a stronghold to a queue."""
         #src and dest are both Fields
@@ -104,6 +106,6 @@ class World(Zeo): #this object needs to be refactored.
         dest.attackerqueue.append((src.owner, squad))
         src.stronghold.remove_squad(squad_num)
         return transaction.commit()
-    
+
     def process_action(self, action):
         pass
