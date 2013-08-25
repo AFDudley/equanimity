@@ -49,9 +49,9 @@ class World(object):
     def _setup(self, version, x, y):
         db['day_length'] = 240     # length of game day in seconds.
         db['resign_time'] = 21600  # amount of time in seconds before
-                                  # attacker is forced to resign.
+                                   # attacker is forced to resign.
         db['max_duration'] = 5040  # in gametime days (5040 is one
-                                  # generation, two weeks real-time)
+                                   # generation, two weeks real-time)
         db['version'] = version
         db['x'] = x
         db['y'] = y

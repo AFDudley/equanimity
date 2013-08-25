@@ -119,6 +119,7 @@ class WorldPlayer(Player):
 
     def persist(self):
         db['player'][self.uid] = self
+        transaction.commit()
 
     def is_world(self):
         return True
