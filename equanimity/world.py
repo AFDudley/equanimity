@@ -35,7 +35,7 @@ class World(object):
         for key in keys:
             if key in db:
                 del db[key]
-        for player in db.get('player', []):
+        for player in db.get('player', {}).itervalues():
             player.reset_world_state()
         transaction.commit()
 
