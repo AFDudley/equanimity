@@ -15,9 +15,8 @@ source venv/bin/activate
 
 ## Running the tests
 source venv/bin/activate
-./setup.py test --nose-only
+./setup.py test [--nose-only] [--run-failed]
 
 Coverage statements should print to the terminal when running the tests.
 --nose-only indicates to run only the nose test runner, and not the pep8 and pyflakes checkers
-The pep8 and pyflakes checkers ("flake8") will be run in the future, but the existing equanimity code
-is not ready for it yet.
+--run-failed passes this option to nose, which will only re-run failed tests
