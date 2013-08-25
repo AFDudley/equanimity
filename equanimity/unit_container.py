@@ -67,6 +67,7 @@ class Container(UserList):
         self.data.__delitem__(key)
         self.val -= temp
 
+
 class Squad(Container):
     """contains a number of Units. Takes a list of Units"""
     def __init__(self, data=None, name=None, kind=None, element=None):
