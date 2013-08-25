@@ -4,10 +4,9 @@ units.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-from stone import Stone
-from const import ELEMENTS, E, F, I, W, ORTH, OPP
 from datetime import datetime
-#from weapons import Sword, Bow, Wand, Glove
+from stone import Stone, Component
+from const import ELEMENTS, E, F, I, W, ORTH, OPP
 
 
 class Unit(Stone):
@@ -27,7 +26,7 @@ class Unit(Stone):
         now = datetime.utcnow()
         self.element = element
         if name is None:
-            self.name = self.__hash__()
+            name = str(hash(self))
         self.name = name
         self.location = location
         self.container = None
@@ -73,8 +72,9 @@ class Scient(Unit):
 
     def __init__(self, element, comp, name=None, weapon=None,
                  weapon_bonus=None, location=None, sex='female'):
-        for orth in ORTH[element]:
-            if comp[orth] > comp[element] / 2:
+        comp = Component.create(comp)
+        for o in comp.orth(element):
+            if o > comp[element] / 2:
                 raise ValueError("Scients' orthogonal elements cannot be "
                                  "more than half the primary element's "
                                  "value.")
@@ -118,21 +118,6 @@ class Scient(Unit):
         weapon = self.weapon
         self.weapon = None
         return weapon
-
-
-class Part(object):
-
-    def __init__(self, nescient, location=None):
-        self.nescient = nescient
-        self.location = location
-
-    @property
-    def hp(self):
-        return self.nescient.hp
-
-    @hp.setter
-    def hp(self, hp):
-        self.nescient.hp = hp
 
 
 class Nescient(Unit):
@@ -205,3 +190,22 @@ class Nescient(Unit):
         self.atk = (2 * (self.comp[F] + self.comp[I]) + self.comp[E] +
                     self.comp[W]) + (4 * self.value())
         self.hp = self.hp * 4  # This is an open question.
+
+
+class Part(object):
+
+    def __init__(self, nescient, location=None):
+        self.nescient = nescient
+        self.location = location
+
+    @property
+    def hp(self):
+        return self.nescient.hp
+
+    @hp.setter
+    def hp(self, hp):
+        self.nescient.hp = hp
+
+    def __repr__(self):
+        s = '<{0}: {1} [{2}]>'
+        return s.format(self.__class__.__name__, self.location, self.nescient)

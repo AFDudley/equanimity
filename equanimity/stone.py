@@ -43,7 +43,9 @@ class Component(dict):
             return cls.from_sequence(args)
         elif len(args) == 1:
             val = args[0]
-            if isinstance(val, Mapping):
+            if isinstance(val, cls):
+                return val
+            elif isinstance(val, Mapping):
                 return cls.from_dict(val)
             else:
                 return cls.from_sequence(val)

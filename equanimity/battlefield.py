@@ -54,16 +54,12 @@ class Battlefield(object):
         return tuple(units)
 
     def on_grid(self, tile):
+        # TODO (steve) -- HEX TILE WORK
         """returns True if tile is on grid"""
-        if 0 <= tile[0] < self.grid.x:
-            if 0 <= tile[1] < self.grid.y:
-                return True
-            else:
-                return False
-        else:
-            return False
+        return self.grid.in_bounds(tile)
 
     def get_adjacent(self, tile, direction="All"):
+        # TODO (steve) -- HEX TILE WORK
         """returns a set of hextiles adjacent to the tile provided,
         if they are in fact on the grid."""
         direction = direction
@@ -98,17 +94,18 @@ class Battlefield(object):
 
     def make_parts(self, part_locs):
         new_body = {}
-        for part in part_locs:
-            new_body[part] = Part(None, part_locs[part])
+        for name, part in part_locs.iteritems():
+            new_body[name] = Part(None, part)
         return new_body
 
     def make_body(self, right, direction):
+        # TODO (steve) -- HEX TILE WORK
         """makes a nescient body facing direction from right loc"""
+        rx, ry = right
 
         def make_dir(head, left, tail):
-            return dict(head=head, left=left, tail=tail)
+            return dict(head=head, left=left, tail=tail, right=(rx, ry))
 
-        rx, ry = right
         if ry & 1:
             facing = {
                 'North': make_dir((rx, ry - 1), (rx - 1, ry), (rx, ry + 1)),
@@ -137,46 +134,49 @@ class Battlefield(object):
                 'Northwest': make_dir((rx - 1, ry), (rx - 1, ry + 1),
                                       (rx, ry + 1))
             }
-
-        part_locs = facing[direction]
-        part_locs.update({'right': (rx, ry)})
-        return self.make_parts(part_locs)
+        return self.make_parts(facing[direction])
 
     def body_on_grid(self, body):
         """checks if a body is on_grid"""
-        for part in body.iteritems():
+        for part in body.itervalues():
             if self.on_grid(part.location):
                 return True
         return False
 
+    def body_within_grid(self, body):
+        for part in body.itervalues():
+            if not self.on_grid(part.location):
+                return False
+        return True
+
     def can_move_nescient(self, body, nescient):
+        # TODO (steve) -- HEX TILE WORK. Grid() should have getters
+        # instead of [x][y] indexing
         """checks if nescient can move to body."""
-        nes = nescient
-        for part in body:
-            xdestp, ydestp = body[part].location
-            if (self.grid[xdestp][ydestp].contents is not None and
-                self.grid[xdestp][ydestp].contents not in nes.body.values() and
-                    not isinstance(self.grid[xdestp][ydestp].contents, Stone)):
+        if not self.body_within_grid(body):
+            return False
+        print body
+        for part in body.itervalues():
+            x, y = part.location
+            empty = (self.grid[x][y].contents is None)
+            in_self = (self.grid[x][y].contents in nescient.body.itervalues())
+            ctype = getattr(self.grid[x][y].contents, '__class__', None)
+            is_stone = (ctype == Stone)
+            if not empty and not in_self and not is_stone:
                 return False
         return True
 
     def move_nescient(self, new_body, nescient):
+        # TODO (steve) -- HEX TILE WORK. Grid() should have getters
+        # instead of [x][y] indexing
         """places new_body on grid, place body in nescient."""
-        new_body = new_body
-        for part in new_body:
-            xdestp, ydestp = new_body[part].location
-            if self.grid[xdestp][ydestp].contents is not None:
-                vals = nescient.body.values()
-                if self.grid[xdestp][ydestp].contents not in vals:
-                    if not isinstance(self.grid[xdestp][ydestp].contents,
-                                      Stone):
-                        raise Exception("Not enough space to move Nescient.")
-                    else:
-                        self.grid[xdestp][ydestp].contents = new_body[part]
-                else:
-                    pass
-            else:
-                self.grid[xdestp][ydestp].contents = new_body[part]
+        if not self.can_move_nescient(new_body, nescient):
+            print str(nescient)
+            msg = 'Not enough space to move {0}'.format(nescient)
+            raise ValueError(msg)
+        for part in new_body.itervalues():
+            x, y = part.location
+            self.grid[x][y].contents = part
         nescient.take_body(new_body)
         nescient.location = nescient.body['right'].location
         return True
@@ -186,16 +186,14 @@ class Battlefield(object):
         facing = nescient.facing
         if facing is None:
             facing = 'North'
-        xdest, ydest = dest = dest
+        xdest, ydest = dest
         if self.on_grid(dest):  # is dest on grid?
             new_body = self.make_body(dest, facing)
-            if self.body_on_grid(new_body):
-                nescient.facing = facing  # ick.
-                return self.move_nescient(new_body, nescient)
-            else:
-                raise Exception("A body part is not on grid.")
+            self.move_nescient(new_body, nescient)
+            nescient.facing = facing
+            return True
         else:
-            raise Exception("Destination {0} is not on grid".format(dest))
+            raise ValueError("Destination {0} is not on grid".format(dest))
 
     def get_rotations(self, nescient):
         """returns list of directions nescient can rotate."""
@@ -217,9 +215,9 @@ class Battlefield(object):
                 nescient.facing = direction
                 return True
             else:
-                raise Exception("Move Failed.")
+                raise ValueError("Move Failed.")
         else:
-            raise Exception('nescient cannot rotate to that direction')
+            raise ValueError('nescient cannot rotate to that direction')
 
     def make_triangle(self, location, distance, pointing):
         """generates an equilateral triangle pattern with 'location' at one
@@ -275,7 +273,7 @@ class Battlefield(object):
             if self.on_grid(dest):
                 xpos, ypos = dest
             else:
-                raise Exception("Tile {0} is off grid".format(dest))
+                raise ValueError("Tile {0} is off grid".format(dest))
         except TypeError:
             pass
 
@@ -289,11 +287,11 @@ class Battlefield(object):
 
                 elif obj.location == Loc(xpos, ypos):
                     msg = "This unit is already on ({0},{1})"
-                    raise Exception(msg.format(xpos, ypos))
+                    raise ValueError(msg.format(xpos, ypos))
 
                 elif self.grid[xpos][ypos].contents is not None:
                     msg = "({0}, {1}) is not empty"
-                    raise Exception(msg.format(xpos, ypos))
+                    raise ValueError(msg.format(xpos, ypos))
             else:
                 return self.move_scient(obj.location, dest)
 
@@ -309,12 +307,12 @@ class Battlefield(object):
         if self.on_grid(src):
             xsrc, ysrc = src
         else:
-            raise Exception("Source {0} is off grid".format(src))
+            raise ValueError("Source {0} is off grid".format(src))
 
         if self.on_grid(dest):
             xdest, ydest = dest
         else:
-            raise Exception("Destination {0} is off grid".format(dest))
+            raise ValueError("Destination {0} is off grid".format(dest))
 
         if self.grid[xsrc][ysrc].contents:
             if not self.grid[xdest][ydest].contents:
@@ -328,19 +326,19 @@ class Battlefield(object):
                     return True
                 else:
                     msg = "Tried moving more than {0} tiles"
-                    raise Exception(msg.format(move))
+                    raise ValueError(msg.format(move))
             else:
                 msg = "There is already something at {0}"
-                raise Exception(msg.format(dest))
+                raise ValueError(msg.format(dest))
         else:
-            raise Exception("There is nothing at {0}".format(src))
+            raise ValueError("There is nothing at {0}".format(src))
 
     def place_scient(self, unit, tile):
         """Places unit at tile, if already on grid, move_scient is called"""
         if self.on_grid(tile):
             xpos, ypos = tile
         else:
-            raise Exception("Tile {0} is off grid".format(tile))
+            raise ValueError("Tile {0} is off grid".format(tile))
 
         if unit.location == noloc:
             if self.grid[xpos][ypos].contents is None:
@@ -351,10 +349,10 @@ class Battlefield(object):
 
             elif unit.location == Loc(xpos, ypos):
                 msg = "This unit is already on ({0},{1})"
-                raise Exception(msg.format(xpos, ypos))
+                raise ValueError(msg.format(xpos, ypos))
 
             elif self.grid[xpos][ypos].contents is not None:
-                raise Exception("({0}, {1}) is not empty".format(xpos, ypos))
+                raise ValueError("({0}, {1}) is not empty".format(xpos, ypos))
         else:
             return self.move_scient(unit.location, tile)
 
@@ -378,7 +376,7 @@ class Battlefield(object):
             return (random.randint(0, ((self.grid.x - 1) - inset)),
                     random.randint(0, ((self.grid.y - 1) - inset)))
         if len(self.find_units()) == (self.grid.x * self.grid.y):
-            raise Exception("Grid is full")
+            raise ValueError("Grid is full")
         else:
             while unit.location == noloc:
                 try:
@@ -438,7 +436,7 @@ class Battlefield(object):
                 else:
                     return damage
         else:
-            raise Exception("Defender is off grid")
+            raise ValueError("Defender is off grid")
 
     def make_distances(self, src, dest, direction='all'):
         ax, ay = src
@@ -520,7 +518,7 @@ class Battlefield(object):
         in_range = self.map_to_grid(aloc, weapon)
         if not(dloc in in_range):
             msg = "Defender's location: {0} is outside of attacker's range"
-            raise Exception(msg.format(dloc))
+            raise ValueError(msg.format(dloc))
         else:
             # calculate how many units will be damaged.
             if weapon.type in self.AOE:
@@ -564,7 +562,7 @@ class Battlefield(object):
                 return "Dead."
                 #return target.hp
             except:
-                raise Exception("STOP BEING GREEDY.")
+                raise ValueError("STOP BEING GREEDY.")
         else:
             target.hp -= damage
             return damage

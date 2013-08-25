@@ -61,15 +61,23 @@ class ComponentTest(TestCase):
                                                             'Ice': 100})
 
     def test_create_wrapper(self):
+        # Create with tuple
         c = Component.create((4, 4, 4, 4))
         self.assertValidComponent(c, 4)
+        # Create with list
         c = Component.create([4, 4, 4, 4])
         self.assertValidComponent(c, 4)
+        # Create with keyword args
         c = Component.create(earth=4, ice=4, fire=4, wind=4)
         self.assertValidComponent(c, 4)
+        # Create with dict
         c = Component.create(dict(Earth=4, Ice=4, Wind=4, Fire=4))
         self.assertValidComponent(c, 4)
+        # Create from positional args
         c = Component.create(4, 4, 4, 4)
+        self.assertValidComponent(c, 4)
+        # Create from existing Component (idempotent)
+        c = Component.create(c)
         self.assertValidComponent(c, 4)
 
 

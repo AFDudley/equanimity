@@ -23,7 +23,7 @@ class Tile(Stone):
     """Tiles contain units or stones and are used to make battlefields."""
     #TODO consider removing contents.
     def __init__(self, comp=Stone(), contents=None):
-        Stone.__init__(self, comp)
+        super(Tile, self).__init__(comp)
         self.contents = contents
 
 
@@ -32,16 +32,6 @@ class Grid(Stone):
     #NOTE: The comp that is provided during init is NOT the comp that is set
     # after init. The world should be the only thing creating Grids, so this
     # is less of an issue. A fix would be nice. TODO
-
-    def calc_comp(self):
-        """Calculates the comp based on ACTUAL tile values."""
-        temp_comp = Stone().comp
-        for x in xrange(self.x):
-            for y in xrange(self.y):
-                for suit, value in self.tiles[x][y].iteritems():
-                    temp_comp[suit] += value
-        for suit in temp_comp.keys():
-            self.comp[suit] = temp_comp[suit] / (self.x * self.y)
 
     def __init__(self, comp=Stone(), x=16, y=16, tiles=None):
         Stone.__init__(self, comp)
@@ -137,13 +127,26 @@ class Grid(Stone):
             # Determine the actual comp NEEDS REAL SOLUTION TODO
             self.calc_comp()
 
+    def calc_comp(self):
+        """Calculates the comp based on ACTUAL tile values."""
+        temp_comp = Stone().comp
+        for x in xrange(self.x):
+            for y in xrange(self.y):
+                for suit, value in self.tiles[x][y].iteritems():
+                    temp_comp[suit] += value
+        for suit in temp_comp.keys():
+            self.comp[suit] = temp_comp[suit] / (self.x * self.y)
+
     def imbue(self, stone):
         raise Exception("Cannot imbue Grid, use imbue_tile instead.")
 
-    def imbue_tile(self, tileLoc, stone):
+    def imbue_tile(self, tile_loc, stone):
         """Imbues tile with stone, updates grid.comp."""
-        self.tiles[tileLoc[0]][tileLoc[1]].imbue(stone)
+        self.tiles[tile_loc[0]][tile_loc[1]].imbue(stone)
         self.calc_comp()
+
+    def in_bounds(self, (x, y)):
+        return (0 <= x < self.x and 0 <= y < self.y)
 
     def __iter__(self):
         return iter(self.tiles)
@@ -161,4 +164,4 @@ class Grid(Stone):
         return len(self.tiles)
 
     def __repr__(self):
-        return dict.__repr__(self.tiles)
+        return repr(self.tiles)

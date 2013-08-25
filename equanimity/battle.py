@@ -369,8 +369,8 @@ class Game(object):
             """
 
         elif not num % 2 and prev_unit is not None and prev_unit != curr_unit:
-            raise Exception("battle: Unit from the previous action must be "
-                            "used this action.")
+            raise ValueError("battle: Unit from the previous action must be "
+                             "used this action.")
 
         elif action['type'] == 'move':  # TODO fix move in battlefield.
             # If it's the second action in the ply and
@@ -383,8 +383,8 @@ class Game(object):
                     if text:
                         text = [[action['unit'].id, action['target']]]
                 else:
-                    raise Exception("battle: Second action in ply must be "
-                                    "different from first.")
+                    raise ValueError("battle: Second action in ply must be "
+                                     "different from first.")
             else:
                 text = self.battlefield.move_scient(action['unit'].location,
                                                     action['target'])
@@ -399,13 +399,13 @@ class Game(object):
                     text = self.battlefield.attack(action['unit'],
                                                    action['target'])
                 else:
-                    raise Exception("battle: Second action in ply must be "
-                                    "different from first.")
+                    raise ValueError("battle: Second action in ply must be "
+                                     "different from first.")
             else:
                 text = self.battlefield.attack(action['unit'],
                                                action['target'])
         else:
-            raise Exception("battle: Action is of unknown type")
+            raise ValueError("battle: Action is of unknown type")
 
         self.log['actions'].append(self.map_action(action))
         self.log['messages'].append(Message(num, self.map_result(text)))
@@ -472,4 +472,4 @@ class Game(object):
         # calculate awards
         awards = PersistentMapping()  # should be a stone.
         self.log['change_list'] = BattleChanges(victors, prisoners, awards)
-        raise Exception("Game Over")
+        raise ValueError("Game Over")

@@ -18,6 +18,11 @@ class UnitsTest(TestCase):
         self.assertEqual(self.u.name, 'x')
         self.assertEqual(self.u.comp, self.comp)
 
+    def test_create_no_name(self):
+        self.u = Unit(E, self.comp)
+        self.assertIsNot(self.u.name, None)
+        self.assertTrue(isinstance(self.u.name, basestring))
+
     def test_create_sex(self):
         u = Unit(E, self.comp, sex='male')
         self.assertEqual(u.sex, 'male')
