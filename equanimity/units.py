@@ -5,7 +5,7 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from datetime import datetime
-from stone import Stone, Component
+from stone import Stone, Composition
 from const import ELEMENTS, E, F, I, W, ORTH, OPP
 
 
@@ -72,7 +72,7 @@ class Scient(Unit):
 
     def __init__(self, element, comp, name=None, weapon=None,
                  weapon_bonus=None, location=None, sex='female'):
-        comp = Component.create(comp)
+        comp = Composition.create(comp)
         for o in comp.orth(element):
             if o > comp[element] / 2:
                 raise ValueError("Scients' orthogonal elements cannot be "

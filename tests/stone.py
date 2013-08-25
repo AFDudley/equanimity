@@ -1,84 +1,85 @@
 from unittest import TestCase
-from equanimity.stone import Stone, Component
+from equanimity.stone import Stone, Composition
 from equanimity.const import ELEMENTS, E
 from base import create_comp
 
 
-class ComponentTest(TestCase):
+class CompositionTest(TestCase):
 
-    def assertValidComponent(self, c, val):
+    def assertValidComposition(self, c, val):
         for k, v in c.iteritems():
             self.assertIn(k, ELEMENTS)
             self.assertEqual(v, val)
 
     def test_create_no_value(self):
-        c = Component()
-        self.assertValidComponent(c, -1)
+        c = Composition()
+        self.assertValidComposition(c, -1)
 
     def test_create_value(self):
-        c = Component(111)
-        self.assertValidComponent(c, 111)
+        c = Composition(111)
+        self.assertValidComposition(c, 111)
 
     def test_create_bad_value(self):
-        self.assertRaises(ValueError, Component, -1)
-        self.assertRaises(ValueError, Component, 256)
+        self.assertRaises(ValueError, Composition, -1)
+        self.assertRaises(ValueError, Composition, 256)
 
     def test_create_from_keys(self):
-        c = Component.from_keys(earth=2, fire=2, ice=2, wind=2)
-        self.assertValidComponent(c, 2)
+        c = Composition.from_keys(earth=2, fire=2, ice=2, wind=2)
+        self.assertValidComposition(c, 2)
 
     def test_create_from_keys_bad(self):
-        self.assertRaises(ValueError, Component.from_keys, earth=-100)
+        self.assertRaises(ValueError, Composition.from_keys, earth=-100)
 
     def test_create_from_sequence(self):
-        c = Component.from_sequence((3, 3, 3, 3))
-        self.assertValidComponent(c, 3)
+        c = Composition.from_sequence((3, 3, 3, 3))
+        self.assertValidComposition(c, 3)
 
     def test_create_from_sequence_bad(self):
-        self.assertRaises(ValueError, Component.from_sequence, [])
-        self.assertRaises(ValueError, Component.from_sequence, [1])
-        self.assertRaises(ValueError, Component.from_sequence, [1, 2])
-        self.assertRaises(ValueError, Component.from_sequence, [1, 2, 3])
-        self.assertRaises(ValueError, Component.from_sequence, [1, 2, 3, 4, 5])
-        self.assertRaises(ValueError, Component.from_sequence, [2, 3, 4, -10])
-        self.assertRaises(ValueError, Component.from_sequence, [2, 3, 4, 256])
+        fs = Composition.from_sequence
+        self.assertRaises(ValueError, fs, [])
+        self.assertRaises(ValueError, fs, [1])
+        self.assertRaises(ValueError, fs, [1, 2])
+        self.assertRaises(ValueError, fs, [1, 2, 3])
+        self.assertRaises(ValueError, fs, [1, 2, 3, 4, 5])
+        self.assertRaises(ValueError, fs, [2, 3, 4, -10])
+        self.assertRaises(ValueError, fs, [2, 3, 4, 256])
 
     def test_create_from_dict(self):
-        c = Component.from_dict({'Earth': 2, 'Ice': 2, 'Wind': 2, 'Fire': 2})
-        self.assertValidComponent(c, 2)
+        c = Composition.from_dict({'Earth': 2, 'Ice': 2, 'Wind': 2, 'Fire': 2})
+        self.assertValidComposition(c, 2)
 
     def test_create_from_dict_bad(self):
-        self.assertRaises(ValueError, Component.from_dict, {'Earth': 2})
-        self.assertRaises(ValueError, Component.from_dict, {'Earth': 2,
-                                                            'Fire': 2})
-        self.assertRaises(ValueError, Component.from_dict, {'Earth': 2,
-                                                            'Fire': 2,
-                                                            'Wind': 2})
-        self.assertRaises(ValueError, Component.from_dict, {'Dog': 2})
-        self.assertRaises(ValueError, Component.from_dict, {'Earth': -100,
-                                                            'Wind': 100,
-                                                            'Fire': 100,
-                                                            'Ice': 100})
+        self.assertRaises(ValueError, Composition.from_dict, {'Earth': 2})
+        self.assertRaises(ValueError, Composition.from_dict, {'Earth': 2,
+                                                              'Fire': 2})
+        self.assertRaises(ValueError, Composition.from_dict, {'Earth': 2,
+                                                              'Fire': 2,
+                                                              'Wind': 2})
+        self.assertRaises(ValueError, Composition.from_dict, {'Dog': 2})
+        self.assertRaises(ValueError, Composition.from_dict, {'Earth': -100,
+                                                              'Wind': 100,
+                                                              'Fire': 100,
+                                                              'Ice': 100})
 
     def test_create_wrapper(self):
         # Create with tuple
-        c = Component.create((4, 4, 4, 4))
-        self.assertValidComponent(c, 4)
+        c = Composition.create((4, 4, 4, 4))
+        self.assertValidComposition(c, 4)
         # Create with list
-        c = Component.create([4, 4, 4, 4])
-        self.assertValidComponent(c, 4)
+        c = Composition.create([4, 4, 4, 4])
+        self.assertValidComposition(c, 4)
         # Create with keyword args
-        c = Component.create(earth=4, ice=4, fire=4, wind=4)
-        self.assertValidComponent(c, 4)
+        c = Composition.create(earth=4, ice=4, fire=4, wind=4)
+        self.assertValidComposition(c, 4)
         # Create with dict
-        c = Component.create(dict(Earth=4, Ice=4, Wind=4, Fire=4))
-        self.assertValidComponent(c, 4)
+        c = Composition.create(dict(Earth=4, Ice=4, Wind=4, Fire=4))
+        self.assertValidComposition(c, 4)
         # Create from positional args
-        c = Component.create(4, 4, 4, 4)
-        self.assertValidComponent(c, 4)
-        # Create from existing Component (idempotent)
-        c = Component.create(c)
-        self.assertValidComponent(c, 4)
+        c = Composition.create(4, 4, 4, 4)
+        self.assertValidComposition(c, 4)
+        # Create from existing Composition (idempotent)
+        c = Composition.create(c)
+        self.assertValidComposition(c, 4)
 
 
 class StoneTest(TestCase):
@@ -174,9 +175,9 @@ class StoneTest(TestCase):
         self.assertEqual('<Stone: Earth: 1, Fire: 2, Ice: 3, Wind: 4>', str(s))
 
     def test_orth(self):
-        s = Stone(Component.create(earth=1, ice=3, fire=2, wind=4))
+        s = Stone(Composition.create(earth=1, ice=3, fire=2, wind=4))
         self.assertEqual(s.orth(E), [2, 3])
 
     def test_opp(self):
-        s = Stone(Component.create(earth=1, ice=3, fire=2, wind=4))
+        s = Stone(Composition.create(earth=1, ice=3, fire=2, wind=4))
         self.assertEqual(s.opp(E), 4)

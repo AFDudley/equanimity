@@ -9,14 +9,14 @@ from persistent import Persistent
 from const import ELEMENTS, ORTH, OPP
 
 
-class Component(dict):
+class Composition(dict):
 
     def __init__(self, value=None):
         """ All elements are set to value """
         _value = value
         if value is None:
             value = -1
-        super(Component, self).__init__()
+        super(Composition, self).__init__()
         for e in ELEMENTS:
             self[e] = value
         if _value is not None:
@@ -31,12 +31,12 @@ class Component(dict):
     @classmethod
     def create(cls, *args, **kwargs):
         """ A meta-create function that allows initialization of a
-        Component in multiple ways
+        Composition in multiple ways
 
         e.g.
-        Component({'Earth': 0, 'Wind': 100, 'Fire': 70, 'Ice': 0})
-        Component((0, 100, 70, 0))
-        Component(earth=0, wind=100, fire=70, ice=0)
+        Composition({'Earth': 0, 'Wind': 100, 'Fire': 70, 'Ice': 0})
+        Composition((0, 100, 70, 0))
+        Composition(earth=0, wind=100, fire=70, ice=0)
 
         """
         if len(args) == 4:
@@ -98,13 +98,13 @@ class Stone(Persistent, Mapping):
     def __init__(self, comp=None):
         Persistent.__init__(self)
         if comp is None:
-            comp = Component(0)
+            comp = Composition(0)
         elif isinstance(comp, Stone):
             comp = comp.comp
         else:
-            comp = Component.create(comp)
+            comp = Composition.create(comp)
         self.comp = comp
-        self.limit = Component(255)
+        self.limit = Composition(255)
 
     def imbue(self, stone):
         """adds the values of stone.comp to self.comp up to self.limit.
