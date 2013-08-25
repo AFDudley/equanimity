@@ -152,3 +152,6 @@ class Glove(Weapon):
     def __init__(self, element, comp):
         super(Glove, self).__init__(element, comp, 'Glove')
         self.time = 3
+
+
+weapons = dict(Sword=Sword, Bow=Bow, Glove=Glove, Wand=Wand)
