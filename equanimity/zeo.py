@@ -13,6 +13,7 @@ from player import Player
 import logging
 logging.basicConfig()
 
+
 class Zeo(object):
     def open(self):
         self.conn = self.db.open()
@@ -27,24 +28,22 @@ class Zeo(object):
     def close(self):
         return self.db.close()
 
-    def get_password(self, username): #FIX
+    def get_password(self, username):  # FIX
         self.conn.sync()
         try:
             return self.root['Players'][username].password
         except:
             return None
 
-    def set_username(self, username, password): #FIX
+    def set_username(self, username, password):  # FIX
         try:
             self.conn.sync()
             assert not self.root['Players'][username].password
-        except Exception: #this exception looks dangerous
+        except Exception:  # this exception looks dangerous
             self.root['Players'][username] = Player(username, password)
             self.root._p_changed = 1
             return transaction.commit()
 
-if __name__ == '__main__':
-    from world import *
-    zc = Zeo()
-    world = zc.root
 
+if __name__ == '__main__':
+    zc = Zeo()
