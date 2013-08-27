@@ -17,9 +17,7 @@ from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
 
 from battlefield import Battlefield, Grid
-from helpers import rand_squad
 from units import Unit
-from player import Player
 
 
 def now():
@@ -33,31 +31,21 @@ class Action(PersistentMapping):
        a ply from each player makes a turn. """
     def __init__(self, unit=None, type='pass', target=None, when=None,
                  num=None):
+        if when is None:
+            when = now()
         super(Action, self).__init__(unit=unit, type=type, target=target,
-                                     num=num, when=now())
-
-    @property
-    def __dict__(self):
-        return self
+                                     num=num, when=when)
 
 
 class Message(PersistentMapping):
     def __init__(self, num, result):
         super(Message, self).__init__(num=num, result=result, when=now())
 
-    @property
-    def __dict__(self):
-        return self
-
 
 class ChangeList(PersistentMapping):
     # TODO - belongs in different file
     def __init__(self, event, **kwargs):
-        super(ChangeList, self).__init__(event, **kwargs)
-
-    @property
-    def __dict__(self):
-        return self
+        super(ChangeList, self).__init__(event=event, **kwargs)
 
 
 class BattleChanges(ChangeList):
@@ -76,10 +64,6 @@ class InitialState(PersistentMapping):
             units=log['units'], grid=log['grid'], owners=log['owners'],
             player_names=names)
         #self['owners'] = self.get_owners(log)
-
-    @property
-    def __dict__(self):
-        return self.data
 
 
 class Log(PersistentMapping):
@@ -100,14 +84,10 @@ class Log(PersistentMapping):
         self['winner'] = None
         self['world_coords'] = None  # set by battle_server
 
-    @property
-    def __dict__(self):
-        return self
-
     def init_locs(self):
         #calling this in init is most likely not going to work as intended.
         locs = PersistentMapping()
-        for u in self['units'].keys():
+        for u in self['units']:
             locs.update({u: self['units'][u].location})
         return locs
 
@@ -120,6 +100,7 @@ class Log(PersistentMapping):
     def get_owner(self, unit_num):
         """takes unit number returns player/owner."""
         # slow lookup
+        owner = None
         target_squad = self['units'][unit_num].container.name
         for player in self['players']:
             for squad in player.squads:
@@ -154,10 +135,6 @@ class State(PersistentMapping):
                                     locs=locs, HPs=HPs, game_over=game_over,
                                     whose_action=whose_action)
 
-    @property
-    def __dict__(self):
-        return self
-
     def check(self, game):
         """Checks for game ending conditions.
         (Assumes two players and no action cue.)"""
@@ -171,7 +148,7 @@ class State(PersistentMapping):
         if not num % 4:  # There are 4 actions in a turn.
             #This calcuates hp_count
             defsquad_hp = game.battlefield.defsquad.hp()
-            if self['old_defsquad_hp'] <= defsquad_hp:
+            if self['old_defsquad_hp'] >= defsquad_hp:
                 self['hp_count'] += 1
             else:
                 self['hp_count'] = 0
@@ -179,22 +156,22 @@ class State(PersistentMapping):
             #game over check:
             if self['hp_count'] == 4:
                 game.winner = game.defender
-                game.end("Attacker failed to deal sufficent damage.")
+                return game.end("Attacker failed to deal sufficent damage.")
             else:
                 self['old_defsquad_hp'] = defsquad_hp
 
         #check if game is over.
         if game.battlefield.defsquad.hp() == 0:
             game.winner = game.attacker
-            game.end("Defender's squad is dead")
+            return game.end("Defender's squad is dead")
 
         if game.battlefield.atksquad.hp() == 0:
             game.winner = game.defender
-            game.end("Attacker's squad is dead")
+            return game.end("Attacker's squad is dead")
 
         if self['pass_count'] >= 8:
             game.winner = game.defender
-            game.end("Both sides passed")
+            return game.end("Both sides passed")
 
         self['queued'] = game.map_queue()
         self['HPs'], self['locs'] = game.update_unit_info()
@@ -208,28 +185,21 @@ class State(PersistentMapping):
         if self['num'] % 2:  # each player gets two actions per ply.
             if self['whose_action'] == game.defender.name:
                 self['whose_action'] = game.attacker.name
-                transaction.commit()
             else:
                 self['whose_action'] = game.defender.name
-                transaction.commit()
+        transaction.commit()
 
 
 class Game(object):
     """Almost-state-machine that maintains game state."""
-    def __init__(self, grid=None, defender=None, attacker=None):
+    def __init__(self, attacker, defender, grid=None):
         if grid is None:
             grid = Grid()
         self.grid = grid
         self.defender = defender
         self.attacker = attacker
-        #player/battlefield logic for testing
-        if self.defender is None:
-            self.defender = Player('Defender', squads=[rand_squad()])
-        if self.attacker is None:
-            self.attacker = Player('Attacker', squads=[rand_squad()])
         self.battlefield = Battlefield(grid, self.defender.squads[0],
                                        self.attacker.squads[0])
-
         self.state = State()
         self.state['whose_action'] = self.defender.name
 

@@ -42,6 +42,10 @@ class Player(Persistent, UserMixin):
         self.roads = None
         self.treaties = None
 
+    @property
+    def name(self):
+        return self.display_username
+
     def set_username(self, username):
         self.username = username.lower()
         self.display_username = username
