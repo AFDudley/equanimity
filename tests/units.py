@@ -51,7 +51,7 @@ class UnitsTest(TestCase):
         self.assertEqual(expect, self.u.stats())
 
     def test_repr(self):
-        self.assertEqual(self.u.name, str(self.u))
+        self.assertIn(self.u.name, str(self.u))
 
 
 class ScientTest(TestCase):

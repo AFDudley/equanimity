@@ -8,10 +8,16 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 import random
 from datetime import datetime
 
-from const import E, F, I, W
-from stone import Stone
+from stone import Stone, Composition
 from units import Scient, Nescient, Part
 from grid import Grid, Loc, noloc
+
+
+"""
+Refactoring notes:
+Grid should not be modified directly, should be a call to a Grid method
+Replace ValueError with a custom exception
+"""
 
 
 class Battlefield(object):
@@ -155,7 +161,6 @@ class Battlefield(object):
         """checks if nescient can move to body."""
         if not self.body_within_grid(body):
             return False
-        print body
         for part in body.itervalues():
             x, y = part.location
             empty = (self.grid[x][y].contents is None)
@@ -166,17 +171,20 @@ class Battlefield(object):
                 return False
         return True
 
-    def move_nescient(self, new_body, nescient):
+    def move_nescient(self, new_body, nescient, direction=None):
         # TODO (steve) -- HEX TILE WORK. Grid() should have getters
         # instead of [x][y] indexing
         """places new_body on grid, place body in nescient."""
         if not self.can_move_nescient(new_body, nescient):
-            raise ValueError('Not enough space to move {0}'.format(nescient))
+            msg = 'Nescient cannot be moved to {0}'
+            raise ValueError(msg.format(new_body))
         for part in new_body.itervalues():
             x, y = part.location
             self.grid[x][y].contents = part
         nescient.take_body(new_body)
         nescient.location = nescient.body['right'].location
+        if direction is not None:
+            nescient.facing = direction
         return True
 
     def place_nescient(self, nescient, dest):
@@ -185,48 +193,35 @@ class Battlefield(object):
         if facing is None:
             facing = 'North'
         xdest, ydest = dest
-        if self.on_grid(dest):  # is dest on grid?
-            new_body = self.make_body(dest, facing)
-            self.move_nescient(new_body, nescient)
-            nescient.facing = facing
-            return True
-        else:
-            raise ValueError("Destination {0} is not on grid".format(dest))
+        if not self.on_grid(dest):
+            raise ValueError('Destination {0} is not on grid'.format(dest))
+        new_body = self.make_body(dest, facing)
+        self.dmg_queue.setdefault(nescient, [])
+        return self.move_nescient(new_body, nescient, direction=facing)
 
     def get_rotations(self, nescient):
         """returns list of directions nescient can rotate."""
         drctns = []
-        sntcrd = dict(zip(self.direction.values(), self.direction.keys()))
         nbdr = nescient.body['right'].location
-        for direction in sntcrd:
-            if self.can_move_nescient(self.make_body(nbdr, direction),
-                                      nescient):
+        for direction in self.direction.itervalues():
+            body = self.make_body(nbdr, direction)
+            if self.can_move_nescient(body, nescient):
                 drctns.append(direction)  # might want to return body as well.
         return drctns
 
     def rotate(self, nescient, direction):
         """rotates Nescient so that head is facing direction"""
-        nes = nescient
-        new_body = self.make_body(nes.body['right'].location, direction)
-        if self.body_on_grid(new_body):
-            if self.move_nescient(new_body, nescient):
-                nescient.facing = direction
-                return True
-            else:
-                raise ValueError("Move Failed.")
-        else:
-            raise ValueError('nescient cannot rotate to that direction')
+        new_body = self.make_body(nescient.body['right'].location, direction)
+        return self.move_nescient(new_body, nescient, direction=direction)
 
     def make_triangle(self, location, distance, pointing):
         """generates an equilateral triangle pattern with 'location' at one
         point. The other two points are 'distance' away from 'location'
         toward 'pointing'. Returns a set of coords"""
-        dist = distance
-        pointing = pointing
         triangle = []
         head = self.get_adjacent(location, pointing)  # get first two points.
         cols = 1  # maintain dist = 1 behavior.
-        while cols != dist:
+        while cols != distance:
             triangle += list(head)
             temp_head = head
             head = set()
@@ -238,9 +233,8 @@ class Battlefield(object):
     def map_to_grid(self, location, weapon):
         """returns tiles within range of location using weapon.
         called in hex_view.py"""
-        weapon = weapon
-        xpos, ypos = location = location
-        if weapon.type in (self.ranged + self.AOE):
+        xpos, ypos = location
+        if weapon.type in self.ranged or weapon.type in self.AOE:
             move = 4
             no_hit = self.make_range(location, move)
             hit = self.make_range(location, 2 * move)
@@ -267,102 +261,72 @@ class Battlefield(object):
 
     def place_object(self, obj, dest):
         """places an object on a tile."""
-        try:
-            if self.on_grid(dest):
-                xpos, ypos = dest
-            else:
-                raise ValueError("Tile {0} is off grid".format(dest))
-        except TypeError:
-            pass
-
         if isinstance(obj, Scient):
-            if obj.location == noloc or obj.location is None:
-                if self.grid[xpos][ypos].contents is None:
-                    self.grid[xpos][ypos].contents = obj
-                    obj.location = Loc(xpos, ypos)
-                    self.dmg_queue[obj] = []  # append unit to dmg_queue
-                    return True
-
-                elif obj.location == Loc(xpos, ypos):
-                    msg = "This unit is already on ({0},{1})"
-                    raise ValueError(msg.format(xpos, ypos))
-
-                elif self.grid[xpos][ypos].contents is not None:
-                    msg = "({0}, {1}) is not empty"
-                    raise ValueError(msg.format(xpos, ypos))
-            else:
-                return self.move_scient(obj.location, dest)
-
+            return self.place_scient(obj, dest)
         elif isinstance(obj, Nescient):
             return self.place_nescient(obj, dest)
         elif isinstance(obj, Stone):
-            pass
+            # TODO -- should the stone be placed or what?
+            return True
         else:
-            raise TypeError("obj is not a game item.")
+            raise TypeError("{0} is not a game item.".format(obj))
 
     def move_scient(self, src, dest):
         """move unit from src tile to dest tile"""
-        if self.on_grid(src):
-            xsrc, ysrc = src
-        else:
+        if not self.on_grid(src):
             raise ValueError("Source {0} is off grid".format(src))
-
-        if self.on_grid(dest):
-            xdest, ydest = dest
-        else:
+        if not self.on_grid(dest):
             raise ValueError("Destination {0} is off grid".format(dest))
+        if src == dest:
+            raise ValueError("src and dest are the same {0}".format(src))
 
-        if self.grid[xsrc][ysrc].contents:
-            if not self.grid[xdest][ydest].contents:
-                move = self.grid[xsrc][ysrc].contents.move
-                if dest in self.make_range(src, move):
-                    contents = self.grid[xsrc][ysrc].contents
-                    self.grid[xdest][ydest].contents = contents
-                    loc = Loc(xdest, ydest)
-                    self.grid[xdest][ydest].contents.location = loc
-                    self.grid[xsrc][ysrc].contents = None
-                    return True
-                else:
-                    msg = "Tried moving more than {0} tiles"
-                    raise ValueError(msg.format(move))
-            else:
-                msg = "There is already something at {0}"
-                raise ValueError(msg.format(dest))
-        else:
+        xsrc, ysrc = src
+        xdest, ydest = dest
+
+        if not self.grid[xsrc][ysrc].contents:
             raise ValueError("There is nothing at {0}".format(src))
+        if self.grid[xdest][ydest].contents:
+            msg = "There is already something at {0}"
+            raise ValueError(msg.format(dest))
+
+        move = self.grid[xsrc][ysrc].contents.move
+        if dest not in self.make_range(src, move):
+            msg = "Tried moving more than {0} tiles"
+            raise ValueError(msg.format(move))
+
+        contents = self.grid[xsrc][ysrc].contents
+        self.grid[xdest][ydest].contents = contents
+        loc = Loc(xdest, ydest)
+        self.grid[xdest][ydest].contents.location = loc
+        self.grid[xsrc][ysrc].contents = None
+        return True
 
     def place_scient(self, unit, tile):
         """Places unit at tile, if already on grid, move_scient is called"""
-        if self.on_grid(tile):
-            xpos, ypos = tile
-        else:
+        if not self.on_grid(tile):
             raise ValueError("Tile {0} is off grid".format(tile))
 
-        if unit.location == noloc:
-            if self.grid[xpos][ypos].contents is None:
-                self.grid[xpos][ypos].contents = unit
-                unit.location = Loc(xpos, ypos)
-                self.dmg_queue[unit] = []  # append unit to dmg_queue
-                return True
-
-            elif unit.location == Loc(xpos, ypos):
-                msg = "This unit is already on ({0},{1})"
-                raise ValueError(msg.format(xpos, ypos))
-
-            elif self.grid[xpos][ypos].contents is not None:
-                raise ValueError("({0}, {1}) is not empty".format(xpos, ypos))
-        else:
+        xpos, ypos = tile
+        if unit.location != noloc:
             return self.move_scient(unit.location, tile)
+
+        if self.grid[xpos][ypos].contents is not None:
+            raise ValueError("({0}, {1}) is not empty".format(xpos, ypos))
+
+        self.grid[xpos][ypos].contents = unit
+        unit.location = Loc(xpos, ypos)
+        self.dmg_queue.setdefault(unit, [])
+        return True
 
     def find_units(self):
         """returns a list of units in grid."""
-        lst = []
-        for x in range(len(self.grid)):  # maybe using .x and .y would be
-                                         # faster?
-            for y in range(len(self.grid[x])):
-                if self.grid[x][y].contents:
-                    lst.append((x, y))  # maybe this should be a loc?
-        return lst
+        # TODO (steve) -- probably put this on Grid
+        units = []
+        for x, col in self.grid.iteritems():
+            for y, obj in col.iteritems():
+                if obj.contents:
+                    units.append(Loc(x, y))
+        return units
 
     def rand_place_scient(self, unit):
         """Randomly place a unit on the grid."""
@@ -373,15 +337,15 @@ class Battlefield(object):
             """returns a random position in grid."""
             return (random.randint(0, ((self.grid.x - 1) - inset)),
                     random.randint(0, ((self.grid.y - 1) - inset)))
+        # TODO (steve) -- grid.full() method. grid can keep count of what's in
+        # it. modify the grid only with accessors
         if len(self.find_units()) == (self.grid.x * self.grid.y):
             raise ValueError("Grid is full")
-        else:
-            while unit.location == noloc:
-                try:
-                    self.place_scient(unit, randpos())
-                    break
-                except Exception:
-                    pass
+        while True:
+            try:
+                return self.place_scient(unit, randpos())
+            except ValueError:
+                pass
 
     def rand_place_squad(self, squad):
         """place the units in a squad randomly on the battlefield"""
@@ -395,11 +359,11 @@ class Battlefield(object):
         """
         #maybe find_unit should be used here...
         num = 0
-        for x in range(len(self.grid)):
-            for y in range(len(self.grid[x])):
-                if self.grid[x][y].contents:
-                    self.grid[x][y].contents.location = noloc
-                    self.grid[x][y].contents = None
+        for col in self.grid.itervalues():
+            for obj in col.itervalues():
+                if obj.contents:
+                    obj.contents.location = noloc
+                    obj.contents = None
                     num += 1
         return num
 
@@ -407,34 +371,34 @@ class Battlefield(object):
     def dmg(self, atkr, defdr):
         """Calculates the damage of an attack"""
         dloc = defdr.location
-        damage_dealt = {E: 0, F: 0, I: 0, W: 0}
-        if self.on_grid(dloc):
-            if atkr.weapon.kind == 'p':
-                for element in damage_dealt:
-                    dmg = ((atkr.p + atkr.patk + (2 * atkr.comp[element]) +
-                            atkr.weapon.comp[element]) -
-                           (defdr.p + defdr.pdef + (2 * defdr.comp[element]) +
-                            self.grid[dloc[0]][dloc[1]].comp[element]))
-                    dmg = max(dmg, 0)
-                    damage_dealt[element] = dmg
-                damage = sum(damage_dealt.values())
-                return damage
-            else:
-                for element in damage_dealt:
-                    dmg = ((atkr.m + atkr.matk + (2 * atkr.comp[element]) +
-                            atkr.weapon.comp[element]) -
-                           (defdr.m + defdr.mdef + (2 * defdr.comp[element]) +
-                            self.grid[dloc[0]][dloc[1]].comp[element]))
-                    dmg = max(dmg, 0)
-                    damage_dealt[element] = dmg
-
-                damage = sum(damage_dealt.values())
-                if atkr.element == defdr.element:
-                    return 0 - damage
-                else:
-                    return damage
-        else:
+        damage_dealt = Composition(0)
+        if not self.on_grid(dloc):
             raise ValueError("Defender is off grid")
+
+        if atkr.weapon.kind == 'p':
+            for element in damage_dealt:
+                dmg = ((atkr.p + atkr.patk + (2 * atkr.comp[element]) +
+                        atkr.weapon.comp[element]) -
+                       (defdr.p + defdr.pdef + (2 * defdr.comp[element]) +
+                        self.grid[dloc[0]][dloc[1]].comp[element]))
+                dmg = max(dmg, 0)
+                damage_dealt[element] = dmg
+            damage = sum(damage_dealt.values())
+            return damage
+        else:
+            for element in damage_dealt:
+                dmg = ((atkr.m + atkr.matk + (2 * atkr.comp[element]) +
+                        atkr.weapon.comp[element]) -
+                       (defdr.m + defdr.mdef + (2 * defdr.comp[element]) +
+                        self.grid[dloc[0]][dloc[1]].comp[element]))
+                dmg = max(dmg, 0)
+                damage_dealt[element] = dmg
+
+            damage = sum(damage_dealt.values())
+            if atkr.element == defdr.element:
+                return 0 - damage
+            else:
+                return damage
 
     def make_distances(self, src, dest, direction='all'):
         ax, ay = src
@@ -482,7 +446,7 @@ class Battlefield(object):
     def calc_AOE(self, atkr, target):
         """Returns the AOE of a spell. Called once in hex_view.py"""
         # Optimize. Currently makes a triangle only to discard 7/8ths of it.
-        xpos, ypos = aloc = atkr.location
+        aloc = atkr.location
         tloc = Loc._make(target)
         dists = self.make_distances(aloc, tloc)
         maxes = self.maxes(aloc)
@@ -497,6 +461,7 @@ class Battlefield(object):
                             new_pat.append(tile)
                 new_pat = set(new_pat)
                 return new_pat
+        return set()
 
     def calc_ranged(self, atkr, target):
         """UGH"""
@@ -504,66 +469,57 @@ class Battlefield(object):
         #maybe it should magically hit 4 contigious tiles?
         pass
 
-    def calc_damage(self, atkr, defdr):
+    def calc_damage(self, atkr, defdr, target_loc=None):
         """Calcuate damage delt to defdr from atkr. Also calculates the damage
         of all units within a blast range. if weapon has a AOE list of
         [[target, dmg]] is returned. otherwise just (target, dmg) is
         returned"""
         weapon = atkr.weapon
         aloc = atkr.location
-        dloc = defdr.location
+        if hasattr(defdr, 'body'):
+            dlocs = [part.location for part in defdr.body.itervalues()]
+        else:
+            dlocs = [defdr.location]
         dmg_lst = []
         in_range = self.map_to_grid(aloc, weapon)
-        if not(dloc in in_range):
+        if not (set(dlocs) & set(in_range)):
             msg = "Defender's location: {0} is outside of attacker's range"
-            raise ValueError(msg.format(dloc))
-        else:
-            # calculate how many units will be damaged.
-            if weapon.type in self.AOE:
-                pat = self.calc_AOE(atkr, dloc)
-                targets = list(set(self.find_units()) & set(pat))
-                area = len(pat)
-                for t in targets:
-                    defdr = self.grid[t[0]][t[1]].contents
-                    temp_dmg = self.dmg(atkr, defdr)
-                    if temp_dmg != 0:
-                        # currently the only non-full, non-DOT AOE weapon
-                        if weapon.type != 'Wand':
-                            dmg_lst.append((defdr, temp_dmg))
-                        else:
-                            temp_dmg /= area
-                            if temp_dmg != 0:
-                                dmg_lst.append((defdr, temp_dmg))
-                    else:
-                        pass  # no damage was dealt, don't append anything.
+            raise ValueError(msg.format(dlocs))
 
-            elif weapon.type in self.ranged:
-                # this is a placeholder until calc_ranged is written.
-                dmg_lst.append((defdr, self.dmg(atkr, defdr) / 4))
-            else:  # attack is only hitting one unit.
-                dmg_lst.append((defdr, self.dmg(atkr, defdr)))
+        if target_loc is None:
+            target_loc = defdr.location
 
-            if weapon.type in self.DOT:
-                dmg_lst = [(t[0], t[1] / weapon.time) for t in dmg_lst]
+        # calculate how many units will be damaged.
+        if weapon.type in self.AOE:
+            pat = self.calc_AOE(atkr, target_loc)
+            targets = list(set(self.find_units()) & set(pat))
+            area = len(pat)
+            for t in targets:
+                defdr = self.grid[t[0]][t[1]].contents
+                temp_dmg = self.dmg(atkr, defdr)
+                # currently the only non-full, non-DOT AOE weapon
+                if weapon.type == 'Wand':
+                    temp_dmg /= area
+                dmg_lst.append((defdr, temp_dmg))
+        elif weapon.type in self.ranged:
+            # this is a placeholder until calc_ranged is written.
+            dmg_lst.append((defdr, self.dmg(atkr, defdr) / 4))
+        else:  # attack is only hitting one unit.
+            dmg_lst.append((defdr, self.dmg(atkr, defdr)))
 
-            if len(dmg_lst):
-                return dmg_lst
-            else:
-                return None
+        if weapon.type in self.DOT:
+            dmg_lst = [(t[0], t[1] / weapon.time) for t in dmg_lst]
+
+        return [(unit, dmg) for unit, dmg in dmg_lst if dmg]
 
     def apply_dmg(self, target, damage):
         """applies damage to target, called by attack() and
         apply_queued() returns damage applied"""
-        if damage >= target.hp:
-            try:
-                self.bury(target)
-                return "Dead."
-                #return target.hp
-            except:
-                raise ValueError("STOP BEING GREEDY.")
-        else:
-            target.hp -= damage
-            return damage
+        damage = min(damage, target.hp)
+        target.hp -= damage
+        if target.hp <= 0:
+            self.bury(target)
+        return damage
 
     def bury(self, unit):
         """moves unit to graveyard"""
@@ -574,52 +530,38 @@ class Battlefield(object):
         unit.location = Loc(-1, -1)
         del self.dmg_queue[unit]
         self.graveyard.append(unit)
-        return True
 
     def attack(self, atkr, target):
         """calls calc_damage, applies result, Handles death."""
         defdr = self.grid[target[0]][target[1]].contents
-        if isinstance(defdr, Part):
-            defdr = defdr.nescient
-        dmg = self.calc_damage(atkr, defdr)
-        if dmg is not None:
-            defdr_HPs = []
-            if atkr.weapon.type in self.DOT:
-                for i in dmg:
-                    if i[0].hp > 0:
-                        self.dmg_queue[defdr].append([i[1],
-                                                     (atkr.weapon.time - 1)])
-                        defdr_HPs.append([i[0], self.apply_dmg(i[0], i[1])])
-            else:
-                for i in dmg:
-                    if i[0].hp > 0:
-                        defdr_HPs.append([i[0], self.apply_dmg(i[0], i[1])])
-            return defdr_HPs
-        else:  # no damage
-            return []
+        if defdr is None:
+            raise ValueError('Nothing to attack at {0}'.format(target))
+        defdr = getattr(defdr, 'nescient', defdr)
+        dmg = self.calc_damage(atkr, defdr, target)
+        defdr_HPs = []
+        dot = (atkr.weapon.type in self.DOT)
+        for unit, amt in dmg:
+            if unit.hp > 0:
+                if dot:
+                    self.dmg_queue[defdr].append([amt, (atkr.weapon.time - 1)])
+                defdr_HPs.append((unit, self.apply_dmg(unit, amt)))
+        return defdr_HPs
 
     def get_dmg_queue(self):
         """returns a copy of the dmg_queue."""
-        new_dict = {}
-        for (key, value) in self.dmg_queue.items():
-            new_lst = []
-            for lst in value:
-                new_lst.append(tuple(lst))
-                new_dict[key] = new_lst
-        return new_dict
+        return {unit: dmgs[:] for unit, dmgs in self.dmg_queue.iteritems()}
 
     def apply_queued(self):
         """applies damage to targets stored in dmg_queue"""
         defdr_HPs = []
-        for i in self.dmg_queue.keys():
-            udmg = []
-            for dmg_lst in reversed(xrange(len(self.dmg_queue[i]))):
-                udmg.append(self.dmg_queue[i][dmg_lst][0])
-                self.dmg_queue[i][dmg_lst][1] -= 1
-                if self.dmg_queue[i][dmg_lst][1] == 0:
-                    del self.dmg_queue[i][dmg_lst]
-
-            udmg = sum(udmg)
-            if udmg != 0:
-                defdr_HPs.append([i, self.apply_dmg(i, udmg)])
+        for unit, dmgs in self.dmg_queue.iteritems():
+            total = 0
+            for n, dmg_tick in enumerate(dmgs):
+                total += dmg_tick[0]
+                dmg_tick[1] -= 1
+            # Apply all damage we encountered this turn
+            if total:
+                defdr_HPs.append((unit, self.apply_dmg(unit, total)))
+            # Filter out decayed DOT damage
+            self.dmg_queue[unit] = [x for x in dmgs if x[1] > 0]
         return defdr_HPs

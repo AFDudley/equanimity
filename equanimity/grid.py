@@ -35,6 +35,8 @@ class Grid(Stone):
 
     def __init__(self, comp=Stone(), x=16, y=16, tiles=None):
         Stone.__init__(self, comp)
+        if x <= 0 or y <= 0:
+            raise ValueError('x and y must be > 0')
         self.x, self.y = self.size = (x, y)
         if not self.value():
             if tiles is None:
@@ -150,6 +152,18 @@ class Grid(Stone):
 
     def __iter__(self):
         return iter(self.tiles)
+
+    def iteritems(self):
+        return self.tiles.iteritems()
+
+    def itervalues(self):
+        return self.tiles.itervalues()
+
+    def items(self):
+        return self.tiles.items()
+
+    def values(self):
+        return self.tiles.values()
 
     def __contains__(self, value):
         return value in self.tiles

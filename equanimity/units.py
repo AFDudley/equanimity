@@ -7,12 +7,13 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 from datetime import datetime
 from stone import Stone, Composition
 from const import ELEMENTS, E, F, I, W, ORTH, OPP
+from grid import noloc
 
 
 class Unit(Stone):
     attrs = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
 
-    def __init__(self, element, comp, name=None, location=None, sex='female'):
+    def __init__(self, element, comp, name=None, location=noloc, sex='female'):
         if not element in ELEMENTS:
             fmt = "Invalid element: {0}, valid elements are {1}"
             raise Exception(fmt.format(element, ELEMENTS))
@@ -58,7 +59,7 @@ class Unit(Stone):
         return dict(zip(self.attrs, [getattr(self, s) for s in self.attrs]))
 
     def __repr__(self):
-        return self.name
+        return '<{0} "{1}">'.format(self.__class__.__name__, self.name)
 
 
 class Scient(Unit):
@@ -71,14 +72,15 @@ class Scient(Unit):
     """
 
     def __init__(self, element, comp, name=None, weapon=None,
-                 weapon_bonus=None, location=None, sex='female'):
+                 weapon_bonus=None, location=noloc, sex='female'):
         comp = Composition.create(comp)
         for o in comp.orth(element):
             if o > comp[element] / 2:
                 raise ValueError("Scients' orthogonal elements cannot be "
                                  "more than half the primary element's "
                                  "value.")
-        super(Scient, self).__init__(element, comp, name, location, sex)
+        super(Scient, self).__init__(element, comp, name=name, sex=sex,
+                                     location=location)
         self.move = 4
         self.weapon = weapon
         if weapon_bonus is None:
@@ -124,7 +126,7 @@ class Nescient(Unit):
     """A non-playable unit."""
 
     def __init__(self, element, comp, name=None, weapon=None,
-                 location=None, sex='female', facing=None,
+                 location=noloc, sex='female', facing=None,
                  body=None):
         if body is None:
             body = {'head':  None, 'left': None, 'right': None, 'tail': None}
@@ -138,7 +140,8 @@ class Nescient(Unit):
                 raise ValueError("Nescients' orthogonal value cannot exceed "
                                  "the primary element value.")
 
-        super(Nescient, self).__init__(element, comp, name, location, sex)
+        super(Nescient, self).__init__(element, comp, name=name, sex=sex,
+                                       location=location)
         self.move = 4
         #Set nescient type.
         if self.element == 'Earth':
