@@ -10,6 +10,7 @@ and should be refactored with battle as well.
 
 """
 from datetime import datetime
+from collections import Mapping
 
 import transaction
 from persistent.mapping import PersistentMapping
@@ -66,17 +67,14 @@ class BattleChanges(ChangeList):
                                             awards=awards)
 
 
-class Initial_state(PersistentMapping):
+class InitialState(PersistentMapping):
     """A hack for serialization."""
     def __init__(self, log):
-        names = []
-        for player in log['players']:
-            names.append(player.name)
-        names = tuple(names)
-        PersistentMapping.__init__(self, init_locs=log['init_locs'],
-                                   start_time=log['start_time'],
-                                   units=log['units'], grid=log['grid'],
-                                   owners=log['owners'], player_names=names)
+        names = tuple(player.name for player in log['players'])
+        super(InitialState, self).__init__(
+            init_locs=log['init_locs'], start_time=log['start_time'],
+            units=log['units'], grid=log['grid'], owners=log['owners'],
+            player_names=names)
         #self['owners'] = self.get_owners(log)
 
     @property
@@ -133,7 +131,7 @@ class Log(PersistentMapping):
     def get_owners(self):
         """mapping of unit number to player/owner."""
         owners = PersistentMapping()
-        for unit in self['units'].keys():
+        for unit in self['units']:
             owners[unit] = self.get_owner(unit).name
         return owners
 
@@ -165,7 +163,7 @@ class State(PersistentMapping):
         (Assumes two players and no action cue.)"""
         num = self['num']
         last_type = game.log['actions'][num - 1]['type']
-        if (last_type == 'pass') or (last_type == 'timed_out'):
+        if last_type == 'pass' or last_type == 'timed_out':
             self['pass_count'] += 1
         else:
             self['pass_count'] = 0
@@ -218,7 +216,9 @@ class State(PersistentMapping):
 
 class Game(object):
     """Almost-state-machine that maintains game state."""
-    def __init__(self, grid=Grid(), defender=None, attacker=None):
+    def __init__(self, grid=None, defender=None, attacker=None):
+        if grid is None:
+            grid = Grid()
         self.grid = grid
         self.defender = defender
         self.attacker = attacker
@@ -233,7 +233,7 @@ class Game(object):
         self.state = State()
         self.state['whose_action'] = self.defender.name
 
-        self.players = (self.defender, self.attacker)
+        self.players = self.defender, self.attacker
         self.map = self.unit_map()
         self.winner = None
         self.units = self.map_unit()
@@ -245,11 +245,11 @@ class Game(object):
     def put_squads_on_field(self):
         """Puts the squads on the battlefield."""
         btl = self.battlefield
-        for squad_num in xrange(len(btl.squads)):
-            for unit_num in xrange(len(btl.squads[squad_num])):
-                loc = btl.squads[squad_num][unit_num].location
-                btl.squads[squad_num][unit_num].location = None
-                btl.place_object(btl.squads[squad_num][unit_num], loc)
+        for squad_num, squad in enumerate(btl.squads):
+            for unit_num, unit in enumerate(squad):
+                loc = unit.location
+                unit.location = None
+                btl.place_object(unit, loc)
         self.log['init_locs'] = self.log.init_locs()
         self.log._p_changed = 1
         return transaction.commit()
@@ -282,40 +282,37 @@ class Game(object):
         for unit in self.map:
             hp = unit.hp
             if hp > 0:
-                HPs[str(self.map[unit])] = hp
+                HPs[self.map[unit]] = hp
         return HPs
 
     def update_unit_info(self):
         """returns HPs, Locs."""
         HPs = {}
         locs = {}
-
-        for unit in self.map:
-            num = self.map[unit]
+        for unit, num in self.map.iteritems():
             loc = unit.location
             if loc[0] >= 0:  # json requires num to be str.
                 locs[num] = loc
                 HPs[num] = unit.hp
-
         return HPs, locs
 
     def map_queue(self):
         """apply unit mapping to units in queue."""
         old = self.battlefield.get_dmg_queue()
-        if isinstance(old, dict):
-            new = {}
-            for key in old.keys():
-                new[str(key.id)] = old[key]
-            return new
-        else:
-            return None
+        if not isinstance(old, Mapping):
+            return
+        new = {}
+        for key in old:
+            new[key.id] = old[key]
+        return new
 
     def map_result(self, result):
-        if result is not None:
-            for t in result:
-                if isinstance(t[0], Unit):
-                    t[0] = t[0].id
-            return result
+        if result is None:
+            return
+        for t in result:
+            if isinstance(t[0], Unit):
+                t[0] = t[0].id
+        return result
 
     def map_action(self, action):
         """replaces unit refrences to referencing their hash."""
@@ -324,15 +321,14 @@ class Game(object):
             new['unit'] = new['unit'].id
         else:
             new['unit'] = None
-            #raise TypeError("Acting unit cannont be 'NoneType'")
         return new
 
     def last_message(self):
         text = self.log['messages'][-1]['result']
-        if text is not None:
-            return self.log['messages'][-1]['result']
-        else:
+        if text is None:
             return ["There was no message."]
+        else:
+            return self.log['messages'][-1]['result']
 
     def process_action(self, action):
         """Processes actions sent from game clients."""
@@ -341,15 +337,15 @@ class Game(object):
         action['num'] = num = self.state['num']
         try:
             curr_unit = action['unit'].id
-        except:
+        except KeyError:
             curr_unit = None
         try:
             prev_unit = self.log['actions'][-1]['unit']
-        except:
+        except (KeyError, IndexError):
             prev_unit = None
         try:
             prev_act = self.log['actions'][-1]['type']
-        except:
+        except (KeyError, IndexError):
             prev_act = None
 
         if action['type'] == 'timed_out':
@@ -376,7 +372,6 @@ class Game(object):
             # If it's the second action in the ply and
             # it's different from this one.
             if num % 2 == 0:  # if it's the second action in the ply.
-
                 if prev_act != 'move':
                     loc = action['unit'].location
                     text = self.battlefield.move_scient(loc, action['target'])
@@ -438,38 +433,36 @@ class Game(object):
         #Figure out if this is actually the *current* state or not, oops.
         try:
             return self.log['states'][-1]
-        except:
-            return None
+        except IndexError:
+            return
 
     def get_states(self):
         """Returns a list of all previous states."""
         try:
             return self.log['states']
-        except:
-            return None
+        except KeyError:
+            return
 
     def initial_state(self):
         """Returns stuff to create the client side of the game"""
-        return Initial_state(self.log)
+        return InitialState(self.log)
 
     def end(self, condition):
         """ Mame over state, handles log closing,
         writes change list for world"""
-        log = self.log
         self.state['game_over'] = True
-        log['states'].append(self.state)
-        log.close(self.winner, condition)
+        self.log['states'].append(self.state)
+        self.log.close(self.winner, condition)
         # make change list
         victors = PersistentList()
         prisoners = PersistentList()
 
         # split survivors into victors and prisoners
-        for unit in log['states'][-1]['HPs'].keys():
-            if log['winner'].name == log['owners'][unit]:
+        for unit in self.log['states'][-1]['HPs']:
+            if self.log['winner'].name == self.log['owners'][unit]:
                 victors.append(unit)
             else:
                 prisoners.append(unit)
         # calculate awards
         awards = PersistentMapping()  # should be a stone.
         self.log['change_list'] = BattleChanges(victors, prisoners, awards)
-        raise ValueError("Game Over")
