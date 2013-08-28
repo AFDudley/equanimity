@@ -1,4 +1,3 @@
-from unittest import TestCase
 from mock import MagicMock, patch
 from equanimity.grid import Grid, Loc
 from equanimity.units import Scient, Nescient
@@ -7,10 +6,10 @@ from equanimity.battlefield import Battlefield
 from equanimity.stone import Stone
 from equanimity.const import E, F
 from equanimity.weapons import Sword, Wand, Bow, Glove
-from base import create_comp
+from base import create_comp, FlaskTestDB
 
 
-class BattlefieldTest(TestCase):
+class BattlefieldTest(FlaskTestDB):
 
     def test_create(self):
         bf = Battlefield()
@@ -193,7 +192,8 @@ class BattlefieldTest(TestCase):
         self.assertTrue(bf.place_object(Nescient(E, create_comp(earth=128)),
                                         (4, 4)))
         # stone placement
-        self.assertTrue(bf.place_object(Stone(create_comp(earth=128)), (0, 3)))
+        s = Stone(create_comp(earth=128))
+        self.assertRaises(NotImplementedError, bf.place_object, s, (0, 3))
 
     def test_move_scient(self):
         bf = Battlefield()
@@ -204,7 +204,7 @@ class BattlefieldTest(TestCase):
         # nothing at src
         self.assertRaises(ValueError, bf.move_scient, (0, 0), (1, 1))
         # same spot
-        self.assertRaises(ValueError, bf.move_scient, (0, 0), (0, 0))
+        self.assertFalse(bf.move_scient((0, 0), (0, 0)))
         # something at dest
         s = Scient(E, create_comp(earth=128))
         bf.grid[0][0].contents = s
@@ -231,7 +231,7 @@ class BattlefieldTest(TestCase):
         self.assertEqual(s.location, Loc(0, 0))
         self.assertEqual(bf.dmg_queue[s], [])
         # re-placing in same spot
-        self.assertRaises(ValueError, bf.place_scient, s, (0, 0))
+        self.assertFalse(bf.place_scient(s, (0, 0)))
         # placing in occupied spot
         t = Scient(E, create_comp(earth=128))
         self.assertRaises(ValueError, bf.place_scient, t, (0, 0))
@@ -409,8 +409,8 @@ class BattlefieldTest(TestCase):
 
     def test_apply_queued(self):
         bf, s, t = self.test_get_dmg_queue()
-        self.assertEqual(bf.apply_queued(), [(t, 384)])
+        self.assertEqual(bf.apply_queued(), [[t, 384]])
         self.assertEqual(bf.get_dmg_queue(), {t: [[384, 1]], s: []})
-        self.assertEqual(bf.apply_queued(), [(t, 384)])
+        self.assertEqual(bf.apply_queued(), [[t, 384]])
         self.assertEqual(bf.get_dmg_queue(), {t: [], s: []})
         self.assertEqual(bf.apply_queued(), [])

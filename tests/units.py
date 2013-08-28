@@ -1,13 +1,12 @@
 from random import randint
-from unittest import TestCase
 from equanimity.units import Unit, Scient, Nescient, Part
 from equanimity.weapons import Glove
 from equanimity.const import E, I, W, F, ELEMENTS, ORTH
 from equanimity.stone import Stone
-from base import create_comp
+from base import create_comp, FlaskTestDB
 
 
-class UnitsTest(TestCase):
+class UnitsTest(FlaskTestDB):
 
     def setUp(self):
         super(UnitsTest, self).setUp()
@@ -53,8 +52,12 @@ class UnitsTest(TestCase):
     def test_repr(self):
         self.assertIn(self.u.name, str(self.u))
 
+    def test_equality(self):
+        self.assertEqual(self.u, self.u)
+        self.assertNotEqual(self.u, Unit(E, self.comp, name='x'))
 
-class ScientTest(TestCase):
+
+class ScientTest(FlaskTestDB):
 
     def setUp(self):
         super(ScientTest, self).setUp()
@@ -124,7 +127,7 @@ class ScientTest(TestCase):
         self.assertEqual(rem_wep, wep)
 
 
-class NescientTest(TestCase):
+class NescientTest(FlaskTestDB):
 
     def setUp(self):
         super(NescientTest, self).setUp()
@@ -194,12 +197,11 @@ class NescientTest(TestCase):
     def test_calcstats(self):
         expect = {'mdef': 384, 'pdef': 768, 'hp': 20480, 'm': 128, 'atk': 640,
                   'p': 256, 'defe': 256, 'patk': 640, 'matk': 512}
-        print self.nes.stats()
         self.nes.calcstats()
         self.assertEqual(expect, self.nes.stats())
 
 
-class PartTest(TestCase):
+class PartTest(FlaskTestDB):
 
     def setUp(self):
         super(PartTest, self).setUp()

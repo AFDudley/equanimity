@@ -4,10 +4,12 @@ units.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
+import transaction
 from datetime import datetime
 from stone import Stone, Composition
 from const import ELEMENTS, E, F, I, W, ORTH, OPP
 from grid import noloc
+from server import db
 
 
 class Unit(Stone):
@@ -36,7 +38,8 @@ class Unit(Stone):
         self.DOD = None
         self.fed_on = None
         self.val = self.value()
-        self.id = id(self)
+        self.id = db['unit_uid'].get_next_id()
+        transaction.commit()
 
     def calcstats(self):
         self.p = (2 * (self.comp[F] + self.comp[E]) + self.comp[I] +
@@ -60,6 +63,14 @@ class Unit(Stone):
 
     def __repr__(self):
         return '<{0} "{1}">'.format(self.__class__.__name__, self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (self.id == other.id)
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class Scient(Unit):

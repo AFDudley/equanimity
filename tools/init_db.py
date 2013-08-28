@@ -16,7 +16,8 @@ def init_db(reset=False, verbose=False):
     start = dict(player_uid=AutoID('player'),
                  player=IOBTree(),           # maps uid (int) -> Player
                  player_username=OOBTree(),  # maps username (str) -> Player
-                 player_email=OOBTree())     # maps email (str) -> Player
+                 player_email=OOBTree(),     # maps email (str) -> Player
+                 unit_uid=AutoID('unit'))
     for k, v in start.iteritems():
         if reset:
             db[k] = v

@@ -10,13 +10,13 @@ and should be refactored with battle as well.
 
 """
 from datetime import datetime
-from collections import Mapping
 
 import transaction
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
 
-from battlefield import Battlefield, Grid
+from grid import Grid
+from battlefield import Battlefield
 from units import Unit
 
 
@@ -204,9 +204,10 @@ class Game(object):
         self.state['whose_action'] = self.defender.name
 
         self.players = self.defender, self.attacker
+        # TODO (steve) -- bidirectional map instead of map,units
         self.map = self.unit_map()
-        self.winner = None
         self.units = self.map_unit()
+        self.winner = None
         self.log = Log(self.players, self.units, self.battlefield.grid)
         self.log['owners'] = self.log.get_owners()
         self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
@@ -217,9 +218,10 @@ class Game(object):
         btl = self.battlefield
         for squad_num, squad in enumerate(btl.squads):
             for unit_num, unit in enumerate(squad):
-                loc = unit.location
-                unit.location = None
-                btl.place_object(unit, loc)
+                # If the unit was already placed, it's ok
+                # This is to assert that all units are in place or receive
+                # a valid place
+                btl.place_object(unit, unit.location)
         self.log['init_locs'] = self.log.init_locs()
         self.log._p_changed = 1
         return transaction.commit()
@@ -261,6 +263,7 @@ class Game(object):
         locs = {}
         for unit, num in self.map.iteritems():
             loc = unit.location
+            # TODO (steve) -- should we also check hp > 0 ?
             if loc[0] >= 0:  # json requires num to be str.
                 locs[num] = loc
                 HPs[num] = unit.hp
@@ -268,37 +271,30 @@ class Game(object):
 
     def map_queue(self):
         """apply unit mapping to units in queue."""
-        old = self.battlefield.get_dmg_queue()
-        if not isinstance(old, Mapping):
-            return
-        new = {}
-        for key in old:
-            new[key.id] = old[key]
-        return new
+        queue = self.battlefield.get_dmg_queue()
+        return {key.id: val for key, val in queue.iteritems()}
 
     def map_result(self, result):
-        if result is None:
-            return
         for t in result:
             if isinstance(t[0], Unit):
                 t[0] = t[0].id
         return result
 
-    def map_action(self, action):
+    def map_action(self, **action):
         """replaces unit refrences to referencing their hash."""
         new = Action(**action)
         if new['unit'] is not None:
             new['unit'] = new['unit'].id
-        else:
-            new['unit'] = None
         return new
 
     def last_message(self):
+        none = ["There was no message."]
+        if not self.log['messages']:
+            return none
         text = self.log['messages'][-1]['result']
         if text is None:
-            return ["There was no message."]
-        else:
-            return self.log['messages'][-1]['result']
+            return none
+        return text
 
     def process_action(self, action):
         """Processes actions sent from game clients."""
@@ -372,7 +368,7 @@ class Game(object):
         else:
             raise ValueError("battle: Action is of unknown type")
 
-        self.log['actions'].append(self.map_action(action))
+        self.log['actions'].append(self.map_action(**action))
         self.log['messages'].append(Message(num, self.map_result(text)))
 
         if num % 4 == 0:  # explain please.

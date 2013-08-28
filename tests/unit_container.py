@@ -1,11 +1,10 @@
-from unittest import TestCase
 from equanimity.unit_container import Container, Squad
 from equanimity.units import Scient, Nescient
 from equanimity.const import E, F, I, W, WEP_LIST
-from base import create_comp
+from base import create_comp, FlaskTestDB
 
 
-class ContainerTest(TestCase):
+class ContainerTest(FlaskTestDB):
 
     def setUp(self):
         super(ContainerTest, self).setUp()
@@ -67,7 +66,7 @@ class ContainerTest(TestCase):
         self.assertIs(self.s.container, None)
 
 
-class SquadTest(TestCase):
+class SquadTest(FlaskTestDB):
 
     def _make_scient(self):
         return Scient(E, {E: 128, F: 32, I: 32, W: 0})

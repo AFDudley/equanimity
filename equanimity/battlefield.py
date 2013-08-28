@@ -267,18 +267,18 @@ class Battlefield(object):
             return self.place_nescient(obj, dest)
         elif isinstance(obj, Stone):
             # TODO -- should the stone be placed or what?
-            return True
+            raise NotImplementedError('Placing stones is not ready')
         else:
             raise TypeError("{0} is not a game item.".format(obj))
 
     def move_scient(self, src, dest):
         """move unit from src tile to dest tile"""
+        if src == dest:  # No action
+            return False
         if not self.on_grid(src):
             raise ValueError("Source {0} is off grid".format(src))
         if not self.on_grid(dest):
             raise ValueError("Destination {0} is off grid".format(dest))
-        if src == dest:
-            raise ValueError("src and dest are the same {0}".format(src))
 
         xsrc, ysrc = src
         xdest, ydest = dest
@@ -306,12 +306,13 @@ class Battlefield(object):
         if not self.on_grid(tile):
             raise ValueError("Tile {0} is off grid".format(tile))
 
-        xpos, ypos = tile
         if unit.location != noloc:
             return self.move_scient(unit.location, tile)
 
-        if self.grid[xpos][ypos].contents is not None:
-            raise ValueError("({0}, {1}) is not empty".format(xpos, ypos))
+        xpos, ypos = tile
+        contents = self.grid[xpos][ypos].contents
+        if contents is not None:
+            raise ValueError("{0} is not empty".format(tile))
 
         self.grid[xpos][ypos].contents = unit
         unit.location = Loc(xpos, ypos)
@@ -543,6 +544,7 @@ class Battlefield(object):
         for unit, amt in dmg:
             if unit.hp > 0:
                 if dot:
+                    print 'Applying DOT damage', defdr, amt, defdr.location
                     self.dmg_queue[defdr].append([amt, (atkr.weapon.time - 1)])
                 defdr_HPs.append((unit, self.apply_dmg(unit, amt)))
         return defdr_HPs
@@ -561,7 +563,7 @@ class Battlefield(object):
                 dmg_tick[1] -= 1
             # Apply all damage we encountered this turn
             if total:
-                defdr_HPs.append((unit, self.apply_dmg(unit, total)))
+                defdr_HPs.append([unit, self.apply_dmg(unit, total)])
             # Filter out decayed DOT damage
             self.dmg_queue[unit] = [x for x in dmgs if x[1] > 0]
         return defdr_HPs

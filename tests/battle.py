@@ -1,8 +1,9 @@
+import itertools
 from unittest import TestCase
 from base import create_comp, FlaskTestDB
 from server.utils import AttributeDict
-from equanimity.grid import Grid, Loc
-from equanimity.const import E
+from equanimity.grid import Grid, Loc, noloc
+from equanimity.const import E, F
 from equanimity.units import Scient
 from equanimity.player import Player
 from equanimity.helpers import rand_squad
@@ -63,7 +64,7 @@ class InitialStateTest(TestCase):
                 self.assertEqual(i[k], v)
 
 
-class LogTest(TestCase):
+class LogTest(FlaskTestDB):
 
     def test_create(self):
         log = Log([], [], Grid())
@@ -116,22 +117,22 @@ class StateTest(FlaskTestDB):
                                squads=[rand_squad()])
         defsquad = rand_squad()
         self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
-        self.g = Game(self.attacker, self.defender)
+        self.game = Game(self.attacker, self.defender)
         self.s['old_defsquad_hp'] = defsquad.hp()
 
     def assertGameOver(self, winner, condition):
-        self.assertTrue(self.g.state['game_over'])
-        self.assertEqual(self.g.winner, winner)
-        self.assertEqual(self.g.log['condition'], condition)
+        self.assertTrue(self.game.state['game_over'])
+        self.assertEqual(self.game.winner, winner)
+        self.assertEqual(self.game.log['condition'], condition)
 
     def _add_action(self, **action_kwargs):
-        self.g.log['actions'].append(Action(**action_kwargs))
+        self.game.log['actions'].append(Action(**action_kwargs))
 
     def _add_actions(self, count, **action_kwargs):
         [self._add_action(**action_kwargs) for i in xrange(count)]
 
     def _check(self):
-        self.s.check(self.g)
+        self.s.check(self.game)
 
     def test_create(self):
         keys = ['HPs', 'queued', 'locs', 'num', 'pass_count', 'hp_count',
@@ -151,13 +152,13 @@ class StateTest(FlaskTestDB):
 
     def test_complete_turn_no_defender_damage(self):
         self.s['num'] = 4
-        self.s['old_defsquad_hp'] = self.g.battlefield.defsquad.hp() - 1
+        self.s['old_defsquad_hp'] = self.game.battlefield.defsquad.hp() - 1
         self._add_actions(4)
         self._check()
         self.assertEqual(self.s['hp_count'], 0)
 
     def test_complete_turn_defender_took_damage(self):
-        self.g.battlefield.defsquad[0].hp = 0
+        self.game.battlefield.defsquad[0].hp = 0
         self._add_actions(4)
         self.s['num'] = 4
         self._check()
@@ -201,3 +202,124 @@ class StateTest(FlaskTestDB):
             self.s['num'] = i + 1
             self._check()
         self.assertGameOver(self.defender, 'Both sides passed')
+
+
+class GameTest(FlaskTestDB):
+
+    def setUp(self):
+        super(GameTest, self).setUp()
+        self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
+                               squads=[rand_squad(suit=E)])
+        self.defender = Player('Def', 'y@gmail.com', 'yyy',
+                               squads=[rand_squad(suit=F)])
+        self.game = Game(self.attacker, self.defender)
+
+    @property
+    def units(self):
+        return sorted(list(itertools.chain(self.attacker.squads[0],
+                                           self.defender.squads[0])))
+
+    def _place_squads(self):
+        self.game.battlefield.rand_place_squad(self.attacker.squads[0])
+        self.game.battlefield.rand_place_squad(self.defender.squads[0])
+        self.game.put_squads_on_field()
+
+    def test_create(self):
+        self.assertEqual(self.game.attacker, self.attacker)
+        self.assertEqual(self.game.defender, self.defender)
+        self.assertEqual(sorted(set(self.game.log['owners'].values())),
+                         sorted(['Atk', 'Def']))
+
+    def test_put_squads_on_field(self):
+        self._place_squads()
+        self.assertTrue(self.game.log['init_locs'])
+        for unit in self.units:
+            self.assertIsNot(unit.location, None)
+            self.assertNotEqual(unit.location, noloc)
+
+    def test_unit_map(self):
+        m = self.game.unit_map()
+        self.assertEqual(sorted(m.keys()), self.units)
+        self.assertEqual(sorted(m.values()), range(1, len(self.units) + 1))
+
+    def test_map_unit(self):
+        unit_map = self.game.unit_map()
+        m = self.game.map_unit()
+        self.assertEqual(sorted(m.keys()), sorted(unit_map.values()))
+        self.assertEqual(sorted(m.values()), sorted(unit_map.keys()))
+
+    def test_map_locs(self):
+        self._place_squads()
+        locs = self.game.map_locs()
+        self.assertEqual(sorted(locs.keys()), sorted(self.game.units.keys()))
+        self.assertEqual(sorted(locs.values()),
+                         sorted([u.location for u in self.units]))
+
+    def test_hps(self):
+        self._place_squads()
+        hps = self.game.HPs()
+        self.assertEqual(sorted(hps.keys()), sorted(self.game.units.keys()))
+        self.assertEqual(sorted(hps.values()),
+                         sorted([u.hp for u in self.units]))
+
+    def test_update_unit_info(self):
+        self._place_squads()
+        hps, locs = self.game.update_unit_info()
+        self.assertEqual(hps, self.game.HPs())
+        self.assertEqual(locs, self.game.map_locs())
+
+    def test_map_queue(self):
+        self._place_squads()
+        dfdr = self.defender.squads[0][0]
+        self.game.battlefield.dmg_queue[dfdr].append([100, 2])
+        dmg_q = self.game.map_queue()
+        self.assertTrue(dmg_q)
+        self.assertIn(dfdr.id, dmg_q)
+        for id, dmg in dmg_q.iteritems():
+            if id == dfdr.id:
+                self.assertEqual(dmg, [[100, 2]])
+            else:
+                self.assertEqual(dmg, [])
+
+    def test_map_result(self):
+        self._place_squads()
+        dfdr = self.defender.squads[0][0]
+        self.game.battlefield.dmg_queue[dfdr].append([1, 2])
+        qd = self.game.battlefield.apply_queued()
+        self.assertEqual(self.game.map_result(qd), [[dfdr.id, 1]])
+
+    def test_map_action(self):
+        d = self.defender.squads[0][0]
+        act = self.game.map_action(unit=d)
+        self.assertEqual(act['unit'], d.id)
+
+    def test_last_message(self):
+        self._place_squads()
+        none = ['There was no message.']
+        # No messages in log, at all
+        self.assertEqual(self.game.last_message(), none)
+        # No result in last message
+        self.game.log['messages'].append(AttributeDict(result=None))
+        self.assertEqual(self.game.last_message(), none)
+        # A result in last message
+        res = ['A message']
+        self.game.log['messages'].append(AttributeDict(result=res))
+        self.assertEqual(self.game.last_message(), res)
+
+    def test_process_action(self):
+        pass
+
+    def test_apply_queued(self):
+        pass
+
+    def test_get_last_state(self):
+        pass
+
+    def test_get_states(self):
+        pass
+
+    def test_initial_state(self):
+        pass
+
+    def test_end(self):
+        pass
