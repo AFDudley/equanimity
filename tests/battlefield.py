@@ -343,7 +343,7 @@ class BattlefieldTest(FlaskTestDB):
         t = Scient(F, create_comp(fire=128))
         bf.place_object(s, (0, 0))
         bf.place_object(t, (0, 1))
-        self.assertEqual(bf.calc_damage(s, t), [(t, 1152)])
+        self.assertEqual(bf.calc_damage(s, t), [[t, 1152]])
 
         # attack with Wand (AOE)
         s.unequip()
@@ -351,13 +351,13 @@ class BattlefieldTest(FlaskTestDB):
         s.equip(wep)
         for i in xrange(1, 5):
             bf.place_object(t, (i, i))
-        self.assertEqual(bf.calc_damage(s, t), [(t, 164)])
+        self.assertEqual(bf.calc_damage(s, t), [[t, 164]])
 
         # attack with Bow (ranged)
         s.unequip()
         wep = Bow(E, create_comp(earth=128))
         s.equip(wep)
-        self.assertEqual(bf.calc_damage(s, t), [(t, 288)])
+        self.assertEqual(bf.calc_damage(s, t), [[t, 288]])
 
         # attack with Glove (DOT)
         s.unequip()
@@ -366,7 +366,7 @@ class BattlefieldTest(FlaskTestDB):
         for i in reversed(range(1, 4)):
             bf.place_object(t, (i, i))
         bf.place_object(t, (0, 1))
-        self.assertEqual(bf.calc_damage(s, t), [(t, 384)])
+        self.assertEqual(bf.calc_damage(s, t), [[t, 384]])
 
         # defender out of range raises exception
         for i in xrange(1, 16):
@@ -391,7 +391,7 @@ class BattlefieldTest(FlaskTestDB):
         s.equip(wep)
         bf.place_object(s, (0, 0))
         bf.place_object(t, (1, 1))
-        self.assertEqual(bf.attack(s, (1, 0)), [(t, 384)])
+        self.assertEqual(bf.attack(s, (1, 0)), [[t, 384]])
         self.assertRaises(ValueError, bf.attack, s, (5, 5))
 
     def test_get_dmg_queue(self):

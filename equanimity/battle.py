@@ -303,11 +303,11 @@ class Game(object):
         action['num'] = num = self.state['num']
         try:
             curr_unit = action['unit'].id
-        except KeyError:
+        except AttributeError:
             curr_unit = None
         try:
-            prev_unit = self.log['actions'][-1]['unit']
-        except (KeyError, IndexError):
+            prev_unit = self.log['actions'][-1]['unit'].id
+        except (KeyError, IndexError, AttributeError):
             prev_unit = None
         try:
             prev_act = self.log['actions'][-1]['type']
@@ -315,7 +315,7 @@ class Game(object):
             prev_act = None
 
         if action['type'] == 'timed_out':
-            text = [["failed to act."]]
+            text = [["Failed to act."]]
             """
             #If this is the first ply, set the second ply to pass as well.
             if action['num'] % 2 == 1:
@@ -338,14 +338,13 @@ class Game(object):
             # If it's the second action in the ply and
             # it's different from this one.
             if num % 2 == 0:  # if it's the second action in the ply.
-                if prev_act != 'move':
-                    loc = action['unit'].location
-                    text = self.battlefield.move_scient(loc, action['target'])
-                    if text:
-                        text = [[action['unit'].id, action['target']]]
-                else:
+                if prev_act == 'move':
                     raise ValueError("battle: Second action in ply must be "
                                      "different from first.")
+                loc = action['unit'].location
+                text = self.battlefield.move_scient(loc, action['target'])
+                if text:
+                    text = [[action['unit'].id, action['target']]]
             else:
                 text = self.battlefield.move_scient(action['unit'].location,
                                                     action['target'])
@@ -356,12 +355,11 @@ class Game(object):
             # If it's the second action in the ply and
             # it's different from this one.
             if num % 2 == 0:  # if it's the second action in the ply.
-                if prev_act != 'attack':
-                    text = self.battlefield.attack(action['unit'],
-                                                   action['target'])
-                else:
+                if prev_act == 'attack':
                     raise ValueError("battle: Second action in ply must be "
                                      "different from first.")
+                text = self.battlefield.attack(action['unit'],
+                                               action['target'])
             else:
                 text = self.battlefield.attack(action['unit'],
                                                action['target'])
@@ -399,7 +397,7 @@ class Game(object):
         #Figure out if this is actually the *current* state or not, oops.
         try:
             return self.log['states'][-1]
-        except IndexError:
+        except (KeyError, IndexError):
             return
 
     def get_states(self):
@@ -425,7 +423,7 @@ class Game(object):
 
         # split survivors into victors and prisoners
         for unit in self.log['states'][-1]['HPs']:
-            if self.log['winner'].name == self.log['owners'][unit]:
+            if self.log['owners'][unit.id] == self.winner.name:
                 victors.append(unit)
             else:
                 prisoners.append(unit)

@@ -1,9 +1,11 @@
 import itertools
 from unittest import TestCase
+from mock import MagicMock
 from base import create_comp, FlaskTestDB
 from server.utils import AttributeDict
 from equanimity.grid import Grid, Loc, noloc
 from equanimity.const import E, F
+from equanimity.weapons import Sword
 from equanimity.units import Scient
 from equanimity.player import Player
 from equanimity.helpers import rand_squad
@@ -108,18 +110,7 @@ class LogTest(FlaskTestDB):
         self.assertEqual(owners, {0: 'testplayer'})
 
 
-class StateTest(FlaskTestDB):
-
-    def setUp(self):
-        super(StateTest, self).setUp()
-        self.s = State()
-        self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
-                               squads=[rand_squad()])
-        defsquad = rand_squad()
-        self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
-        self.game = Game(self.attacker, self.defender)
-        self.s['old_defsquad_hp'] = defsquad.hp()
-
+class BattleTestBase(FlaskTestDB):
     def assertGameOver(self, winner, condition):
         self.assertTrue(self.game.state['game_over'])
         self.assertEqual(self.game.winner, winner)
@@ -133,6 +124,19 @@ class StateTest(FlaskTestDB):
 
     def _check(self):
         self.s.check(self.game)
+
+
+class StateTest(BattleTestBase):
+
+    def setUp(self):
+        super(StateTest, self).setUp()
+        self.s = State()
+        self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
+                               squads=[rand_squad()])
+        defsquad = rand_squad()
+        self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
+        self.game = Game(self.attacker, self.defender)
+        self.s['old_defsquad_hp'] = defsquad.hp()
 
     def test_create(self):
         keys = ['HPs', 'queued', 'locs', 'num', 'pass_count', 'hp_count',
@@ -204,10 +208,10 @@ class StateTest(FlaskTestDB):
         self.assertGameOver(self.defender, 'Both sides passed')
 
 
-class GameTest(FlaskTestDB):
+class GameTestBase(BattleTestBase):
 
     def setUp(self):
-        super(GameTest, self).setUp()
+        super(GameTestBase, self).setUp()
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
                                squads=[rand_squad(suit=E)])
         self.defender = Player('Def', 'y@gmail.com', 'yyy',
@@ -223,6 +227,9 @@ class GameTest(FlaskTestDB):
         self.game.battlefield.rand_place_squad(self.attacker.squads[0])
         self.game.battlefield.rand_place_squad(self.defender.squads[0])
         self.game.put_squads_on_field()
+
+
+class GameTest(GameTestBase):
 
     def test_create(self):
         self.assertEqual(self.game.attacker, self.attacker)
@@ -306,20 +313,182 @@ class GameTest(FlaskTestDB):
         self.game.log['messages'].append(AttributeDict(result=res))
         self.assertEqual(self.game.last_message(), res)
 
-    def test_process_action(self):
-        pass
-
     def test_apply_queued(self):
-        pass
+        self._place_squads()
+        self._add_actions(4)
+        dfdr = self.defender.squads[0][0]
+        self.game.battlefield.dmg_queue[dfdr].append([1, 2])
+        self.game.state.check = MagicMock(side_effect=self.game.state.check)
+        self.assertFalse(self.game.log['applied'])
+        self.game.apply_queued()
+        self.assertTrue(self.game.log['applied'])
+        self.game.state.check.assert_called_with(self.game)
 
     def test_get_last_state(self):
-        pass
+        self.game.log['states'] = [1]
+        self.assertEqual(self.game.get_last_state(), 1)
+        self.game.log['states'] = []
+        self.assertIs(self.game.get_last_state(), None)
+        del self.game.log['states']
+        self.assertIs(self.game.get_last_state(), None)
 
     def test_get_states(self):
-        pass
+        self.game.log['states'] = [1]
+        self.assertEqual(self.game.get_states(), [1])
+        del self.game.log['states']
+        self.assertIs(self.game.get_states(), None)
 
     def test_initial_state(self):
-        pass
+        init_state = self.game.initial_state()
+        self.assertTrue(isinstance(init_state, InitialState))
 
     def test_end(self):
-        pass
+        self._place_squads()
+        self.game.winner = self.defender
+        survivors = self.defender.squads[0][:2]
+        survivors += self.attacker.squads[0][:1]
+        hps = {unit: unit.hp for unit in survivors}
+        self.game.state = State(HPs=hps)
+        self.game.end('Defender won')
+        self.assertGameOver(self.defender, 'Defender won')
+        self.assertEqual(sorted(self.defender.squads[0][:2]),
+                         sorted(self.game.log['change_list']['victors']))
+        self.assertEqual(sorted(self.attacker.squads[0][:1]),
+                         sorted(self.game.log['change_list']['prisoners']))
+
+
+class BattleProcessActionTest(GameTestBase):
+
+    def setUp(self):
+        super(BattleProcessActionTest, self).setUp()
+
+    @property
+    def d(self):
+        return self.defender.squads[0][0]
+
+    @property
+    def a(self):
+        return self.attacker.squads[0][0]
+
+    def assertActionResult(self, result, num, type, msg=None, target=None,
+                           unit=None):
+        if num % 4:
+            self.assertNotIn('applied', result)
+        else:
+            self.assertIn('applied', result)
+        self.assertEqual(result['command']['num'], num)
+        self.assertEqual(result['command']['type'], type)
+        self.assertEqual(result['command']['target'], target)
+        self.assertEqual(result['command']['unit'], unit)
+        self.assertEqual(result['response']['num'], num)
+        if msg is not None:
+            self.assertEqual(result['response']['result'], [[msg]])
+
+    def test_doing_nothing(self):
+        # with no unit, no prev_unit, no prev_act, passing
+        act = Action()
+        self.game.state = State(num=1)
+        ret = self.game.process_action(act)
+        self.assertActionResult(ret, 1, 'pass', 'Action Passed.')
+
+    def test_timing_out(self):
+        # same, but timing out
+        act = Action(type='timed_out')
+        self.game.state = State(num=1)
+        ret = self.game.process_action(act)
+        self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.')
+
+    def test_using_different_units(self):
+        # get a ValueError by using two different units in a row
+        act = Action(type='move', unit=self.defender.squads[0][0])
+        self.game.state = State(num=2)
+        self.game.log['actions'] = [Action(unit=self.defender.squads[0][1])]
+        self.assertRaises(ValueError, self.game.process_action, act)
+
+    def test_first_movement(self):
+        # do a legitimate movement, on a first action
+        self.game.battlefield.place_object(self.d, Loc(0, 0))
+        loc = Loc(0, 1)
+        act = Action(type='move', unit=self.d, target=loc)
+        self.game.state = State(num=1)
+        self.game.state.check = MagicMock(side_effect=self.game.state.check)
+        ret = self.game.process_action(act)
+        self.assertTrue(self.game.log['actions'])
+        self.assertTrue(self.game.log['messages'])
+        self.game.state.check.assert_called_with(self.game)
+        self.assertActionResult(ret, 1, 'move', target=loc, unit=6)
+
+    def test_second_movement(self):
+        # do a legitimate movement, on a second action
+        self.game.battlefield.place_object(self.d, Loc(0, 0))
+        loc = Loc(0, 1)
+        act = Action(type='move', unit=self.d, target=loc)
+        self.game.state = State(num=2)
+        self.game.state.check = MagicMock(side_effect=self.game.state.check)
+        self.game.log['actions'] = [Action(unit=self.d, type='pass')]
+        ret = self.game.process_action(act)
+        self.assertTrue(self.game.log['actions'])
+        self.assertTrue(self.game.log['messages'])
+        self.game.state.check.assert_called_with(self.game)
+        self.assertActionResult(ret, 2, 'move', unit=self.d.id, target=loc)
+
+    def test_double_movement(self):
+        # cause an Exception by doing two sequential movements
+        act = Action(type='move', unit=self.d)
+        self.game.state = State(num=2)
+        self.game.log['actions'] = [Action(unit=self.d, type='move')]
+        self.assertRaises(ValueError, self.game.process_action, act)
+        try:
+            self.game.process_action(act)
+        except ValueError as e:
+            self.assertIn('Second action in ply must be', str(e))
+
+    def test_unknown(self):
+        # cause an Exception by doing an unknown action
+        act = Action(type='xxx')
+        self.game.state = State(num=1)
+        self.assertRaises(ValueError, self.game.process_action, act)
+
+    def test_first_attack(self):
+        self.game.battlefield.place_object(self.d, Loc(0, 0))
+        self.game.battlefield.place_object(self.a, Loc(0, 1))
+        wep = Sword(E, create_comp(earth=128))
+        self.d.equip(wep)
+        loc = Loc(0, 1)
+        act = Action(unit=self.d, type='attack', target=loc)
+        self.game.state = State(num=1)
+        self.game.state.check = MagicMock(side_effect=self.game.state.check)
+        ret = self.game.process_action(act)
+        self.game.state.check.assert_called_with(self.game)
+        self.assertActionResult(ret, 1, type='attack', unit=self.d.id,
+                                target=loc)
+
+    def test_second_attack(self):
+        self.game.battlefield.place_object(self.d, Loc(0, 0))
+        self.game.battlefield.place_object(self.a, Loc(0, 1))
+        wep = Sword(E, create_comp(earth=128))
+        self.d.equip(wep)
+        loc = Loc(0, 1)
+        act = Action(unit=self.d, type='attack', target=loc)
+        self.game.state = State(num=2)
+        self.game.state.check = MagicMock(side_effect=self.game.state.check)
+        self.game.log['actions'] = [Action(unit=self.d, type='pass')]
+        ret = self.game.process_action(act)
+        self.game.state.check.assert_called_with(self.game)
+        self.assertActionResult(ret, 2, type='attack', unit=self.d.id,
+                                target=loc)
+
+    def test_double_attack(self):
+        act = Action(type='attack', unit=self.d)
+        self.game.state = State(num=2)
+        self.game.log['actions'] = [Action(unit=self.d, type='attack')]
+        self.assertRaises(ValueError, self.game.process_action, act)
+
+    def test_final_action(self):
+        self.game.apply_queued = MagicMock(side_effect=self.game.apply_queued)
+        self.game.state = State(num=4)
+        self.game.log['actions'] = [Action(unit=self.d, type='pass')] * 3
+        act = Action(type='pass', unit=self.d)
+        ret = self.game.process_action(act)
+        self.game.apply_queued.assert_called_with()
+        self.assertActionResult(ret, 4, type='pass', unit=self.d.id)

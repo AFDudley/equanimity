@@ -501,17 +501,17 @@ class Battlefield(object):
                 # currently the only non-full, non-DOT AOE weapon
                 if weapon.type == 'Wand':
                     temp_dmg /= area
-                dmg_lst.append((defdr, temp_dmg))
+                dmg_lst.append([defdr, temp_dmg])
         elif weapon.type in self.ranged:
             # this is a placeholder until calc_ranged is written.
-            dmg_lst.append((defdr, self.dmg(atkr, defdr) / 4))
+            dmg_lst.append([defdr, self.dmg(atkr, defdr) / 4])
         else:  # attack is only hitting one unit.
-            dmg_lst.append((defdr, self.dmg(atkr, defdr)))
+            dmg_lst.append([defdr, self.dmg(atkr, defdr)])
 
         if weapon.type in self.DOT:
             dmg_lst = [(t[0], t[1] / weapon.time) for t in dmg_lst]
 
-        return [(unit, dmg) for unit, dmg in dmg_lst if dmg]
+        return [[unit, dmg] for unit, dmg in dmg_lst if dmg]
 
     def apply_dmg(self, target, damage):
         """applies damage to target, called by attack() and
@@ -544,9 +544,8 @@ class Battlefield(object):
         for unit, amt in dmg:
             if unit.hp > 0:
                 if dot:
-                    print 'Applying DOT damage', defdr, amt, defdr.location
                     self.dmg_queue[defdr].append([amt, (atkr.weapon.time - 1)])
-                defdr_HPs.append((unit, self.apply_dmg(unit, amt)))
+                defdr_HPs.append([unit, self.apply_dmg(unit, amt)])
         return defdr_HPs
 
     def get_dmg_queue(self):
