@@ -12,6 +12,7 @@ and should be refactored with battle as well.
 from datetime import datetime
 
 import transaction
+from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
 
@@ -190,9 +191,10 @@ class State(PersistentMapping):
         transaction.commit()
 
 
-class Game(object):
+class Game(Persistent):
     """Almost-state-machine that maintains game state."""
     def __init__(self, attacker, defender, grid=None):
+        super(Game, self).__init__()
         if grid is None:
             grid = Grid()
         self.grid = grid
@@ -211,6 +213,7 @@ class Game(object):
         self.log = Log(self.players, self.units, self.battlefield.grid)
         self.log['owners'] = self.log.get_owners()
         self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
+        self.action_queue = ActionQueue(self)
         return transaction.commit()
 
     def put_squads_on_field(self):
@@ -223,7 +226,6 @@ class Game(object):
                 # a valid place
                 btl.place_object(unit, unit.location)
         self.log['init_locs'] = self.log.init_locs()
-        self.log._p_changed = 1
         return transaction.commit()
 
     def unit_map(self):
@@ -297,6 +299,10 @@ class Game(object):
         return text
 
     def process_action(self, action):
+        # TODO (steve) -- check that 1st, 2nd plies are from attacker,
+        # and that 3rd, 4th plies are from defender
+        # and that action['unit'] matches the action queue's order
+
         """Processes actions sent from game clients."""
         # Needs more logic for handling turns/plies.
         action['when'] = now()
@@ -337,7 +343,7 @@ class Game(object):
         elif action['type'] == 'move':  # TODO fix move in battlefield.
             # If it's the second action in the ply and
             # it's different from this one.
-            if num % 2 == 0:  # if it's the second action in the ply.
+            if not num % 2:  # if it's the second action in the ply.
                 if prev_act == 'move':
                     raise ValueError("battle: Second action in ply must be "
                                      "different from first.")
@@ -354,7 +360,7 @@ class Game(object):
         elif action['type'] == 'attack':
             # If it's the second action in the ply and
             # it's different from this one.
-            if num % 2 == 0:  # if it's the second action in the ply.
+            if not num % 2:  # if it's the second action in the ply.
                 if prev_act == 'attack':
                     raise ValueError("battle: Second action in ply must be "
                                      "different from first.")
@@ -369,21 +375,18 @@ class Game(object):
         self.log['actions'].append(self.map_action(**action))
         self.log['messages'].append(Message(num, self.map_result(text)))
 
-        if num % 4 == 0:  # explain please.
+        if not num % 4:
             self.apply_queued()
         else:
             self.state.check(self)
 
-        self._p_changed = 1
         transaction.commit()
 
-        if num % 4 == 0:
-            return {'command': dict(self.log['actions'][-1]),
-                    'response': dict(self.log['messages'][-1]),
-                    'applied': dict(self.log['applied'][-1])}
-        else:
-            return {'command': dict(self.log['actions'][-1]),
-                    'response': dict(self.log['messages'][-1])}
+        result = dict(command=dict(self.log['actions'][-1]),
+                      response=dict(self.log['messages'][-1]))
+        if not num % 4:
+            result['applied'] = dict(self.log['applied'][-1])
+        return result
 
     def apply_queued(self):
         """queued damage is applied to units from this state"""
@@ -430,3 +433,42 @@ class Game(object):
         # calculate awards
         awards = PersistentMapping()  # should be a stone.
         self.log['change_list'] = BattleChanges(victors, prisoners, awards)
+
+
+class ActionQueue(Persistent):
+
+    def __init__(self, game):
+        super(ActionQueue, self).__init__()
+        self.game = game
+        self.position = 0
+        self.units = self._get_unit_queue(self.game.battlefield.units)
+        self.total = len(self.units)
+
+    def get_unit_for_action(self, num):
+        # action numbers are 1-indexed, set to 0
+        if num < 1:
+            raise ValueError('Invalid action number {0}'.format(num))
+        num -= 1
+        # get the ply number
+        ply = (num / 2) % self.total
+        return self.units[ply]
+
+    def _get_unit_key(self, unit):
+        """Returns a tuple of scalar values to be compared in order"""
+        # Sanity checking
+        if unit.squad is None or unit.squad_pos is None:
+            raise ValueError('Unit {0} is not in a squad'.format(unit))
+        # Lower valued units go first
+        val = unit.value()
+        # Higher counts of the field's primary element go first
+        # We invert the value from the max so that a lower value appears
+        # in the comparison key
+        prime_element_ct = 255 - unit.comp[self.game.battlefield.element]
+        # Earlier placed units in squad go first
+        squad_pos = unit.squad_pos
+        # Attackers go first.  We check is_defender, because False < True
+        is_defender = (unit.squad == self.game.battlefield.defsquad)
+        return (val, prime_element_ct, squad_pos, is_defender)
+
+    def _get_unit_queue(self, units):
+        return sorted(units, key=self._get_unit_key)

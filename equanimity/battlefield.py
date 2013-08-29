@@ -11,6 +11,7 @@ from datetime import datetime
 from stone import Stone, Composition
 from units import Scient, Nescient, Part
 from grid import Grid, Loc, noloc
+from const import E
 
 
 """
@@ -22,12 +23,15 @@ Replace ValueError with a custom exception
 
 class Battlefield(object):
     """contains grid, units and the logic for unit damage and movement."""
-    def __init__(self, grid=None, defsquad=None, atksquad=None):
+    def __init__(self, grid=None, defsquad=None, atksquad=None, element=None):
+        if element is None:
+            element = E
         if grid is None:
             grid = Grid()
         # grid is a tuple of tuples containing tiles
         self.game_id = 0  # ?
         self.grid = grid
+        self.element = E
         self.graveyard = []
         self.defsquad = defsquad
         self.atksquad = atksquad

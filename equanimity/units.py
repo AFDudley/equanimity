@@ -37,6 +37,8 @@ class Unit(Stone):
         self.DOB = now
         self.DOD = None
         self.fed_on = None
+        self.squad = None
+        self.squad_pos = None
         self.val = self.value()
         self.id = db['unit_uid'].get_next_id()
         transaction.commit()
