@@ -1,5 +1,6 @@
 import os
 import transaction
+from itertools import izip, tee
 from unittest import TestCase
 from mock import Mock
 from flask import url_for, json
@@ -11,6 +12,14 @@ from tools.init_db import init_db
 
 def create_comp(earth=0, wind=0, fire=0, ice=0):
     return dict(Earth=earth, Wind=wind, Fire=fire, Ice=ice)
+
+
+def pairwise(iterable):
+    # See: http://docs.python.org/2/library/itertools.html#recipes
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = tee(iterable)
+    next(b, None)
+    return izip(a, b)
 
 
 class FlaskTest(TestCase):

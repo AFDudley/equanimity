@@ -1,7 +1,7 @@
 import itertools
 from unittest import TestCase
 from mock import MagicMock
-from base import create_comp, FlaskTestDB
+from base import create_comp, FlaskTestDB, pairwise
 from server.utils import AttributeDict
 from equanimity.grid import Grid, Loc, noloc
 from equanimity.const import E, F
@@ -219,13 +219,17 @@ class GameTestBase(BattleTestBase):
         self.game = Game(self.attacker, self.defender)
 
     @property
+    def bf(self):
+        return self.game.battlefield
+
+    @property
     def units(self):
         return sorted(list(itertools.chain(self.attacker.squads[0],
                                            self.defender.squads[0])))
 
     def _place_squads(self):
-        self.game.battlefield.rand_place_squad(self.attacker.squads[0])
-        self.game.battlefield.rand_place_squad(self.defender.squads[0])
+        self.bf.rand_place_squad(self.attacker.squads[0])
+        self.bf.rand_place_squad(self.defender.squads[0])
         self.game.put_squads_on_field()
 
 
@@ -278,7 +282,7 @@ class GameTest(GameTestBase):
     def test_map_queue(self):
         self._place_squads()
         dfdr = self.defender.squads[0][0]
-        self.game.battlefield.dmg_queue[dfdr].append([100, 2])
+        self.bf.dmg_queue[dfdr].append([100, 2])
         dmg_q = self.game.map_queue()
         self.assertTrue(dmg_q)
         self.assertIn(dfdr.id, dmg_q)
@@ -291,8 +295,8 @@ class GameTest(GameTestBase):
     def test_map_result(self):
         self._place_squads()
         dfdr = self.defender.squads[0][0]
-        self.game.battlefield.dmg_queue[dfdr].append([1, 2])
-        qd = self.game.battlefield.apply_queued()
+        self.bf.dmg_queue[dfdr].append([1, 2])
+        qd = self.bf.apply_queued()
         self.assertEqual(self.game.map_result(qd), [[dfdr.id, 1]])
 
     def test_map_action(self):
@@ -317,7 +321,7 @@ class GameTest(GameTestBase):
         self._place_squads()
         self._add_actions(4)
         dfdr = self.defender.squads[0][0]
-        self.game.battlefield.dmg_queue[dfdr].append([1, 2])
+        self.bf.dmg_queue[dfdr].append([1, 2])
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
         self.assertFalse(self.game.log['applied'])
         self.game.apply_queued()
@@ -407,7 +411,7 @@ class BattleProcessActionTest(GameTestBase):
 
     def test_first_movement(self):
         # do a legitimate movement, on a first action
-        self.game.battlefield.place_object(self.d, Loc(0, 0))
+        self.bf.place_object(self.d, Loc(0, 0))
         loc = Loc(0, 1)
         act = Action(type='move', unit=self.d, target=loc)
         self.game.state = State(num=1)
@@ -420,7 +424,7 @@ class BattleProcessActionTest(GameTestBase):
 
     def test_second_movement(self):
         # do a legitimate movement, on a second action
-        self.game.battlefield.place_object(self.d, Loc(0, 0))
+        self.bf.place_object(self.d, Loc(0, 0))
         loc = Loc(0, 1)
         act = Action(type='move', unit=self.d, target=loc)
         self.game.state = State(num=2)
@@ -450,8 +454,8 @@ class BattleProcessActionTest(GameTestBase):
         self.assertRaises(ValueError, self.game.process_action, act)
 
     def test_first_attack(self):
-        self.game.battlefield.place_object(self.d, Loc(0, 0))
-        self.game.battlefield.place_object(self.a, Loc(0, 1))
+        self.bf.place_object(self.d, Loc(0, 0))
+        self.bf.place_object(self.a, Loc(0, 1))
         wep = Sword(E, create_comp(earth=128))
         self.d.equip(wep)
         loc = Loc(0, 1)
@@ -464,8 +468,8 @@ class BattleProcessActionTest(GameTestBase):
                                 target=loc)
 
     def test_second_attack(self):
-        self.game.battlefield.place_object(self.d, Loc(0, 0))
-        self.game.battlefield.place_object(self.a, Loc(0, 1))
+        self.bf.place_object(self.d, Loc(0, 0))
+        self.bf.place_object(self.a, Loc(0, 1))
         wep = Sword(E, create_comp(earth=128))
         self.d.equip(wep)
         loc = Loc(0, 1)
@@ -492,3 +496,65 @@ class BattleProcessActionTest(GameTestBase):
         ret = self.game.process_action(act)
         self.game.apply_queued.assert_called_with()
         self.assertActionResult(ret, 4, type='pass', unit=self.d.id)
+
+
+class ActionQueueTest(GameTestBase):
+
+    @property
+    def aq(self):
+        return self.game.action_queue
+
+    def test_create(self):
+        self.assertEqual(self.aq.game, self.game)
+        self.assertEqual(len(self.aq.units), 10)
+
+    def test_get_unit_for_action(self):
+        # Invalid action num causes exception
+        self.assertRaises(ValueError, self.aq.get_unit_for_action, 0)
+        # Check various units and their positions in the queue
+        # First turn for unit 0
+        expect = self.aq.units[0]
+        self.assertEqual(self.aq.get_unit_for_action(1), expect)
+        self.assertEqual(self.aq.get_unit_for_action(2), expect)
+        # First turn, for unit 5
+        expect = self.aq.units[5]
+        self.assertEqual(self.aq.get_unit_for_action(11), expect)
+        self.assertEqual(self.aq.get_unit_for_action(12), expect)
+        # Next full turn, for unit 5
+        turn = len(self.aq.units) * 2
+        self.assertEqual(self.aq.get_unit_for_action(11 + turn), expect)
+        self.assertEqual(self.aq.get_unit_for_action(12 + turn), expect)
+        # 6 full turns, for unit 5
+        self.assertEqual(self.aq.get_unit_for_action(11 + turn * 5), expect)
+        self.assertEqual(self.aq.get_unit_for_action(12 + turn * 5), expect)
+        # 6 full turns, for unit 6
+        expect = self.aq.units[6]
+        self.assertEqual(self.aq.get_unit_for_action(13 + turn * 5), expect)
+        self.assertEqual(self.aq.get_unit_for_action(14 + turn * 5), expect)
+
+    def test_queue_order(self):
+        # Verify order by induction
+        for a, b in pairwise(self.aq.units):
+            self.assertNotEqual(a, b)
+            self.assertLessEqual(a.value(), b.value())
+            if a.value() == b.value():
+                prime_a = a.comp[self.bf.element]
+                prime_b = a.comp[self.bf.element]
+                self.assertGreaterEqual(prime_a, prime_b)
+                if prime_a == prime_b:
+                    self.assertLessEqual(a.squad_pos, b.squad_pos)
+                    if a.squad_pos == b.squad_pos:
+                        self.assertEqual(a.squad, self.bf.atksquad)
+                        self.assertEqual(b.squad, self.bf.defsquad)
+
+    def test_get_unit_key_bad_unit(self):
+        unit = Scient(E, create_comp(earth=128))
+        # neither squad nor squad_pos
+        self.assertRaises(ValueError, self.aq._get_unit_key, unit)
+        # squad, but no squad_pos
+        unit.squad = self.defender.squads[0]
+        self.assertRaises(ValueError, self.aq._get_unit_key, unit)
+        # squad_pos, but no squad
+        unit.squad = None
+        unit.squad_pos = 0
+        self.assertRaises(ValueError, self.aq._get_unit_key, unit)

@@ -440,9 +440,7 @@ class ActionQueue(Persistent):
     def __init__(self, game):
         super(ActionQueue, self).__init__()
         self.game = game
-        self.position = 0
         self.units = self._get_unit_queue(self.game.battlefield.units)
-        self.total = len(self.units)
 
     def get_unit_for_action(self, num):
         # action numbers are 1-indexed, set to 0
@@ -450,7 +448,7 @@ class ActionQueue(Persistent):
             raise ValueError('Invalid action number {0}'.format(num))
         num -= 1
         # get the ply number
-        ply = (num / 2) % self.total
+        ply = (num / 2) % len(self.units)
         return self.units[ply]
 
     def _get_unit_key(self, unit):
