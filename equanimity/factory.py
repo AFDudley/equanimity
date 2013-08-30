@@ -40,15 +40,15 @@ class Stable(Factory):
         super(Stable, self).__init__()
         self.kind = 'Stable'
 
-    def __setitem__(self, pos, val):
+    def __setitem__(self, pos, unit):
         if not isinstance(unit, Nescient):
             raise ValueError("Stables can only contain Nescients.")
         super(Stable, self).__setitem__(pos, unit)
 
-    def append(self, item):
+    def append(self, unit):
         if not isinstance(unit, Nescient):
             raise ValueError("Stables can only contain Nescients.")
-        super(Stable, self).append(item)
+        super(Stable, self).append(unit)
 
     def produce(self, silo, season):
         """Produce one offspring 1/8th the comp of the parent."""
