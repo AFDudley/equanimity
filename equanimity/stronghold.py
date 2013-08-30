@@ -4,8 +4,10 @@ stronghold.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import persistent
 import transaction
+from persistent import Persistent
+from persistent.mapping import PersistentMapping
+from persistent.list import PersistentList
 
 from stone import Stone
 from units import Scient
@@ -20,33 +22,33 @@ from copy import deepcopy
 from clock import now
 
 
-class mappedContainer(persistent.Persistent, Container):
+class MappedContainer(Container):
     def __init__(self):
         Container.__init__(self, data=None, free_spaces=8)
         #maybe map should actually return the key and method
         #should be added instead of using .map
-        self.map = persistent.mapping.PersistentMapping()
+        self.map = PersistentMapping()
         self.name = 'stronghold'
 
     def __setitem__(self, key, val):
-        Container.__setitem__(self, key, val)
+        super(MappedContainer, self).__setitem__(key, val)
         self.map.update({key.id: key})
 
     def __delitem__(self, key):
-        del self.map[self.data[key].id]
-        if self.data[key].container.name == 'stronghold':
-            self.data[key].container = None
+        del self.map[self.units[key].id]
+        if self.units[key].container.name == 'stronghold':
+            self.units[key].container = None
         temp = self[key].value()
-        self.free_spaces += self.unit_size(self[key])
-        self.data.__delitem__(key)
+        self.free_spaces += self[key].size
+        del self.units[key]
         self.val -= temp
 
     def append(self, item):
-        Container.append(self, item)
+        super(MappedContainer, self).append(item)
         self.map.update({item.id: item})
 
-    #FIX
     def remove_by_id(self, unit_id):
+        # TODO FIX
         k = None
         for u_key in reversed(xrange(len(self))):
             if self[u_key].id == unit_id:
@@ -54,7 +56,24 @@ class mappedContainer(persistent.Persistent, Container):
         del self[k]
 
 
-class Stronghold(persistent.Persistent):
+class Stronghold(Persistent):
+
+    def __init__(self, field_element, clock):
+        self.clock = clock
+        self.silo = Silo()
+        self.weapons = PersistentList()
+        self.units = MappedContainer()
+        self.squads = PersistentList()
+        self.defenders = Squad(name='Defenders')
+        self.make_defenders(field_element)
+        self.defender_locs = PersistentList()
+        self.stable = None
+        self.armory = None
+        self.home = None
+        self.farm = None
+        self.create_factory(field_element)
+        return transaction.commit()
+
     def create_factory(self, kind):
         """Adds a factory to a stronghold, raises exception if factory already
         exists."""
@@ -80,22 +99,6 @@ class Stronghold(persistent.Persistent):
             else:
                 raise Exception("This stronghold already has a farm.")
         self._p_changed = 1
-        return transaction.commit()
-
-    def __init__(self, field_element, clock):
-        self.clock = clock
-        self.silo = Silo()
-        self.weapons = persistent.list.PersistentList()
-        self.units = mappedContainer()
-        self.squads = persistent.list.PersistentList()
-        self.defenders = Squad(name='Defenders')
-        self.make_defenders(field_element)
-        self.defender_locs = persistent.list.PersistentList()
-        self.stable = None
-        self.armory = None
-        self.home = None
-        self.farm = None
-        self.create_factory(field_element)
         return transaction.commit()
 
     def form_weapon(self, element, comp, weap_type):

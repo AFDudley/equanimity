@@ -4,30 +4,28 @@ factory.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import persistent
-
 from const import OPPSEX
 from units import Scient, Nescient
 from unit_container import Container
 from weapons import Sword, Bow, Wand, Glove
 
 
-class Factory(persistent.Persistent, Container):
+class Factory(Container):
     """contains a number of Units. Takes a list of Units"""
     def __init__(self, data=None):
-        Container.__init__(self, data=None, free_spaces=1)
+        super(Factory, self).__init__(data=data, free_spaces=1)
         self.produced = {}
 
     def __setitem__(self, key, val):
-        Container.__setitem__(self, key, val)
+        super(Factory, self).__setitem__(key, val)
         self.produced.update({key.id: False})
 
     def __delitem__(self, key):
-        Container.__delitem__(self, key)
+        super(Factory, self).__delitem__(key)
         del self.produced[key.id]
 
     def append(self, item):
-        Container.append(self, item)
+        super(Factory, self).append(self, item)
         self.produced.update({item.id: False})
 
     def upgrade(self):
@@ -42,17 +40,15 @@ class Stable(Factory):
         super(Stable, self).__init__()
         self.kind = 'Stable'
 
-    def __setitem__(self, key, val):
-        if self.unit_size(val) == 2:
-            super(Stable, self).__setitem__(key, val)
-        else:
-            raise Exception("Stables can only contain Nescients.")
+    def __setitem__(self, pos, val):
+        if not isinstance(unit, Nescient):
+            raise ValueError("Stables can only contain Nescients.")
+        super(Stable, self).__setitem__(pos, unit)
 
     def append(self, item):
-        if self.unit_size(item) == 2:
-            super(Stable, self).append(item)
-        else:
-            raise Exception("Stables can only contain Nescients.")
+        if not isinstance(unit, Nescient):
+            raise ValueError("Stables can only contain Nescients.")
+        super(Stable, self).append(item)
 
     def produce(self, silo, season):
         """Produce one offspring 1/8th the comp of the parent."""
