@@ -193,7 +193,7 @@ class State(PersistentMapping):
 
 class Game(Persistent):
     """Almost-state-machine that maintains game state."""
-    def __init__(self, attacker, defender, grid=None):
+    def __init__(self, attacker, defender, grid=None, element=None):
         super(Game, self).__init__()
         if grid is None:
             grid = Grid()
@@ -201,7 +201,8 @@ class Game(Persistent):
         self.defender = defender
         self.attacker = attacker
         self.battlefield = Battlefield(grid, self.defender.squads[0],
-                                       self.attacker.squads[0])
+                                       self.attacker.squads[0],
+                                       element=element)
         self.state = State()
         self.state['whose_action'] = self.defender.name
 
@@ -443,30 +444,33 @@ class ActionQueue(Persistent):
         self.units = self._get_unit_queue(self.game.battlefield.units)
 
     def get_unit_for_action(self, num):
-        # action numbers are 1-indexed, set to 0
         if num < 1:
             raise ValueError('Invalid action number {0}'.format(num))
+        # action numbers are 1-indexed, set to 0
         num -= 1
-        # get the ply number
-        ply = (num / 2) % len(self.units)
-        return self.units[ply]
+        ply = num / 2
+        queue_pos = ply % len(self.units)
+        return self.units[queue_pos]
 
     def _get_unit_key(self, unit):
         """Returns a tuple of scalar values to be compared in order"""
         # Sanity checking
-        if unit.squad is None or unit.squad_pos is None:
+        if unit.container is None or unit.container_pos is None:
             raise ValueError('Unit {0} is not in a squad'.format(unit))
+        if unit.container not in self.game.battlefield.squads:
+            msg = 'Unit {0} is not in a battling squad'
+            raise ValueError(msg.format(unit))
         # Lower valued units go first
         val = unit.value()
         # Higher counts of the field's primary element go first
         # We invert the value from the max so that a lower value appears
         # in the comparison key
-        prime_element_ct = 255 - unit.comp[self.game.battlefield.element]
+        prime_element_val = 255 - unit.comp[self.game.battlefield.element]
         # Earlier placed units in squad go first
-        squad_pos = unit.squad_pos
+        squad_pos = unit.container_pos
         # Attackers go first.  We check is_defender, because False < True
-        is_defender = (unit.squad == self.game.battlefield.defsquad)
-        return (val, prime_element_ct, squad_pos, is_defender)
+        is_defender = (unit.container == self.game.battlefield.defsquad)
+        return (val, prime_element_val, squad_pos, is_defender)
 
     def _get_unit_queue(self, units):
         return sorted(units, key=self._get_unit_key)

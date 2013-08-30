@@ -33,12 +33,11 @@ class Unit(Stone):
         self.name = name
         self.location = location
         self.container = None
+        self.container_pos = None
         self.sex = sex
         self.DOB = now
         self.DOD = None
         self.fed_on = None
-        self.squad = None
-        self.squad_pos = None
         self.val = self.value()
         self.id = db['unit_uid'].get_next_id()
         transaction.commit()
@@ -94,6 +93,7 @@ class Scient(Unit):
                                  "value.")
         super(Scient, self).__init__(element, comp, name=name, sex=sex,
                                      location=location)
+        self.size = 1
         self.move = 4
         self.weapon = weapon
         if weapon_bonus is None:
@@ -155,6 +155,7 @@ class Nescient(Unit):
 
         super(Nescient, self).__init__(element, comp, name=name, sex=sex,
                                        location=location)
+        self.size = 2
         self.move = 4
         #Set nescient type.
         if self.element == 'Earth':

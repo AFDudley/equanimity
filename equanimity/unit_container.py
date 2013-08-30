@@ -4,97 +4,113 @@ unit_container.py
 Created by AFD on 2013-03-06.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-from UserList import UserList
+import transaction
+from persistent import Persistent
+from persistent.list import PersistentList
 import weapons
 from stone import Stone
-from const import ELEMENTS, OPP, ORTH, WEP_LIST
-from units import Unit, Scient
+from const import ELEMENTS, WEP_LIST
+from units import Scient
 
 
-class Container(UserList):
+class Container(Persistent):
     """contains units"""
 
     def __init__(self, data=None, free_spaces=8):
         super(Container, self).__init__()
-        self.val = 0
+        self.max_free_spaces = free_spaces
         self.free_spaces = free_spaces
-
-    def unit_size(self, obj):
-        if not isinstance(obj, Unit):
-            raise TypeError("Containers are only for Units")
+        if data is None:
+            self.units = PersistentList()
+        elif isinstance(data, Stone):
+            self.units = PersistentList(initlist=[data])
         else:
-            if isinstance(obj, Scient):
-                return 1
-            else:
-                return 2
-
-    def append(self, item):
-        size = self.unit_size(item)
-        if self.free_spaces < size:
-            msg = "There is not enough space in this container for this unit"
-            raise Exception(msg)
-        self.data.append(item)
-        self.val += item.value()
-        self.free_spaces -= size
-        item.container = self
-
-    def update_value(self):
-        new_val = 0
-        for u in self.data:
-            new_val += u.value()
-        self.val = new_val
+            self.units = PersistentList(initlist=data)
+        self._update_value()
+        self._set_positions()
+        self._update_free_space()
+        transaction.commit()
 
     def value(self):
         return self.val
 
-    def __setitem__(self, key, val):
-        old = self[key]
-        old_size = self.unit_size(old)
-        size = self.unit_size(val)
-        if self.free_spaces + old_size < size:
-            msg = "There is not enough space in this container for this unit"
-            raise Exception(msg)
-        super(Container, self).__setitem__(key, val)
-        self.val += val.value() - old.value()
-        self.free_spaces += old_size - size
-        val.container = self
-        old.container = None
+    def _update_value(self):
+        self.val = sum([u.value() for u in self.units])
 
-    def __delitem__(self, key):
-        self.data[key].container = None
-        temp = self[key].value()
-        self.free_spaces += self.unit_size(self[key])
-        self.data.__delitem__(key)
-        self.val -= temp
+    def _set_positions(self):
+        for i, u in enumerate(self.units):
+            u.container_pos = i
+            u.container = self
 
+    def _update_free_space(self):
+        needed = sum([u.size for u in self.units])
+        if needed > self.max_free_spaces:
+            raise ValueError('Container {0} is overflowing'.format(self))
+        self.free_spaces = self.max_free_spaces - needed
 
-class Squad(Container):
-    """contains a number of Units. Takes a list of Units"""
-    def __init__(self, data=None, name=None, kind=None, element=None):
-        super(Squad, self).__init__(data=None, free_spaces=8)
-        self.name = name
-        if data is None:
-            if kind == 'mins':
-                self._fill_default_units(element)
-        else:
-            if isinstance(data, Stone):
-                self.append(data)
-            else:
-                self.extend(data)
+    """ List-like interface """
 
     def append(self, unit):
-        unit.squad_pos = len(self)
-        unit.squad = self
-        super(Squad, self).append(unit)
+        if self.free_spaces < unit.size:
+            msg = "There is not enough space in this container for this unit"
+            raise Exception(msg)
+        unit.container_pos = len(self)
+        unit.container = self
+        self.units.append(unit)
+        self.val += unit.value()
+        self.free_spaces -= unit.size
 
     def extend(self, units):
+        print self.units, self.free_spaces
         for unit in units:
             self.append(unit)
+        print self.units, self.free_spaces
 
     def __iadd__(self, units):
         """ += operator """
         self.extend(units)
         return self
+
+    def __len__(self):
+        return len(self.units)
+
+    def __getitem__(self, pos):
+        return self.units[pos]
+
+    def __setitem__(self, pos, unit):
+        old = self[pos]
+        if self.free_spaces + old.size < unit.size:
+            msg = "There is not enough space in this container for this unit"
+            raise Exception(msg)
+        self.units[pos] = unit
+        self.val += unit.value() - old.value()
+        self.free_spaces += old.size - unit.size
+        old.container = None
+        old.container_pos = None
+        unit.container_pos = pos
+        unit.container = self
+
+    def __delitem__(self, pos):
+        self.units[pos].container = None
+        self.units[pos].container_pos = None
+        self.free_spaces += self[pos].size
+        self.val -= self[pos].value()
+        del self.units[pos]
+        for i, unit in enumerate(self.units[pos:]):
+            unit.container_pos = pos + i
+
+    def __iter__(self):
+        return iter(self.units)
+
+
+class Squad(Container):
+    """contains a number of Units. Takes a list of Units"""
+    def __init__(self, data=None, name=None, kind=None, element=None):
+        super(Squad, self).__init__(data=data, free_spaces=8)
+        self.name = name
+        if data is None and kind == 'mins':
+            self._fill_default_units(element)
+        transaction.commit()
 
     def hp(self):
         """Returns the total HP of the Squad."""
@@ -107,9 +123,8 @@ class Squad(Container):
         # of (4,2,2,0). Each unit is equiped with a unique weapon.
         s = Stone()
         s[element] = 4
-        s[OPP[element]] = 0
-        for o in ORTH[element]:
-            s[o] = 2
+        s.set_opp(element, 0)
+        s.set_orth(element, 2)
         for wep in WEP_LIST:
             scient = Scient(element, s)
             scient.equip(getattr(weapons, wep)(element, Stone()))

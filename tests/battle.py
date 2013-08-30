@@ -212,11 +212,18 @@ class GameTestBase(BattleTestBase):
 
     def setUp(self):
         super(GameTestBase, self).setUp()
+        self._setup_game()
+
+    def _setup_game(self, atksquad=None, defsquad=None, element=None):
+        if atksquad is None:
+            atksquad = rand_squad(suit=E)
+        if defsquad is None:
+            defsquad = rand_squad(suit=F)
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
-                               squads=[rand_squad(suit=E)])
+                               squads=[atksquad])
         self.defender = Player('Def', 'y@gmail.com', 'yyy',
-                               squads=[rand_squad(suit=F)])
-        self.game = Game(self.attacker, self.defender)
+                               squads=[defsquad])
+        self.game = Game(self.attacker, self.defender, element=element)
 
     @property
     def bf(self):
@@ -532,20 +539,60 @@ class ActionQueueTest(GameTestBase):
         self.assertEqual(self.aq.get_unit_for_action(13 + turn * 5), expect)
         self.assertEqual(self.aq.get_unit_for_action(14 + turn * 5), expect)
 
-    def test_queue_order(self):
+    def assertQueueOrder(self, require_all=False):
         # Verify order by induction
+        value_tested = False
+        prime_elem_tested = False
+        pos_tested = False
+        atk_tested = False
         for a, b in pairwise(self.aq.units):
             self.assertNotEqual(a, b)
+            # Value <=
             self.assertLessEqual(a.value(), b.value())
+            value_tested = True
             if a.value() == b.value():
+                # Primary field element value >=
                 prime_a = a.comp[self.bf.element]
-                prime_b = a.comp[self.bf.element]
+                prime_b = b.comp[self.bf.element]
                 self.assertGreaterEqual(prime_a, prime_b)
+                prime_elem_tested = True
                 if prime_a == prime_b:
-                    self.assertLessEqual(a.squad_pos, b.squad_pos)
-                    if a.squad_pos == b.squad_pos:
-                        self.assertEqual(a.squad, self.bf.atksquad)
-                        self.assertEqual(b.squad, self.bf.defsquad)
+                    # Container pos <=
+                    self.assertLessEqual(a.container_pos, b.container_pos)
+                    pos_tested = True
+                    if a.container_pos == b.container_pos:
+                        # Atk before Def
+                        self.assertEqual(a.container, self.bf.atksquad)
+                        self.assertEqual(b.container, self.bf.defsquad)
+                        atk_tested = True
+        if require_all:
+            # Make sure every condition was reached
+            self.assertTrue(value_tested)
+            self.assertTrue(prime_elem_tested)
+            self.assertTrue(pos_tested)
+            self.assertTrue(atk_tested)
+
+    def test_queue_order(self):
+        # Test with the random squads
+        self.assertQueueOrder()
+        # Test with hand-crafted squad intended to catch all cases
+        atksquad = Squad()
+        defsquad = Squad()
+        # Equal value, equal primary element, equal pos, tests atk b4 def
+        atksquad.append(Scient(E, create_comp(earth=1)))
+        defsquad.append(Scient(E, create_comp(earth=1)))
+        # Equal value, equal primary element, different pos, tests pos
+        atksquad.append(Scient(F, create_comp(fire=100)))
+        atksquad.append(Scient(F, create_comp(fire=100)))
+        defsquad.append(Scient(F, create_comp(fire=100)))
+        # Equal value, different primary element, tests primary elem
+        atksquad.append(Scient(F, create_comp(fire=100)))
+        defsquad.append(Scient(E, create_comp(earth=100)))
+        # Different value tests value check
+        atksquad.append(Scient(E, create_comp(earth=1)))
+        defsquad.append(Scient(E, create_comp(earth=2)))
+        self._setup_game(atksquad=atksquad, defsquad=defsquad, element=E)
+        self.assertQueueOrder(require_all=True)
 
     def test_get_unit_key_bad_unit(self):
         unit = Scient(E, create_comp(earth=128))
@@ -557,4 +604,7 @@ class ActionQueueTest(GameTestBase):
         # squad_pos, but no squad
         unit.squad = None
         unit.squad_pos = 0
+        self.assertRaises(ValueError, self.aq._get_unit_key, unit)
+        # not in a battling squad
+        unit.squad = Squad(data=[unit])
         self.assertRaises(ValueError, self.aq._get_unit_key, unit)

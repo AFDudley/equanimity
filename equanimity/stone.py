@@ -28,6 +28,13 @@ class Composition(dict):
     def opp(self, element):
         return self[OPP[element]]
 
+    def set_opp(self, element, val):
+        self[OPP[element]] = val
+
+    def set_orth(self, element, val):
+        for el in ORTH[element]:
+            self[el] = val
+
     @classmethod
     def create(cls, *args, **kwargs):
         """ A meta-create function that allows initialization of a
@@ -140,11 +147,19 @@ class Stone(Persistent, Mapping):
                     s[e] = comp[e]
         return s
 
+    """ TODO (steve) -- merge stone & comp ? """
+
     def orth(self, element):
         return self.comp.orth(element)
 
     def opp(self, element):
         return self.comp.opp(element)
+
+    def set_opp(self, element, val):
+        return self.comp.set_opp(element, val)
+
+    def set_orth(self, element, val):
+        return self.comp.set_orth(element, val)
 
     def tup(self):
         tup = ()

@@ -70,6 +70,7 @@ class ScientTest(FlaskTestDB):
         expect = {'mdef': 384, 'pdef': 768, 'hp': 5120, 'm': 128, 'atk': 384,
                   'p': 256, 'defe': 256, 'patk': 640, 'matk': 512}
         self.assertEqual(expect, self.s.stats())
+        self.assertEqual(self.s.size, 1)
 
     def test_create_weapon(self):
         wep = Glove(E, self.comp)
@@ -135,6 +136,7 @@ class NescientTest(FlaskTestDB):
 
     def test_create(self):
         self.assertEqual(self.nes.sex, 'female')
+        self.assertEqual(self.nes.size, 2)
         for p in self.nes.body.itervalues():
             self.assertIsNot(p, None)
 

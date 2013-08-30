@@ -12,16 +12,11 @@ class ContainerTest(FlaskTestDB):
         self.s = Scient(E, create_comp(earth=128, fire=32, ice=32))
         self.nes = Nescient(E, create_comp(earth=128))
 
-    def test_unit_size(self):
-        self.assertRaises(TypeError, self.c.append, object())
-        self.assertEqual(self.c.unit_size(self.s), 1)
-        self.assertEqual(self.c.unit_size(self.nes), 2)
-
     def test_append(self):
         self.c.append(self.s)
         self.assertEqual(self.s.container, self.c)
         self.assertEqual(self.c.free_spaces, 7)
-        self.assertIn(self.s, self.c.data)
+        self.assertIn(self.s, self.c.units)
         self.assertEqual(self.c.val, self.s.value())
 
     def test_append_no_room(self):
@@ -36,7 +31,7 @@ class ContainerTest(FlaskTestDB):
         val = self.c.val
         self.assertNotEqual(val, 0)
         self.c.val = 0
-        self.c.update_value()
+        self.c._update_value()
         self.assertEqual(self.c.val, val)
 
     def test_setitem(self):
@@ -57,13 +52,36 @@ class ContainerTest(FlaskTestDB):
 
     def test_delitem(self):
         self.c.append(self.s)
-        self.assertEqual(self.c.free_spaces, 7)
-        self.assertEqual(self.c.value(), self.s.value())
+        self.c.append(self.nes)
+        self.assertEqual(self.c.free_spaces, 5)
+        self.assertEqual(self.c.value(), self.s.value() + self.nes.value())
         self.assertEqual(self.s.container, self.c)
+        self.assertEqual(self.nes.container, self.c)
+        self.assertEqual(self.s.container_pos, 0)
+        self.assertEqual(self.nes.container_pos, 1)
         del self.c[0]
-        self.assertEqual(self.c.free_spaces, 8)
-        self.assertEqual(self.c.value(), 0)
+        self.assertEqual(self.c.free_spaces, 6)
+        self.assertEqual(self.c.value(), self.nes.value())
         self.assertIs(self.s.container, None)
+        self.assertEqual(self.nes.container, self.c)
+        self.assertEqual(self.nes.container_pos, 0)
+
+    def test_update_free_space_too_many_units(self):
+        self.assertRaises(ValueError, Container, [self.s] * 20)
+
+    def test_extend(self):
+        s = Scient(E, create_comp(earth=128))
+        self.c.extend([self.nes, s])
+        self.assertEqual(self.c.free_spaces, 5)
+        self.assertEqual(self.c.val, 256)
+        self.assertEqual(self.c.units, [self.nes, s])
+
+    def test_iadd(self):
+        s = Scient(E, create_comp(earth=128))
+        self.c += [self.nes, s]
+        self.assertEqual(self.c.free_spaces, 5)
+        self.assertEqual(self.c.val, 256)
+        self.assertEqual(self.c.units, [self.nes, s])
 
 
 class SquadTest(FlaskTestDB):
