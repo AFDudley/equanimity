@@ -1,20 +1,21 @@
 #!/usr/bin/env python
-
+"""creates the World object and populates it with fields. VERY DESTRUCTIVE."""
 from common import hack_syspath
 hack_syspath(__file__)
 import argparse
 import transaction
+from BTrees.OOBTree import OOBTree
+from BTrees.IOBTree import IOBTree
 
-"""creates the World object and populates it with fields. VERY DESTRUCTIVE."""
 from equanimity.const import WEP_LIST
 from equanimity.stone import Stone
 from equanimity.player import Player
 from equanimity.world import World
-from server import create_app
-from init_db import init_db
+from server import db, create_app
+from equanimity.db import AutoID
+
 
 def create_world(force=False):
-    init_db(reset=force)
     if force:
         World.erase()
     w = World()

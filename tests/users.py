@@ -27,7 +27,7 @@ class UserTestBase(FlaskTestDB):
         return r
 
     def get_user(self):
-        return self.db['player'][self.uid]
+        return self.db['players'][self.uid]
 
     def logout(self):
         r = self.get('users.logout')
@@ -43,7 +43,7 @@ class UserTestBase(FlaskTestDB):
     def assertUserExists(self):
         users = [self.db['player_username'][self.username.lower()],
                  self.db['player_email'][self.email.lower()],
-                 self.db['player'][self.uid]]
+                 self.db['players'][self.uid]]
         for user in users:
             self.assertEqual(user.uid, 1)
             self.assertEqual(user.username, self.username.lower())

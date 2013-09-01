@@ -60,7 +60,7 @@ class Player(Persistent, UserMixin):
         return bcrypt.check_password_hash(self.password, password)
 
     def persist(self):
-        db['player'][self.uid] = self
+        db['players'][self.uid] = self
         db['player_username'][self.username] = self
         db['player_email'][self.email] = self
         transaction.commit()
@@ -97,7 +97,7 @@ class Player(Persistent, UserMixin):
             msg = 'Invalid user id .get(): {0}'
             current_app.logger.warning(msg.format(uid))
             return
-        return db['player'].get(uid)
+        return db['players'].get(uid)
 
     """ Flask-Login interface
         http://flask-login.readthedocs.org/en/latest/#your-user-class
@@ -122,7 +122,7 @@ class WorldPlayer(Player):
         self._set_defaults()
 
     def persist(self):
-        db['player'][self.uid] = self
+        db['players'][self.uid] = self
         transaction.commit()
 
     def is_world(self):
