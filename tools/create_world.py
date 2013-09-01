@@ -11,9 +11,10 @@ from equanimity.stone import Stone
 from equanimity.player import Player
 from equanimity.world import World
 from server import create_app
-
+from init_db import init_db
 
 def create_world(force=False):
+    init_db(reset=force)
     if force:
         World.erase()
     w = World()
