@@ -193,6 +193,9 @@ class Hex(namedtuple('Hex', 'q r')):
 
 
 class HexGrid(Stone):
+    """ HexGrid that uses axial/trapezoidal coordinate system outlined
+    here: http://www.redblobgames.com/grids/hexagons/
+    """
 
     def __init__(self, comp=None, radius=16, tiles=None):
         if radius <= 0:
@@ -201,7 +204,7 @@ class HexGrid(Stone):
             comp = Stone()
         elif tiles is not None:
             raise ValueError('Tiles and comp are mutually exclusive')
-        super(Grid, self).__init__(comp)
+        super(HexGrid, self).__init__(comp)
         self.radius = radius
         self.size = self._compute_size(radius)
         if not self.value():
@@ -209,18 +212,59 @@ class HexGrid(Stone):
         else:
             self._setup_tiles(comp)
 
+    def translate(self, (q, r), (dq, dr)):
+        """ Translates src (q, r) by delta (dq, dr) """
+        # TODO (steve) -- handle map wrap
+        # e.g with radius 3: 1,-3 + 0,-1 --> 1,-4 --> -1,3
+        # both values are multiplied by -1 instead of moving the value out of
+        # bounds
+        h = Hex(q + dq, r + dr)
+
+        # super stupid algorithm to wrap
+        # TODO (steve, anyone) -- think of something better
+        # I'm not sure this if this will map to a visual sphere correctly,
+        # But it wraps with some topology
+        # Might need to switch to cube coordinates to do it better
+        # get direction of each step
+        dqi = abs(dq) / dq
+        dri = abs(dr) / dr
+        # abs() it
+        dq *= dqi
+        dr *= dri
+        # step towards destination
+        while dq > 0 and dr > 0:
+            # Copy hex to a temporary
+            i = Hex(h.q, h.r)
+            # Step towards it
+            if dq:
+                i.q += dqi
+                dq -= 1
+            if dr:
+                i.r += dri
+                dr -= 1
+            # If we stepped out of bounds,
+            if not self.in_bounds(i):
+                # Negate both coords of the original hex instead
+                i = Hex(-h.q, -h.r)
+            h = i
+
     def get(self, (q, r)):
         return self.tiles[q][r]
 
     def in_bounds(self, (q, r)):
-        return (-self.radius <= q <= self.radius and
-                -self.radius <= r <= self.radius)
+        return (-self.radius <= q + r <= self.radius)
 
     def iter_coords(self):
-        return product(xrange(-self.radius, self.radius + 1))
+        """ Returns a coord list iterator. There may be a way to do it without
+        the filter but this has the desired result.
+        Conceptually, it generates a square grid and discards the corner
+        coordinates, leaving a hex map.
+        """
+        span = xrange(-radius, radius + 1)
+        return ifilter(self.in_bounds, product(span, span))
 
     def iter_tiles(self):
-        return izip(self.iter_coords, iter(self))
+        return izip(self.iter_coords(), self.tiles)
 
     def __iter__(self):
         return iter(self.tiles)
@@ -250,7 +294,7 @@ class HexGrid(Stone):
         raise UserWarning('__delitem__ not supported on HexGrid')
 
     def __len__(self):
-        return len(self.tiles)
+        return self.size
 
     def __repr__(self):
         return repr(self.tiles)
