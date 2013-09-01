@@ -6,7 +6,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import random
 from collections import namedtuple
-from itertools import product, izip
+from itertools import product, izip, ifilter
 from stone import Stone
 
 
@@ -260,7 +260,7 @@ class HexGrid(Stone):
         Conceptually, it generates a square grid and discards the corner
         coordinates, leaving a hex map.
         """
-        span = xrange(-radius, radius + 1)
+        span = xrange(-self.radius, self.radius + 1)
         return ifilter(self.in_bounds, product(span, span))
 
     def iter_tiles(self):
