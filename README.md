@@ -18,7 +18,7 @@ Then, make directories:
 
 Start ZODB instance:
 
-> $ runzeo -C zeoWorld.conf &
+> $ runzeo -C zeo/zeoWorld.conf &
 
 Next, create world:
 
