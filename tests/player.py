@@ -31,5 +31,5 @@ class WorldPlayerTest(FlaskTestDB):
     def test_persist(self):
         player = WorldPlayer()
         player.persist()
-        self.assertTrue(self.db['player'][0])
-        self.assertEqual(self.db['player'][0].uid, player.uid)
+        self.assertTrue(self.db['players'][0])
+        self.assertEqual(self.db['players'][0].uid, player.uid)

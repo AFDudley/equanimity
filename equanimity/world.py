@@ -12,6 +12,9 @@ logging.basicConfig()
 import itertools
 import transaction
 import persistent
+from BTrees.OOBTree import OOBTree
+from BTrees.IOBTree import IOBTree
+
 from datetime import datetime
 from threading import Lock
 
@@ -19,14 +22,29 @@ from const import WORLD_UID
 from field import Field
 from player import WorldPlayer
 from server import db
+from equanimity.db import AutoID
+
+
+def init_db(reset=False, verbose=False):
+    start = dict(player_uid=AutoID('player'),
+                 players=IOBTree(),           # maps uid (int) -> Player
+                 player_username=OOBTree(),  # maps username (str) -> Player
+                 player_email=OOBTree(),     # maps email (str) -> Player
+                 unit_uid=AutoID('unit'))
+    for k, v in start.iteritems():
+        if reset:
+            db[k] = v
+        else:
+            db.setdefault(k, v)
+        if verbose:
+            print k, db[k]
 
 
 class World(object):
-
     def __init__(self):
         self.field_transfer_lock = Lock()
         self.squad_transfer_lock = Lock()
-        self.player = db['player'].get(WORLD_UID)
+        self.player = None
 
     @classmethod
     def erase(cls):
@@ -35,7 +53,7 @@ class World(object):
         for key in keys:
             if key in db:
                 del db[key]
-        for player in db.get('player', {}).itervalues():
+        for player in db.get('players', {}).itervalues():
             player.reset_world_state()
         transaction.commit()
 
@@ -59,7 +77,13 @@ class World(object):
         #fields should be a frozendict
         #http://stackoverflow.com/questions/2703599/what-would-be-a-frozen-dict
         db['fields'] = persistent.mapping.PersistentMapping()
-        self.player = db['player'].setdefault(WORLD_UID, WorldPlayer())
+        #clean up?
+        db['player_uid'] = AutoID('player')
+        db['players'] = IOBTree()
+        db['player_email'] = OOBTree()
+        db['player_username'] = OOBTree()
+        db['unit_uid'] = AutoID('unit')
+        self.player = db['players'].setdefault(WORLD_UID, WorldPlayer())
         transaction.commit()
 
     def _make_fields(self, x, y):
