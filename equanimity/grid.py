@@ -6,7 +6,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import random
 from collections import namedtuple
-from itertools import product, izip
+from itertools import product, ifilter
 from stone import Stone
 
 
@@ -23,8 +23,8 @@ noloc = Loc(None, None)
 class Tile(Stone):
     """Tiles contain units or stones and are used to make battlefields."""
     #TODO consider removing contents.
-    def __init__(self, comp=Stone(), contents=None):
-        super(Tile, self).__init__(comp)
+    def __init__(self, comp=None, contents=None):
+        super(Tile, self).__init__(comp=comp)
         self.contents = contents
 
 
@@ -200,53 +200,18 @@ class HexGrid(Stone):
     def __init__(self, comp=None, radius=16, tiles=None):
         if radius <= 0:
             raise ValueError('Invalid hex grid radius {0}'.format(radius))
+        self.size = self._compute_size(radius)
         if comp is None:
             comp = Stone()
         elif tiles is not None:
             raise ValueError('Tiles and comp are mutually exclusive')
         super(HexGrid, self).__init__(comp)
         self.radius = radius
-        self.size = self._compute_size(radius)
-        if not self.value():
-            self._setup_fresh_tiles(tiles=tiles)
-        else:
+        if self.value():
             self._setup_tiles(comp)
-
-    def translate(self, (q, r), (dq, dr)):
-        """ Translates src (q, r) by delta (dq, dr) """
-        # TODO (steve) -- handle map wrap
-        # e.g with radius 3: 1,-3 + 0,-1 --> 1,-4 --> -1,3
-        # both values are multiplied by -1 instead of moving the value out of
-        # bounds
-        h = Hex(q + dq, r + dr)
-
-        # super stupid algorithm to wrap
-        # TODO (steve, anyone) -- think of something better
-        # I'm not sure this if this will map to a visual sphere correctly,
-        # But it wraps with some topology
-        # Might need to switch to cube coordinates to do it better
-        # get direction of each step
-        dqi = abs(dq) / dq
-        dri = abs(dr) / dr
-        # abs() it
-        dq *= dqi
-        dr *= dri
-        # step towards destination
-        while dq > 0 and dr > 0:
-            # Copy hex to a temporary
-            i = Hex(h.q, h.r)
-            # Step towards it
-            if dq:
-                i.q += dqi
-                dq -= 1
-            if dr:
-                i.r += dri
-                dr -= 1
-            # If we stepped out of bounds,
-            if not self.in_bounds(i):
-                # Negate both coords of the original hex instead
-                i = Hex(-h.q, -h.r)
-            h = i
+        else:
+            self._setup_fresh_tiles(tiles=tiles)
+        self._update_comp_value()
 
     def get(self, (q, r)):
         return self.tiles[q][r]
@@ -260,11 +225,13 @@ class HexGrid(Stone):
         Conceptually, it generates a square grid and discards the corner
         coordinates, leaving a hex map.
         """
-        span = xrange(-radius, radius + 1)
+        span = xrange(-self.radius, self.radius + 1)
         return ifilter(self.in_bounds, product(span, span))
 
     def iter_tiles(self):
-        return izip(self.iter_coords(), self.tiles)
+        for axis in self.tiles.itervalues():
+            for tile in axis.itervalues():
+                yield tile
 
     def __iter__(self):
         return iter(self.tiles)
@@ -282,7 +249,7 @@ class HexGrid(Stone):
         return self.tiles.values()
 
     def __contains__(self, value):
-        return value in self.tiles
+        return value in self.iter_tiles()
 
     def __getitem__(self, key):
         return self.tiles[key]
@@ -317,6 +284,9 @@ class HexGrid(Stone):
             for i, j in self.iter_coords():
                 tiles.setdefault(i, {})[j] = Tile()
         else:
+            if self._count_tiles(tiles) != self.size:
+                msg = 'Need {0} tiles, only provided {1}'
+                raise ValueError(msg.format(self.size, len(tiles)))
             for i, j in self.iter_coords():
                 for suit, value in tiles[i][j].iteritems():
                     self.comp[suit] += value
@@ -324,81 +294,31 @@ class HexGrid(Stone):
                 self.comp[suit] /= self.size
         self.tiles = tiles
 
-    def _setup_tiles(self):
-        '''TODO: check for comp/tiles match. Currently assumes if comp,
-        no tiles.
-
-        Steve notes: what is this trying to do?
-        Create a probability distribution of elemental values to assign
-        to tiles in the grid?
+    def _setup_tiles(self, comp, stddev=64):
         '''
-        #creates a pool of comp points to pull from.
-        pool = {}
-        for suit, value in self.comp.iteritems():
-            pool[suit] = value * self.size
-        #pulls comp points from the pool using basis and skew to
-        # determine the range of random
-        #values used to create tiles. Tiles are then shuffled.
-        tiles_l = []
-        for i in xrange(self.x-1):
-            row_l = []
-            for j in xrange(self.y):
-                """This is pretty close, needs tweeking."""
-                new_tile = Stone()
-                for suit, value in pool.iteritems():
-                    '''This determines the range of the tile comps.'''
-                    #good enough for the time being.
-                    # this doesn't work as basis approaches limit:
-                    basis = self.comp[suit]
-                    skew = 2 * random.randint((basis / 4), (basis * 4))
-                    pull = random.randint(0, min(self.limit[suit],
-                                                 basis+skew))
-                    nv = max(basis / 2, min(pull, self.limit[suit]))
-                    #print "first nv: %s, pull: %s" % (nv, pull)
-                    pool[suit] -= nv
-                    new_tile[suit] = nv
-                row_l.append(new_tile)
-            row = {}
-            random.shuffle(row_l)  # shuffles tiles in temp. row.
-            tiles_l.append(row_l)
-        # special error correcting row (doesn't really work.)
-        row_e = []
-        for k in xrange(self.y):
-            new_tile = Stone()
-            for suit, value in pool.iteritems():
-                if pool[suit] != 0:
-                    fract = pool[suit]/max(1, k)
-                else:
-                    fract = 0
-                nv = max(basis/2, min(fract, self.limit[suit]))
-                #print "second nv: %s, fract: %s" % (nv, fract)
-                pool[suit] -= nv
-                new_tile[suit] = nv
-            row_e.append(new_tile)
-        # hacks upon hacks pt2
-        del row_e[-1]
-        half = {}
-        for suit, value in row_e[-1].iteritems():
-            half[suit] = int(value/2)
-            row_e[-1][suit] -= half[suit]
-        row_e.append(half)
-        tiles_l.append(row_e)
+        Creates tiles with gaussian random values
+        '''
+        def random_tile(stddev):
+            s = Stone()
+            for e, v in comp.iteritems():
+                val = int(random.gauss(v, stddev))
+                val = min(s.limit[e], s[e])
+                val = max(0, s[e])
+                s[e] = val
+            return Tile(s)
+
         self.tiles = {}
-        random.shuffle(tiles_l)  # shuffles temp rows.
-        for x in xrange(self.x):
-            row = {}
-            for y in xrange(self.y):
-                # This shuffles the tiles before putting them in the grid.
-                # pick a row
-                r_index = random.choice(range(len(tiles_l)))
-                # pick a tile
-                c_index = random.choice(range(len(tiles_l[r_index])))
-                # place tile in grid
-                row.update({y: Tile(tiles_l[r_index][c_index])})
-                del tiles_l[r_index][c_index]  # remove used tile
-                if not tiles_l[r_index]:
-                    # remove empty rows from tiles_l
-                    del tiles_l[r_index]
-            self.tiles.update({x: row})
-        # Determine the actual comp NEEDS REAL SOLUTION TODO
-        self.calc_comp()
+        for i, j in self.iter_coords():
+            self.tiles.setdefault(i, {})[j] = random_tile(stddev)
+
+    def _update_comp_value(self):
+        """ Sets self.comp to average of tiles' comps """
+        c = Stone()
+        for t in self.iter_tiles():
+            for e, v in t.comp.iteritems():
+                c[e] = v
+        for e, v in c.iteritems():
+            self.comp[e] = v / self.size
+
+    def _count_tiles(self, tiles):
+        return sum([len(row) for row in tiles.itervalues()])
