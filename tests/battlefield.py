@@ -1,5 +1,5 @@
 from mock import MagicMock, patch
-from equanimity.grid import Grid, Loc
+from equanimity.grid import Grid, Hex
 from equanimity.units import Scient, Nescient
 from equanimity.unit_container import Squad
 from equanimity.battlefield import Battlefield
@@ -20,7 +20,6 @@ class BattlefieldTest(FlaskTestDB):
         self.assertEqual(bf.dmg_queue, {})
         self.assertEqual(bf.squads, (None, None))
         self.assertEqual(bf.units, ())
-        self.assertEqual(len(bf.direction), 6)
         self.assertEqual(len(bf.ranged), 5)
         self.assertEqual(len(bf.DOT), 5)
         self.assertEqual(len(bf.AOE), 5)
@@ -50,18 +49,18 @@ class BattlefieldTest(FlaskTestDB):
         self.assertEqual(bf.get_units(), (dss, ass))
 
     def test_on_grid(self):
-        g = Grid(x=4, y=4)
+        g = Grid(radius=4)
         bf = Battlefield(grid=g)
-        self.assertTrue(bf.on_grid((2, 3)))
-        self.assertFalse(bf.on_grid((2, 10)))
+        self.assertTrue(bf.grid.in_bounds((1, 3)))
+        self.assertFalse(bf.grid.in_bounds((2, 10)))
 
     def test_get_adjacent(self):
-        g = Grid(x=5, y=5)
+        g = Grid(radius=5)
         bf = Battlefield(grid=g)
-        tiles = [(1, 3), (3, 3), (2, 2), (2, 4), (3, 2), (3, 4)]
-        self.assertEqual(bf.get_adjacent((2, 3)), set(tiles))
-        tiles = [(0, 1), (1, 0)]
-        self.assertEqual(bf.get_adjacent((0, 0)), set(tiles))
+        tiles = [(1, 2), (0, 3), (2, 3), (1, 4), (2, 2)]
+        self.assertEqual(bf.get_adjacent((1, 3)), set(tiles))
+        tiles = [(-5, 4), (-4, 5), (-4, 4)]
+        self.assertEqual(bf.get_adjacent((-5, 5)), set(tiles))
 
     def test_make_parts(self):
         bf = Battlefield()
@@ -122,7 +121,7 @@ class BattlefieldTest(FlaskTestDB):
         self.assertRaises(ValueError, bf.place_nescient, nes, dest)
 
         # Body not on grid error
-        dest = (0, 0)
+        dest = (-bf.grid.radius, -bf.grid.radius)
         nes.facing = 'South'
         self.assertRaises(ValueError, bf.place_nescient, nes, dest)
 
@@ -132,10 +131,10 @@ class BattlefieldTest(FlaskTestDB):
 
     def test_get_rotations(self):
         # Test unable to move at all
-        g = Grid(x=1, y=1)
+        g = Grid(radius=1)
         bf = Battlefield(grid=g)
         nes = Nescient(E, create_comp(earth=128))
-        nes.body = bf.make_body((0, 0), 'North')
+        nes.body = bf.make_body((-16, 16), 'North')
         self.assertFalse(bf.get_rotations(nes))
 
         bf = Battlefield()
@@ -151,7 +150,7 @@ class BattlefieldTest(FlaskTestDB):
         self.assertTrue(bf.rotate(nes, 'Northeast'))
         self.assertEqual(nes.facing, 'Northeast')
 
-        nes.body = bf.make_body((0, 0), 'North')
+        nes.body = bf.make_body((-16, 16), 'North')
         self.assertRaises(ValueError, bf.rotate, nes, 'South')
 
     def test_make_triangle(self):
@@ -163,17 +162,26 @@ class BattlefieldTest(FlaskTestDB):
     def test_map_to_grid(self):
         bf = Battlefield()
         expect = [
-            (5, 9), (6, 9), (9, 1), (7, 12), (9, 8), (8, 0), (3, 11), (0, 7),
-            (11, 3), (8, 9), (4, 12), (0, 10), (9, 4), (6, 12), (7, 11),
-            (2, 10), (1, 11), (8, 5), (10, 4), (10, 8), (9, 0), (4, 9), (2, 9),
-            (11, 5), (10, 7), (10, 3), (3, 10), (6, 10), (7, 0), (8, 10),
-            (0, 0), (5, 12), (0, 11), (8, 8), (7, 10), (1, 10), (8, 6), (7, 7),
-            (10, 1), (11, 2), (9, 7), (4, 10), (10, 6), (11, 4), (8, 2),
-            (5, 11), (6, 11), (8, 11), (9, 3), (10, 5), (7, 1), (0, 12),
-            (9, 10), (3, 9), (1, 9), (8, 7), (10, 0), (5, 10), (1, 0), (0, 8),
-            (9, 6), (4, 11), (7, 9), (0, 1), (8, 3), (8, 1), (3, 12), (1, 12),
-            (8, 12), (9, 2), (2, 11), (9, 9), (0, 6), (1, 8), (12, 4), (0, 9),
-            (9, 5), (10, 2), (7, 8), (0, 2), (11, 6), (2, 12)
+            (4, -3), (-4, 5), (6, 9), (-2, 0), (0, 7), (0, 10), (-2, 2),
+            (1, 11), (8, 5), (-1, 0), (9, 0), (11, 5), (6, 10), (3, -4),
+            (4, 10), (8, 2), (6, -3), (5, 11), (-1, -1), (9, 3), (-1, 11),
+            (-3, 1), (4, -4), (1, -4), (0, -3), (0, 1), (3, 12), (1, 12),
+            (2, 11), (-1, -2), (6, -1), (-2, 3), (8, -4), (-1, 4), (-3, 4),
+            (7, 8), (5, -1), (-1, 5), (3, -3), (3, 11), (-1, -3), (7, -2),
+            (4, 12), (2, 12), (9, 4), (6, -2), (10, 3), (4, -1), (-2, 1),
+            (-3, 7), (1, -1), (9, -1), (0, 11), (-2, -1), (1, 10), (8, 6),
+            (7, -3), (9, 7), (5, -2), (-1, 2), (11, 4), (10, 4), (7, 1),
+            (2, -2), (-2, 4), (1, 0), (0, 8), (4, 11), (8, 3), (5, 10), (9, 2),
+            (11, 3), (3, -2), (12, 4), (0, -2), (0, 2), (8, 0), (8, -3),
+            (-2, 5), (-3, 3), (1, -2), (-2, 7), (3, 10), (2, -4), (10, 0),
+            (11, 2), (-1, 6), (-3, 6), (0, 12), (3, 9), (1, 9), (8, 7),
+            (7, -4), (9, 6), (5, -3), (10, 5), (-4, 4), (7, 0), (-1, 3),
+            (7, -1), (0, 6), (0, 9), (-2, 6), (5, 9), (-2, 8), (9, 1), (-2, 9),
+            (10, 6), (7, 7), (-1, 8), (3, -1), (4, 9), (2, -1), (8, 1),
+            (6, -4), (-4, 3), (4, -2), (8, -2), (-1, 10), (-3, 2), (2, -3),
+            (1, -3), (0, -4), (8, -1), (0, 0), (-1, 9), (-1, 1), (2, 10),
+            (9, -2), (10, 1), (0, -1), (-1, 7), (-3, 5), (7, 9), (2, 9),
+            (1, 8), (8, 8), (9, 5), (5, -4), (10, 2)
         ]
         got = bf.map_to_grid((4, 4), Wand(E, create_comp(earth=128)))
         self.assertEqual(sorted(expect), sorted(got))
@@ -218,7 +226,7 @@ class BattlefieldTest(FlaskTestDB):
         self.assertTrue(bf.move_scient((0, 0), (1, 1)))
         self.assertIs(bf.grid[0][0].contents, None)
         self.assertEqual(bf.grid[1][1].contents, s)
-        self.assertEqual(s.location, Loc(1, 1))
+        self.assertEqual(s.location, Hex(1, 1))
 
     def test_place_scient(self):
         bf = Battlefield()
@@ -228,7 +236,7 @@ class BattlefieldTest(FlaskTestDB):
         # valid placement
         self.assertTrue(bf.place_scient(s, (0, 0)))
         self.assertEqual(bf.grid[0][0].contents, s)
-        self.assertEqual(s.location, Loc(0, 0))
+        self.assertEqual(s.location, Hex(0, 0))
         self.assertEqual(bf.dmg_queue[s], [])
         # re-placing in same spot
         self.assertFalse(bf.place_scient(s, (0, 0)))
@@ -238,21 +246,21 @@ class BattlefieldTest(FlaskTestDB):
         # placing as movement
         bf.move_scient = MagicMock(side_effect=bf.move_scient)
         self.assertTrue(bf.place_scient(s, (1, 1)))
-        self.assertEqual(s.location, Loc(1, 1))
-        bf.move_scient.assert_called_with(Loc(0, 0), Loc(1, 1))
+        self.assertEqual(s.location, Hex(1, 1))
+        bf.move_scient.assert_called_with(Hex(0, 0), Hex(1, 1))
 
     def test_find_units(self):
         bf = Battlefield()
         bf.place_object(Scient(E, create_comp(earth=128)), (0, 0))
         bf.place_object(Scient(E, create_comp(earth=128)), (2, 2))
-        self.assertEqual(bf.find_units(), [(0, 0), (2, 2)])
+        self.assertEqual(bf.grid.occupied_coords(), [(0, 0), (2, 2)])
 
-    @patch('equanimity.battlefield.random.randint')
-    def test_rand_place_scient(self, mock_randint):
-        seq = [0] * 1000
-        seq[5] = 1
-        mock_randint.side_effect = iter(seq)
-        g = Grid(x=2, y=2)
+    @patch('equanimity.battlefield.Grid.randpos')
+    def test_rand_place_scient(self, mock_randpos):
+        seq = [Hex(0, 0)] * 1000
+        seq[5] = Hex(1, 0)
+        mock_randpos.side_effect = iter(seq)
+        g = Grid(radius=2)
         bf = Battlefield(grid=g)
         s = Scient(E, create_comp(earth=128))
         self.assertTrue(bf.rand_place_scient(s))
@@ -271,7 +279,7 @@ class BattlefieldTest(FlaskTestDB):
         t = Scient(E, create_comp(earth=128))
         squad = Squad(name='xxx', data=[s, t])
         bf.rand_place_squad(squad)
-        self.assertEqual(len(bf.find_units()), 2)
+        self.assertEqual(len(bf.grid.occupied_coords()), 2)
 
     def test_flush_units(self):
         bf = Battlefield()
@@ -279,9 +287,9 @@ class BattlefieldTest(FlaskTestDB):
         t = Scient(E, create_comp(earth=128))
         squad = Squad(name='xxx', data=[s, t])
         bf.rand_place_squad(squad)
-        self.assertEqual(len(bf.find_units()), 2)
+        self.assertEqual(len(bf.grid.occupied_coords()), 2)
         self.assertEqual(bf.flush_units(), 2)
-        self.assertEqual(len(bf.find_units()), 0)
+        self.assertEqual(len(bf.grid.occupied_coords()), 0)
 
     def test_dmg(self):
         bf = Battlefield()
@@ -306,29 +314,29 @@ class BattlefieldTest(FlaskTestDB):
         self.assertEqual(bf.dmg(s, t), -640)
 
         # defender not on grid error
-        t.location = Loc(-100, -100)
+        t.location = Hex(-100, -100)
         self.assertRaises(ValueError, bf.dmg, s, t)
 
-    def test_make_distance(self):
-        bf = Battlefield()
-        expect = {0: 5, 1: 7, 2: 7, 3: 5, 4: 7, 5: 7}
-        self.assertEqual(bf.make_distances((0, 0), (4, 4)), expect)
-        self.assertEqual(bf.make_distances((0, 1), (4, 3), direction=0), 3)
-        self.assertEqual(bf.make_distances((0, 1), (4, 4), direction=0), 4)
-        self.assertEqual(bf.make_distances((0, 0), (4, 3), direction=0), 4)
+    #def test_make_distance(self):
+        #bf = Battlefield()
+        #expect = {0: 5, 1: 7, 2: 7, 3: 5, 4: 7, 5: 7}
+        #self.assertEqual(bf.make_distances((0, 0), (4, 4)), expect)
+        #self.assertEqual(bf.make_distances((0, 1), (4, 3), direction=0), 3)
+        #self.assertEqual(bf.make_distances((0, 1), (4, 4), direction=0), 4)
+        #self.assertEqual(bf.make_distances((0, 0), (4, 3), direction=0), 4)
 
-    def test_maxes(self):
-        bf = Battlefield()
-        expect = {0: 1, 1: 16, 2: 24, 3: 16, 4: 9, 5: 2}
-        self.assertEqual(bf.maxes((0, 0)), expect)
+    #def test_maxes(self):
+        #bf = Battlefield()
+        #expect = {0: 1, 1: 16, 2: 24, 3: 16, 4: 9, 5: 2}
+        #self.assertEqual(bf.maxes((0, 0)), expect)
 
-    def test_calc_aoe(self):
-        bf = Battlefield()
-        s = Scient(E, create_comp(earth=128))
-        bf.place_object(s, (0, 0))
-        expect = [(1, 2), (2, 0), (1, 1)]
-        self.assertEqual(sorted(bf.calc_AOE(s, (1, 1))), sorted(expect))
-        self.assertEqual(bf.calc_AOE(s, (-1, -1)), set())
+    #def test_calc_aoe(self):
+        #bf = Battlefield()
+        #s = Scient(E, create_comp(earth=128))
+        #bf.place_object(s, (0, 0))
+        #expect = [(1, 2), (2, 0), (1, 1)]
+        #self.assertEqual(sorted(bf.calc_AOE(s, (1, 1))), sorted(expect))
+        #self.assertEqual(bf.calc_AOE(s, (-1, -1)), set())
 
     def test_calc_ranged(self):
         # TODO -- when calc_ranged is implemented, update this

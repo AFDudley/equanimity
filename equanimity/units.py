@@ -8,14 +8,15 @@ import transaction
 from datetime import datetime
 from stone import Stone, Composition
 from const import ELEMENTS, E, F, I, W, ORTH, OPP
-from grid import noloc
+from grid import Hex
 from server import db
 
 
 class Unit(Stone):
     attrs = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
 
-    def __init__(self, element, comp, name=None, location=noloc, sex='female'):
+    def __init__(self, element, comp, name=None, location=Hex.null,
+                 sex='female'):
         if not element in ELEMENTS:
             fmt = "Invalid element: {0}, valid elements are {1}"
             raise Exception(fmt.format(element, ELEMENTS))
@@ -84,7 +85,7 @@ class Scient(Unit):
     """
 
     def __init__(self, element, comp, name=None, weapon=None,
-                 weapon_bonus=None, location=noloc, sex='female'):
+                 weapon_bonus=None, location=Hex.null, sex='female'):
         comp = Composition.create(comp)
         for o in comp.orth(element):
             if o > comp[element] / 2:
@@ -138,9 +139,8 @@ class Scient(Unit):
 class Nescient(Unit):
     """A non-playable unit."""
 
-    def __init__(self, element, comp, name=None, weapon=None,
-                 location=noloc, sex='female', facing=None,
-                 body=None):
+    def __init__(self, element, comp, name=None, weapon=None, sex='female',
+                 location=Hex.null, facing=None, body=None):
         if body is None:
             body = {'head':  None, 'left': None, 'right': None, 'tail': None}
         comp = Stone(comp)

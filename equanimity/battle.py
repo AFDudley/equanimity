@@ -247,7 +247,7 @@ class Game(Persistent):
         locs = PersistentMapping()
         for unit in self.map:
             loc = unit.location
-            if loc[0] >= 0:
+            if not loc.is_null():
                 locs[self.map[unit]] = loc
         return locs
 
@@ -267,7 +267,7 @@ class Game(Persistent):
         for unit, num in self.map.iteritems():
             loc = unit.location
             # TODO (steve) -- should we also check hp > 0 ?
-            if loc[0] >= 0:  # json requires num to be str.
+            if not loc.is_null():
                 locs[num] = loc
                 HPs[num] = unit.hp
         return HPs, locs

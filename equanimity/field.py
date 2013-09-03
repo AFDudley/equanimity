@@ -103,13 +103,12 @@ class Field(persistent.Persistent):
     def get_tile_comps(self):
         """returns a list of stones 1/8th the value of the tile comps."""
         stone_list = []
-        for x in xrange(self.grid.x):
-            for y in xrange(self.grid.y):
-                stone = Stone()
-                for suit, value in self.grid[x][y].comp.iteritems():
-                    stone[suit] += value / 8  # this 8 will need to be tweaked.
-                if stone.value() != 0:
-                    stone_list += [stone]
+        for tile in self.grid.iter_tiles():
+            stone = Stone()
+            for suit, value in tile.comp.iteritems():
+                stone[suit] += value / 8  # this 8 will need to be tweaked.
+            if stone.value() != 0:
+                stone_list += [stone]
         return stone_list
 
     def set_silo_limit(self):
@@ -121,17 +120,17 @@ class Field(persistent.Persistent):
                 limit[element] += stone[element]
         return self.stronghold.silo.set_limit(limit)
 
-    def add_planting(self, tileLoc, comp):
-        self.planting[tileLoc] = comp, sum(comp.values())
+    def add_planting(self, loc, comp):
+        self.planting[loc] = comp, sum(comp.values())
         return transaction.commit()
 
     def plant(self):
         """Plants from self.plantlings"""
         if self.stronghold.farm.produce(self.plantings):
-            for tileLoc, comp in self.plantings.iteritems():
+            for loc, comp in self.plantings.iteritems():
                 stone = self.stronghold.silo.get(comp)
-                self.grid.imbue_tile(tileLoc, stone)
-                self.grid[tileLoc[0]][tileLoc[1]]._p_changed = 1
+                self.grid.imbue_tile(loc, stone)
+                self.grid.get(loc)._p_changed = 1
                 self.grid._p_changed = 1
                 self.element = get_element(self.grid.comp)
                 self._p_changed = 1

@@ -5,12 +5,10 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 """contains battlefield objects"""
-import random
 from datetime import datetime
-
 from stone import Stone, Composition
 from units import Scient, Nescient, Part
-from grid import Grid, Loc, noloc
+from grid import Grid, Hex
 from const import E
 
 
@@ -40,14 +38,6 @@ class Battlefield(object):
         self.dmg_queue = {}
         self.squads = (self.defsquad, self.atksquad)
         self.units = self.get_units()
-        self.direction = {
-            0: 'North',
-            1: 'Northeast',
-            2: 'Southeast',
-            3: 'South',
-            4: 'Southwest',
-            5: 'Northwest'
-        }
         self.ranged = ('Bow', 'Magma', 'Firestorm', 'Forestfire',
                        'Pyrocumulus')
         self.DOT = ('Glove', 'Firestorm', 'Icestorm', 'Blizzard',
@@ -65,45 +55,6 @@ class Battlefield(object):
                     units.append(unit)
         return tuple(units)
 
-    def on_grid(self, tile):
-        # TODO (steve) -- HEX TILE WORK
-        """returns True if tile is on grid"""
-        return self.grid.in_bounds(tile)
-
-    def get_adjacent(self, tile, direction="All"):
-        # TODO (steve) -- HEX TILE WORK
-        """returns a set of hextiles adjacent to the tile provided,
-        if they are in fact on the grid."""
-        direction = direction
-        xpos, ypos = tile
-        directions = {"East": ((xpos + 1, ypos),),
-                      "West": ((xpos - 1, ypos),)}
-        if ypos & 1:  # sub-optimal
-            directions.update({
-                "North": ((xpos + 1, ypos - 1), (xpos, ypos - 1)),
-                "South": ((xpos + 1, ypos + 1), (xpos, ypos + 1)),
-                "Northeast": ((xpos + 1, ypos - 1), (xpos + 1, ypos)),
-                "Southeast": ((xpos + 1, ypos + 1), (xpos + 1, ypos)),
-                "Southwest": ((xpos, ypos + 1), (xpos - 1, ypos)),
-                "Northwest": ((xpos, ypos - 1), (xpos - 1, ypos)),
-            })
-        else:
-            directions.update({
-                "North": ((xpos, ypos - 1), (xpos - 1, ypos - 1)),
-                "South": ((xpos, ypos + 1), (xpos - 1, ypos + 1)),
-                "Northeast": ((xpos, ypos - 1), (xpos + 1, ypos)),
-                "Southeast": ((xpos, ypos + 1), (xpos + 1, ypos)),
-                "Southwest": ((xpos - 1, ypos + 1), (xpos - 1, ypos)),
-                "Northwest": ((xpos - 1, ypos - 1), (xpos - 1, ypos)),
-            })
-        directions["All"] = (directions["North"] + directions["East"] +
-                             directions["South"] + directions["West"])
-        out = []
-        for loc in directions[direction]:
-            if self.on_grid(loc):
-                out.append(loc)
-        return set(out)
-
     def make_parts(self, part_locs):
         new_body = {}
         for name, part in part_locs.iteritems():
@@ -111,7 +62,7 @@ class Battlefield(object):
         return new_body
 
     def make_body(self, right, direction):
-        # TODO (steve) -- HEX TILE WORK
+        # TODO -- steve (move this to grid)
         """makes a nescient body facing direction from right loc"""
         rx, ry = right
 
@@ -149,44 +100,40 @@ class Battlefield(object):
         return self.make_parts(facing[direction])
 
     def body_on_grid(self, body):
-        """checks if a body is on_grid"""
+        """checks if a body is grid.in_bounds"""
         for part in body.itervalues():
-            if self.on_grid(part.location):
+            if self.grid.in_bounds(part.location):
                 return True
         return False
 
     def body_within_grid(self, body):
         for part in body.itervalues():
-            if not self.on_grid(part.location):
+            if not self.grid.in_bounds(part.location):
                 return False
         return True
 
     def can_move_nescient(self, body, nescient):
-        # TODO (steve) -- HEX TILE WORK. Grid() should have getters
-        # instead of [x][y] indexing
         """checks if nescient can move to body."""
         if not self.body_within_grid(body):
             return False
         for part in body.itervalues():
-            x, y = part.location
-            empty = (self.grid[x][y].contents is None)
-            in_self = (self.grid[x][y].contents in nescient.body.itervalues())
-            ctype = getattr(self.grid[x][y].contents, '__class__', None)
+            loc = part.location
+            empty = (self.grid.get(loc).contents is None)
+            body_vals = nescient.body.itervalues()
+            in_self = (self.grid.get(loc).contents in body_vals)
+            ctype = getattr(self.grid.get(loc).contents, '__class__', None)
             is_stone = (ctype == Stone)
             if not empty and not in_self and not is_stone:
                 return False
         return True
 
     def move_nescient(self, new_body, nescient, direction=None):
-        # TODO (steve) -- HEX TILE WORK. Grid() should have getters
-        # instead of [x][y] indexing
         """places new_body on grid, place body in nescient."""
         if not self.can_move_nescient(new_body, nescient):
             msg = 'Nescient cannot be moved to {0}'
             raise ValueError(msg.format(new_body))
         for part in new_body.itervalues():
-            x, y = part.location
-            self.grid[x][y].contents = part
+            self.grid.get(part.location).contents = part
         nescient.take_body(new_body)
         nescient.location = nescient.body['right'].location
         if direction is not None:
@@ -199,7 +146,7 @@ class Battlefield(object):
         if facing is None:
             facing = 'North'
         xdest, ydest = dest
-        if not self.on_grid(dest):
+        if not self.grid.in_bounds(dest):
             raise ValueError('Destination {0} is not on grid'.format(dest))
         new_body = self.make_body(dest, facing)
         self.dmg_queue.setdefault(nescient, [])
@@ -225,14 +172,14 @@ class Battlefield(object):
         point. The other two points are 'distance' away from 'location'
         toward 'pointing'. Returns a set of coords"""
         triangle = []
-        head = self.get_adjacent(location, pointing)  # get first two points.
+        head = self.grid.get_adjacent(location, pointing)
         cols = 1  # maintain dist = 1 behavior.
         while cols != distance:
             triangle += list(head)
             temp_head = head
             head = set()
             for loc in temp_head:
-                head |= self.get_adjacent(loc, pointing)
+                head |= self.grid.get_adjacent(loc, pointing)
             cols += 1
         return triangle
 
@@ -246,19 +193,17 @@ class Battlefield(object):
             hit = self.make_range(location, 2 * move)
             return hit - no_hit
         else:
-            return self.get_adjacent(location)
+            return self.grid.get_adjacent(location)
 
     def make_range(self, location, distance):
         """generates a list of tiles within distance of location."""
         location = location
         dist = distance
-        tiles = []
-        # so far from optimal
-        tiles.append(self.get_adjacent(location))
+        tiles = list(self.grid.get_adjacent(location))
         while len(tiles) < dist:
             new = set()
             for tile in tiles[-1]:
-                new |= self.get_adjacent(tile)
+                new |= self.grid.get_adjacent(tile)
             tiles.append(new)
         group = set()
         for x in tiles:
@@ -281,76 +226,53 @@ class Battlefield(object):
         """move unit from src tile to dest tile"""
         if src == dest:  # No action
             return False
-        if not self.on_grid(src):
+        if not self.grid.in_bounds(src):
             raise ValueError("Source {0} is off grid".format(src))
-        if not self.on_grid(dest):
+        if not self.grid.in_bounds(dest):
             raise ValueError("Destination {0} is off grid".format(dest))
 
-        xsrc, ysrc = src
-        xdest, ydest = dest
-
-        if not self.grid[xsrc][ysrc].contents:
+        if not self.grid.get(src).contents:
             raise ValueError("There is nothing at {0}".format(src))
-        if self.grid[xdest][ydest].contents:
+        if self.grid.get(dest).contents:
             msg = "There is already something at {0}"
             raise ValueError(msg.format(dest))
 
-        move = self.grid[xsrc][ysrc].contents.move
+        move = self.grid.get(src).contents.move
         if dest not in self.make_range(src, move):
             msg = "Tried moving more than {0} tiles"
             raise ValueError(msg.format(move))
 
-        contents = self.grid[xsrc][ysrc].contents
-        self.grid[xdest][ydest].contents = contents
-        loc = Loc(xdest, ydest)
-        self.grid[xdest][ydest].contents.location = loc
-        self.grid[xsrc][ysrc].contents = None
+        contents = self.grid.get(src).contents
+        self.grid.get(dest).contents = contents
+        self.grid.get(dest).contents.location = dest
+        self.grid.get(src).contents = None
         return True
 
     def place_scient(self, unit, tile):
         """Places unit at tile, if already on grid, move_scient is called"""
-        if not self.on_grid(tile):
+        if not self.grid.in_bounds(tile):
             raise ValueError("Tile {0} is off grid".format(tile))
 
-        if unit.location != noloc:
+        if not unit.location.is_null():
             return self.move_scient(unit.location, tile)
 
-        xpos, ypos = tile
-        contents = self.grid[xpos][ypos].contents
+        contents = self.grid.get(tile).contents
         if contents is not None:
             raise ValueError("{0} is not empty".format(tile))
 
-        self.grid[xpos][ypos].contents = unit
-        unit.location = Loc(xpos, ypos)
+        self.grid.get(tile).contents = unit
+        unit.location = Hex._make(tile)
         self.dmg_queue.setdefault(unit, [])
         return True
-
-    def find_units(self):
-        """returns a list of units in grid."""
-        # TODO (steve) -- probably put this on Grid
-        units = []
-        for x, col in self.grid.iteritems():
-            for y, obj in col.iteritems():
-                if obj.contents:
-                    units.append(Loc(x, y))
-        return units
 
     def rand_place_scient(self, unit):
         """Randomly place a unit on the grid."""
         # readable?
-        inset = 0  # place units in a smaller area, for testing.
-
-        def randpos():
-            """returns a random position in grid."""
-            return (random.randint(0, ((self.grid.x - 1) - inset)),
-                    random.randint(0, ((self.grid.y - 1) - inset)))
-        # TODO (steve) -- grid.full() method. grid can keep count of what's in
-        # it. modify the grid only with accessors
-        if len(self.find_units()) == (self.grid.x * self.grid.y):
+        if self.grid.full():
             raise ValueError("Grid is full")
         while True:
             try:
-                return self.place_scient(unit, randpos())
+                return self.place_scient(unit, self.grid.randpos())
             except ValueError:
                 pass
 
@@ -369,7 +291,7 @@ class Battlefield(object):
         for col in self.grid.itervalues():
             for obj in col.itervalues():
                 if obj.contents:
-                    obj.contents.location = noloc
+                    obj.contents.location = Hex.null
                     obj.contents = None
                     num += 1
         return num
@@ -379,7 +301,7 @@ class Battlefield(object):
         """Calculates the damage of an attack"""
         dloc = defdr.location
         damage_dealt = Composition(0)
-        if not self.on_grid(dloc):
+        if not self.grid.in_bounds(dloc):
             raise ValueError("Defender is off grid")
 
         if atkr.weapon.kind == 'p':
@@ -387,7 +309,7 @@ class Battlefield(object):
                 dmg = ((atkr.p + atkr.patk + (2 * atkr.comp[element]) +
                         atkr.weapon.comp[element]) -
                        (defdr.p + defdr.pdef + (2 * defdr.comp[element]) +
-                        self.grid[dloc[0]][dloc[1]].comp[element]))
+                        self.grid.get(dloc).comp[element]))
                 dmg = max(dmg, 0)
                 damage_dealt[element] = dmg
             damage = sum(damage_dealt.values())
@@ -397,13 +319,13 @@ class Battlefield(object):
                 dmg = ((atkr.m + atkr.matk + (2 * atkr.comp[element]) +
                         atkr.weapon.comp[element]) -
                        (defdr.m + defdr.mdef + (2 * defdr.comp[element]) +
-                        self.grid[dloc[0]][dloc[1]].comp[element]))
+                        self.grid.get(dloc).comp[element]))
                 dmg = max(dmg, 0)
                 damage_dealt[element] = dmg
 
             damage = sum(damage_dealt.values())
             if atkr.element == defdr.element:
-                return 0 - damage
+                return -damage
             else:
                 return damage
 
@@ -430,6 +352,8 @@ class Battlefield(object):
             return ranges[direction]
 
     def maxes(self, src):
+        # TODO (steve, hex grid work)
+        # TODO -- explain what this is trying to do
         """NOTE:
         Currently, AOE weapons can hit every tile on the grid so this is
         really quite moot.
@@ -439,9 +363,10 @@ class Battlefield(object):
         """
         # sub-optimal should check ay % 1 and change the + 1 and + 2
         # accordingly.
-        ax, ay = src
+
+        """
         maxes = {
-            0: ay + 1,
+            0: r - 1,
             1: (self.grid.x - ax) + ay / 2,
             2: (self.grid.x - ax) + (self.grid.y - ay) / 2,
             3: self.grid.y - ay,
@@ -449,12 +374,14 @@ class Battlefield(object):
             5: ax + ay / 2 + 2,
         }
         return maxes
+        """
+        return {}
 
     def calc_AOE(self, atkr, target):
-        """Returns the AOE of a spell. Called once in hex_view.py"""
+        """Returns the AOE of a spell."""
         # Optimize. Currently makes a triangle only to discard 7/8ths of it.
         aloc = atkr.location
-        tloc = Loc._make(target)
+        tloc = Hex._make(target)
         dists = self.make_distances(aloc, tloc)
         maxes = self.maxes(aloc)
         for i in self.direction:
@@ -463,7 +390,7 @@ class Battlefield(object):
                 pat_ = self.make_triangle(aloc, dists[i], self.direction[i])
                 new_pat = []
                 for tile in pat_:
-                    if self.on_grid(tile):
+                    if self.grid.in_bounds(tile):
                         if dists[i] == self.make_distances(aloc, tile, i):
                             new_pat.append(tile)
                 new_pat = set(new_pat)
@@ -499,10 +426,10 @@ class Battlefield(object):
         # calculate how many units will be damaged.
         if weapon.type in self.AOE:
             pat = self.calc_AOE(atkr, target_loc)
-            targets = list(set(self.find_units()) & set(pat))
+            targets = list(set(self.grid.occupied_coords()) & set(pat))
             area = len(pat)
             for t in targets:
-                defdr = self.grid[t[0]][t[1]].contents
+                defdr = self.grid.get(t).contents
                 temp_dmg = self.dmg(atkr, defdr)
                 # currently the only non-full, non-DOT AOE weapon
                 if weapon.type == 'Wand':
@@ -530,17 +457,16 @@ class Battlefield(object):
 
     def bury(self, unit):
         """moves unit to graveyard"""
-        x, y = unit.location
         unit.hp = 0
         unit.DOD = datetime.utcnow()
-        self.grid[x][y].contents = None
-        unit.location = Loc(-1, -1)
+        self.grid.get(unit.location).contents = None
+        unit.location = Hex.null
         del self.dmg_queue[unit]
         self.graveyard.append(unit)
 
     def attack(self, atkr, target):
         """calls calc_damage, applies result, Handles death."""
-        defdr = self.grid[target[0]][target[1]].contents
+        defdr = self.grid.get(target).contents
         if defdr is None:
             raise ValueError('Nothing to attack at {0}'.format(target))
         defdr = getattr(defdr, 'nescient', defdr)

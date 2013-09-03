@@ -3,7 +3,7 @@ from unittest import TestCase
 from mock import MagicMock
 from base import create_comp, FlaskTestDB, pairwise
 from server.utils import AttributeDict
-from equanimity.grid import Grid, Loc, noloc
+from equanimity.grid import Grid, Hex
 from equanimity.const import E, F
 from equanimity.weapons import Sword
 from equanimity.units import Scient
@@ -79,10 +79,10 @@ class LogTest(FlaskTestDB):
 
     def test_init_locs(self):
         s = Scient(E, create_comp(earth=128))
-        s.location = Loc(0, 0)
+        s.location = Hex(0, 0)
         log = Log([], {0: s}, Grid())
         locs = log.init_locs()
-        self.assertEqual(locs[0], Loc(0, 0))
+        self.assertEqual(locs[0], Hex(0, 0))
 
     def test_close(self):
         log = Log([], [], Grid())
@@ -253,7 +253,7 @@ class GameTest(GameTestBase):
         self.assertTrue(self.game.log['init_locs'])
         for unit in self.units:
             self.assertIsNot(unit.location, None)
-            self.assertNotEqual(unit.location, noloc)
+            self.assertNotEqual(unit.location, Hex.null)
 
     def test_unit_map(self):
         m = self.game.unit_map()
@@ -418,8 +418,8 @@ class BattleProcessActionTest(GameTestBase):
 
     def test_first_movement(self):
         # do a legitimate movement, on a first action
-        self.bf.place_object(self.d, Loc(0, 0))
-        loc = Loc(0, 1)
+        self.bf.place_object(self.d, Hex(0, 0))
+        loc = Hex(0, 1)
         act = Action(type='move', unit=self.d, target=loc)
         self.game.state = State(num=1)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
@@ -431,8 +431,8 @@ class BattleProcessActionTest(GameTestBase):
 
     def test_second_movement(self):
         # do a legitimate movement, on a second action
-        self.bf.place_object(self.d, Loc(0, 0))
-        loc = Loc(0, 1)
+        self.bf.place_object(self.d, Hex(0, 0))
+        loc = Hex(0, 1)
         act = Action(type='move', unit=self.d, target=loc)
         self.game.state = State(num=2)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
@@ -461,11 +461,11 @@ class BattleProcessActionTest(GameTestBase):
         self.assertRaises(ValueError, self.game.process_action, act)
 
     def test_first_attack(self):
-        self.bf.place_object(self.d, Loc(0, 0))
-        self.bf.place_object(self.a, Loc(0, 1))
+        self.bf.place_object(self.d, Hex(0, 0))
+        self.bf.place_object(self.a, Hex(0, 1))
         wep = Sword(E, create_comp(earth=128))
         self.d.equip(wep)
-        loc = Loc(0, 1)
+        loc = Hex(0, 1)
         act = Action(unit=self.d, type='attack', target=loc)
         self.game.state = State(num=1)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
@@ -475,11 +475,11 @@ class BattleProcessActionTest(GameTestBase):
                                 target=loc)
 
     def test_second_attack(self):
-        self.bf.place_object(self.d, Loc(0, 0))
-        self.bf.place_object(self.a, Loc(0, 1))
+        self.bf.place_object(self.d, Hex(0, 0))
+        self.bf.place_object(self.a, Hex(0, 1))
         wep = Sword(E, create_comp(earth=128))
         self.d.equip(wep)
-        loc = Loc(0, 1)
+        loc = Hex(0, 1)
         act = Action(unit=self.d, type='attack', target=loc)
         self.game.state = State(num=2)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
