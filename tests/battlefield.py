@@ -113,7 +113,7 @@ class BattlefieldTest(FlaskTestDB):
         self.assertRaises(ValueError, bf.place_nescient, nes, dest)
 
         # Body not on grid error
-        dest = (-bf.grid.radius, -bf.grid.radius)
+        dest = (-bf.grid.radius, bf.grid.radius)
         nes.facing = 'South'
         self.assertRaises(ValueError, bf.place_nescient, nes, dest)
 
@@ -129,7 +129,7 @@ class BattlefieldTest(FlaskTestDB):
         nes.body = bf.make_body((-16, 16), 'North')
         self.assertFalse(bf.get_rotations(nes))
 
-        bf = Battlefield()
+        bf = Battlefield(Grid(radius=16))
         nes = Nescient(E, create_comp(earth=128))
         nes.body = bf.make_body((4, 4), 'North')
         dirs = sorted(bf.grid.directions.values())
@@ -146,7 +146,7 @@ class BattlefieldTest(FlaskTestDB):
         self.assertRaises(ValueError, bf.rotate, nes, 'South')
 
     def test_map_to_grid(self):
-        bf = Battlefield()
+        bf = Battlefield(grid=Grid(radius=16))
         expect = [
             (-4, 4), (-4, 5), (-4, 6), (-4, 7), (-4, 8), (-4, 9), (-4, 10),
             (-4, 11), (-4, 12), (-3, 3), (-3, 4), (-3, 5), (-3, 6), (-3, 7),
@@ -307,7 +307,7 @@ class BattlefieldTest(FlaskTestDB):
         self.assertIs(Battlefield().calc_ranged(None, None), None)
 
     def test_calc_damage(self):
-        bf = Battlefield()
+        bf = Battlefield(grid=Grid(radius=16))
         # attack with Sword (short range)
         wep = Sword(E, create_comp(earth=128))
         s = Scient(E, create_comp(earth=128))
@@ -322,7 +322,6 @@ class BattlefieldTest(FlaskTestDB):
         wep = Wand(E, create_comp(earth=128))
         s.equip(wep)
         for i in xrange(1, 4):
-            print t.location, (i, i)
             bf.place_object(t, (i, i))
         self.assertEqual(bf.calc_damage(s, t), [[t, 164]])
 
@@ -357,7 +356,7 @@ class BattlefieldTest(FlaskTestDB):
         bf.bury.assert_called_once_with(s)
 
     def test_attack(self):
-        bf = Battlefield()
+        bf = Battlefield(grid=Grid(radius=16))
         s = Scient(E, create_comp(earth=128))
         t = Nescient(F, create_comp(fire=128))
         wep = Glove(E, create_comp(earth=128))
@@ -366,6 +365,12 @@ class BattlefieldTest(FlaskTestDB):
         bf.place_object(t, (1, 1))
         self.assertEqual(bf.attack(s, (1, 0)), [[t, 384]])
         self.assertRaises(ValueError, bf.attack, s, (5, 5))
+        try:
+            bf.attack(s, (5, 5))
+        except ValueError as e:
+            self.assertIn('Nothing to attack', str(e))
+        else:
+            self.fail('ValueError not raised')
 
     def test_get_dmg_queue(self):
         bf = Battlefield()

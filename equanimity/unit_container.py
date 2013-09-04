@@ -61,10 +61,8 @@ class Container(Persistent):
         self.free_spaces -= unit.size
 
     def extend(self, units):
-        print self.units, self.free_spaces
         for unit in units:
             self.append(unit)
-        print self.units, self.free_spaces
 
     def __iadd__(self, units):
         """ += operator """

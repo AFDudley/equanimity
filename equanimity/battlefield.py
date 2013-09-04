@@ -118,7 +118,6 @@ class Battlefield(object):
         if not self.body_within_grid(body):
             return False
         for part in body.itervalues():
-            print part.location, self.grid.radius
             tile = self.grid.get(part.location)
             empty = (tile.contents is None)
             in_self = (tile.contents in nescient.body.itervalues())
@@ -290,7 +289,6 @@ class Battlefield(object):
         else:
             r = range(0, -pval - 1, -1)
         # Create the coordinates along the AOE cross-sectional line
-        print atkr.location, target, direction, primary, pval, r
         hex_cubes = []
         for a, b in zip(r, reversed(r)):
             coords = {}

@@ -13,7 +13,6 @@ from bidict import bidict, inverted
 
 class Tile(Stone):
     """Tiles contain units or stones and are used to make battlefields."""
-    #TODO consider removing contents.
     def __init__(self, location=None, comp=None, contents=None):
         super(Tile, self).__init__(comp=comp)
         if location is None:
@@ -135,7 +134,7 @@ class Grid(Stone):
         'Northwest': Hex(-1, 0)
     })
 
-    def __init__(self, comp=None, radius=16, tiles=None):
+    def __init__(self, comp=None, radius=8, tiles=None):
         if radius <= 0:
             raise ValueError('Invalid hex grid radius {0}'.format(radius))
         self.size = self._compute_size(radius)
@@ -211,7 +210,6 @@ class Grid(Stone):
 
     def tiles_in_range(self, location, distance):
         """generates a list of tiles within distance of location."""
-        print 'Tiles in range', location, distance
         home = set([location])
         tilesets = [home]
         tiles = home
