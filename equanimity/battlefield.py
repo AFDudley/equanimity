@@ -5,12 +5,13 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 """contains battlefield objects"""
+import random
 from datetime import datetime
+from bidict import inverted
 from stone import Stone, Composition
 from units import Scient, Nescient, Part
-from grid import Grid, Hex
+from grid import Grid, Hex, HexCube
 from const import E
-
 
 """
 Refactoring notes:
@@ -117,11 +118,11 @@ class Battlefield(object):
         if not self.body_within_grid(body):
             return False
         for part in body.itervalues():
-            loc = part.location
-            empty = (self.grid.get(loc).contents is None)
-            body_vals = nescient.body.itervalues()
-            in_self = (self.grid.get(loc).contents in body_vals)
-            ctype = getattr(self.grid.get(loc).contents, '__class__', None)
+            print part.location, self.grid.radius
+            tile = self.grid.get(part.location)
+            empty = (tile.contents is None)
+            in_self = (tile.contents in nescient.body.itervalues())
+            ctype = getattr(tile.contents, '__class__', None)
             is_stone = (ctype == Stone)
             if not empty and not in_self and not is_stone:
                 return False
@@ -156,7 +157,7 @@ class Battlefield(object):
         """returns list of directions nescient can rotate."""
         drctns = []
         nbdr = nescient.body['right'].location
-        for direction in self.direction.itervalues():
+        for direction, _ in inverted(self.grid.directions):
             body = self.make_body(nbdr, direction)
             if self.can_move_nescient(body, nescient):
                 drctns.append(direction)  # might want to return body as well.
@@ -167,48 +168,17 @@ class Battlefield(object):
         new_body = self.make_body(nescient.body['right'].location, direction)
         return self.move_nescient(new_body, nescient, direction=direction)
 
-    def make_triangle(self, location, distance, pointing):
-        """generates an equilateral triangle pattern with 'location' at one
-        point. The other two points are 'distance' away from 'location'
-        toward 'pointing'. Returns a set of coords"""
-        triangle = []
-        head = self.grid.get_adjacent(location, pointing)
-        cols = 1  # maintain dist = 1 behavior.
-        while cols != distance:
-            triangle += list(head)
-            temp_head = head
-            head = set()
-            for loc in temp_head:
-                head |= self.grid.get_adjacent(loc, pointing)
-            cols += 1
-        return triangle
-
     def map_to_grid(self, location, weapon):
         """returns tiles within range of location using weapon.
         called in hex_view.py"""
         xpos, ypos = location
         if weapon.type in self.ranged or weapon.type in self.AOE:
             move = 4
-            no_hit = self.make_range(location, move)
-            hit = self.make_range(location, 2 * move)
+            no_hit = self.grid.tiles_in_range(location, move)
+            hit = self.grid.tiles_in_range(location, 2 * move)
             return hit - no_hit
         else:
             return self.grid.get_adjacent(location)
-
-    def make_range(self, location, distance):
-        """generates a list of tiles within distance of location."""
-        location = location
-        dist = distance
-        tiles = list(self.grid.get_adjacent(location))
-        while len(tiles) < dist:
-            new = set()
-            for tile in tiles[-1]:
-                new |= self.grid.get_adjacent(tile)
-            tiles.append(new)
-        group = set()
-        for x in tiles:
-            group |= x
-        return group
 
     def place_object(self, obj, dest):
         """places an object on a tile."""
@@ -226,77 +196,48 @@ class Battlefield(object):
         """move unit from src tile to dest tile"""
         if src == dest:  # No action
             return False
-        if not self.grid.in_bounds(src):
-            raise ValueError("Source {0} is off grid".format(src))
-        if not self.grid.in_bounds(dest):
-            raise ValueError("Destination {0} is off grid".format(dest))
-
-        if not self.grid.get(src).contents:
-            raise ValueError("There is nothing at {0}".format(src))
-        if self.grid.get(dest).contents:
-            msg = "There is already something at {0}"
-            raise ValueError(msg.format(dest))
-
-        move = self.grid.get(src).contents.move
-        if dest not in self.make_range(src, move):
+        src = Hex._make(src)
+        dest = Hex._make(dest)
+        src_tile = self.grid.get(src)
+        if src.distance(dest) > src_tile.contents.move:
             msg = "Tried moving more than {0} tiles"
-            raise ValueError(msg.format(move))
-
-        contents = self.grid.get(src).contents
-        self.grid.get(dest).contents = contents
-        self.grid.get(dest).contents.location = dest
-        self.grid.get(src).contents = None
+            raise ValueError(msg.format(src_tile.contents.move))
+        dest_tile = self.grid.get(dest)
+        src_tile.move_contents_to(dest_tile)
         return True
 
-    def place_scient(self, unit, tile):
+    def place_scient(self, unit, loc):
         """Places unit at tile, if already on grid, move_scient is called"""
-        if not self.grid.in_bounds(tile):
-            raise ValueError("Tile {0} is off grid".format(tile))
-
         if not unit.location.is_null():
-            return self.move_scient(unit.location, tile)
-
-        contents = self.grid.get(tile).contents
-        if contents is not None:
-            raise ValueError("{0} is not empty".format(tile))
-
-        self.grid.get(tile).contents = unit
-        unit.location = Hex._make(tile)
-        self.dmg_queue.setdefault(unit, [])
-        return True
+            return self.move_scient(unit.location, loc)
+        else:
+            self.grid.get(loc).set_contents(unit)
+            self.dmg_queue.setdefault(unit, [])
+            return True
 
     def rand_place_scient(self, unit):
         """Randomly place a unit on the grid."""
-        # readable?
-        if self.grid.full():
+        available = list(self.grid.unoccupied_coords())
+        if not available:
             raise ValueError("Grid is full")
-        while True:
-            try:
-                return self.place_scient(unit, self.grid.randpos())
-            except ValueError:
-                pass
+        return self.place_scient(unit, random.choice(available))
 
     def rand_place_squad(self, squad):
         """place the units in a squad randomly on the battlefield"""
-        for unit in range(len(squad)):
-            self.rand_place_scient(squad[unit])
+        available = list(self.grid.unoccupied_coords())
+        positions = random.sample(available, len(squad))
+        for unit, pos in zip(squad, positions):
+            self.place_scient(unit, pos)
 
     def flush_units(self):
         """
         remove all units from grid, returns number of units flushed,
         does not put them in the graveyard. (for testing)
         """
-        #maybe find_unit should be used here...
-        num = 0
-        for col in self.grid.itervalues():
-            for obj in col.itervalues():
-                if obj.contents:
-                    obj.contents.location = Hex.null
-                    obj.contents = None
-                    num += 1
-        return num
+        return len([t for t in self.grid.iter_tiles() if t.flush()])
 
-    #Attack/Damage stuff
+    """ Attack / Damage methods """
+
     def dmg(self, atkr, defdr):
         """Calculates the damage of an attack"""
         dloc = defdr.location
@@ -329,73 +270,37 @@ class Battlefield(object):
             else:
                 return damage
 
-    def make_distances(self, src, dest, direction='all'):
-        ax, ay = src
-        dx, dy = dest
-        xdist = abs(dx - ax)
-        ydist = abs(dy - ay)
-        zdist = xdist + ydist/2 + 1
-        ranges = {}
-        for index in xrange(6):
-            ranges[index] = zdist
-
-        ranges.update({0: ydist + 1, 3: ydist + 1})
-        if ay & 1:
-            if not dy & 1:
-                ranges.update({4: zdist + 1, 5: zdist + 1})
+    def calc_aoe(self, atkr, target):
+        """Returns the AOE of a spell.
+        The AOE is the cross-sectional line of the sextant that contains
+        the target, relative to the attacker location
+        """
+        target = Hex._make(target)
+        # Find the direction we should be facing
+        direction = self.grid.get_direction(atkr.location, target)
+        # Get primary and nonprimary coordinate
+        primary = HexCube.primaries[direction]
+        nonprimary = HexCube.nonprimaries[direction]
+        # Convert to cube coords, relative to origin
+        t = HexCube.from_hex(target - atkr.location)
+        # Determine ranges that the nonprimary coordinates follow
+        pval = getattr(t, primary)
+        if pval < 0:
+            r = range(0, -pval + 1)
         else:
-            if dy & 1:
-                ranges.update({1: zdist + 1, 2: zdist + 1})
-        if direction == 'all':
-            return ranges
-        else:
-            return ranges[direction]
-
-    def maxes(self, src):
-        # TODO (steve, hex grid work)
-        # TODO -- explain what this is trying to do
-        """NOTE:
-        Currently, AOE weapons can hit every tile on the grid so this is
-        really quite moot.
-
-        At some point LOS style blasting might be added at which
-        point this would be needed.
-        """
-        # sub-optimal should check ay % 1 and change the + 1 and + 2
-        # accordingly.
-
-        """
-        maxes = {
-            0: r - 1,
-            1: (self.grid.x - ax) + ay / 2,
-            2: (self.grid.x - ax) + (self.grid.y - ay) / 2,
-            3: self.grid.y - ay,
-            4: ax + (self.grid.y - ay) / 2 + 1,
-            5: ax + ay / 2 + 2,
-        }
-        return maxes
-        """
-        return {}
-
-    def calc_AOE(self, atkr, target):
-        """Returns the AOE of a spell."""
-        # Optimize. Currently makes a triangle only to discard 7/8ths of it.
-        aloc = atkr.location
-        tloc = Hex._make(target)
-        dists = self.make_distances(aloc, tloc)
-        maxes = self.maxes(aloc)
-        for i in self.direction:
-            pat = self.make_triangle(aloc, maxes[i], self.direction[i])
-            if tloc in pat:
-                pat_ = self.make_triangle(aloc, dists[i], self.direction[i])
-                new_pat = []
-                for tile in pat_:
-                    if self.grid.in_bounds(tile):
-                        if dists[i] == self.make_distances(aloc, tile, i):
-                            new_pat.append(tile)
-                new_pat = set(new_pat)
-                return new_pat
-        return set()
+            r = range(0, -pval - 1, -1)
+        # Create the coordinates along the AOE cross-sectional line
+        print atkr.location, target, direction, primary, pval, r
+        hex_cubes = []
+        for a, b in zip(r, reversed(r)):
+            coords = {}
+            coords[primary] = pval
+            coords[nonprimary[0]] = a
+            coords[nonprimary[1]] = b
+            hex_cubes.append(HexCube(**coords))
+        # Convert back to axial coordinates and adjust back to atkr's loc
+        tiles = [Hex.from_cube(h) + atkr.location for h in hex_cubes]
+        return set(self.grid.filter_tiles(tiles))
 
     def calc_ranged(self, atkr, target):
         """UGH"""
@@ -425,7 +330,7 @@ class Battlefield(object):
 
         # calculate how many units will be damaged.
         if weapon.type in self.AOE:
-            pat = self.calc_AOE(atkr, target_loc)
+            pat = self.calc_aoe(atkr, target_loc)
             targets = list(set(self.grid.occupied_coords()) & set(pat))
             area = len(pat)
             for t in targets:

@@ -43,6 +43,14 @@ class Unit(Stone):
         self.id = db['unit_uid'].get_next_id()
         transaction.commit()
 
+    @property
+    def location(self):
+        return self._location
+
+    @location.setter
+    def location(self, loc):
+        self._location = Hex._make(loc)
+
     def calcstats(self):
         self.p = (2 * (self.comp[F] + self.comp[E]) + self.comp[I] +
                   self.comp[W])
