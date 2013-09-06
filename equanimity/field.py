@@ -11,7 +11,7 @@ from math import ceil
 from stone import Stone
 from helpers import get_element
 from grid import Grid
-from player import Player
+from player import Player, WorldPlayer
 from battle import Game
 from stronghold import Stronghold
 from clock import Clock
@@ -19,15 +19,17 @@ from clock import Clock
 
 class Field(persistent.Persistent):
     """Player owned field logic."""
-    def __init__(self, world_coord, ply_time=240):
+    def __init__(self, owner=None, world_coord, ply_time=240):
         self.locked = False
         self.world_coord = world_coord
-        self.owner = 'World'
+        if owner is None:
+            owner = WorldPlayer.get()
+        self.owner = owner
         self.grid = Grid()
         self.element = 'Ice'  # For testing
         #self.element = get_element(self.grid.comp)
         self.clock = Clock()
-        self.stronghold = Stronghold(self.element, self.clock)
+        self.stronghold = Stronghold(self.owner, self.element, self.clock)
         self.plantings = persistent.mapping.PersistentMapping()
         self.attackerqueue = persistent.list.PersistentList()
         self.game = None
@@ -51,14 +53,22 @@ class Field(persistent.Persistent):
                         self.world_actions)
 
     def setup_battle(self):
+        # TODO (steve) -- this is a helper method for testing
+        # and needs to be replaced
         # load the battlefield with players (and squads)
         atkr_name, atksquad = self.attackerqueue[0]  # TODO change to pop
         defsquad = self.get_defenders()
-        dfndr = Player(self.owner, squads=[defsquad])
-        atkr = Player(atkr_name, squads=[atksquad])
+        self.owners.squads = [defsquad]
+        atkr = Player.get(1)
+        atkr.squads = [atksquad]
         # TODO write a new game object.
         self.game = Game(grid=self.grid, defender=dfndr, attacker=atkr)
         # place units on battlefield
+        # TODO (steve) -- the defender accesses the stronghold to predetermine
+        # how its units will be placed at the start of a battle?
+        # If so, that needs to be stored on a separate field besides
+        # unit.location so it can be reset properly.
+        # Also in that case, how is the attacker's placement chosen?
         self.game.put_squads_on_field()
         return transaction.commit()
 

@@ -24,7 +24,7 @@ from clock import now
 
 class MappedContainer(Container):
     def __init__(self):
-        Container.__init__(self, data=None, free_spaces=8)
+        super(MappedContainer, self).__init__(data=None, free_spaces=8)
         #maybe map should actually return the key and method
         #should be added instead of using .map
         self.map = PersistentMapping()
@@ -58,13 +58,14 @@ class MappedContainer(Container):
 
 class Stronghold(Persistent):
 
-    def __init__(self, field_element, clock):
+    def __init__(self, owner, field_element, clock):
+        self.owner = owner
         self.clock = clock
         self.silo = Silo()
         self.weapons = PersistentList()
         self.units = MappedContainer()
         self.squads = PersistentList()
-        self.defenders = Squad(name='Defenders')
+        self.defenders = Squad(owner=owner, name='Defenders')
         self.make_defenders(field_element)
         self.defender_locs = PersistentList()
         self.stable = None
@@ -181,7 +182,7 @@ class Stronghold(Persistent):
         """Forms a squad and places it in the stronghold."""
         if name is None:
             name = rand_string()
-        sq = Squad(name=name)
+        sq = Squad(owner=self.owner, name=name)
         try:
             for unit_id in unit_id_list:
                 unit = self.units.map[unit_id]

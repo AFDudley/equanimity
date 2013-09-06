@@ -124,11 +124,11 @@ def rand_unit(suit=None, kind='Scient'):
         return Nescient(suit, rand_comp(suit, 'Nescient'), rand_string())
 
 
-def rand_squad(suit=None, kind='Scient'):
+def rand_squad(owner=None, suit=None, kind='Scient'):
     """Returns a Squad of five random Scients of suit. Random suit used
        if none given."""
     #please clean me up.
-    squad = Squad()
+    squad = Squad(owner=owner)
     if kind == 'Scient':
         size = 5
         if not suit in ELEMENTS:

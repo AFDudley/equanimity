@@ -95,6 +95,7 @@ class LogTest(FlaskTestDB):
         s = Scient(E, create_comp(earth=128))
         squad = Squad(name='test', data=[s])
         player = AttributeDict(squads=[squad])
+        squad.owner = player
         log = Log([player], {0: s}, Grid())
         owner = log.get_owner(0)
         self.assertEqual(owner, player)

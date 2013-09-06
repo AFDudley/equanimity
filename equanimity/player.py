@@ -43,6 +43,17 @@ class Player(Persistent, UserMixin):
         self.treaties = None
 
     @property
+    def squads(self):
+        return self._squads
+
+    @property.squads
+    def squads(self, squads):
+        self.squads = squads
+        if squads is not None:
+            for sq in squads:
+                sq.owner = self
+
+    @property
     def name(self):
         return self.display_username
 
@@ -127,3 +138,9 @@ class WorldPlayer(Player):
 
     def is_world(self):
         return True
+
+    @classmethod
+    def get(self):
+        if self._world is None:
+            self._world = db['players'][WORLD_UID]
+        return self._world

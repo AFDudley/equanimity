@@ -120,23 +120,32 @@ class Log(PersistentMapping):
 
 class State(PersistentMapping):
 
+    phases = ['unit_placement', 'combat']
+
     """A dictionary containing the current game state."""
-    def __init__(self, num=1, pass_count=0, hp_count=0, old_defsquad_hp=0,
-                 queued=None, locs=None, HPs=None, game_over=False,
-                 whose_action=None):
+    def __init__(self, game, num=1, pass_count=0, hp_count=0,
+                 old_defsquad_hp=0, queued=None, locs=None, HPs=None,
+                 game_over=False, whose_action=None):
+        self.game = game
         if HPs is None:
             HPs = PersistentMapping()
         if queued is None:
             queued = PersistentMapping()
         if locs is None:
             locs = PersistentMapping()
+        if phase is None:
+            if phase not in self.phases:
+                raise ValueError('Invalid phase {0}'.format(phase))
+            phase = 'unit_placement'
         super(State, self).__init__(num=num, pass_count=pass_count,
                                     hp_count=hp_count, queued=queued,
                                     old_defsquad_hp=old_defsquad_hp,
                                     locs=locs, HPs=HPs, game_over=game_over,
-                                    whose_action=whose_action)
+                                    whose_action=whose_action, phase=phase)
 
     def check(self, game):
+        if self['phase'] != 'combat':
+            return
         """Checks for game ending conditions.
         (Assumes two players and no action cue.)"""
         num = self['num']
@@ -177,18 +186,17 @@ class State(PersistentMapping):
         self['queued'] = game.map_queue()
         self['HPs'], self['locs'] = game.update_unit_info()
 
-        game.log['states'].append(State(**self))
+        game.log['states'].append(State(game=self.game, **self))
 
         #game is not over, state is stored, update state.
         self['num'] += 1
-
-        #switches whose_action.
-        if self['num'] % 2:  # each player gets two actions per ply.
-            if self['whose_action'] == game.defender.name:
-                self['whose_action'] = game.attacker.name
-            else:
-                self['whose_action'] = game.defender.name
+        self['whose_action'] = self.get_player_for_action(self['num']).id
         transaction.commit()
+
+    def start_combat(self, action_queue):
+        if self.phase == 'combat':
+            raise ValueError('Phase is already in combat')
+        self['whose_action'] = self.get_player_for_action(self['num']).id
 
 
 class Game(Persistent):
@@ -203,8 +211,7 @@ class Game(Persistent):
         self.battlefield = Battlefield(grid, self.defender.squads[0],
                                        self.attacker.squads[0],
                                        element=element)
-        self.state = State()
-        self.state['whose_action'] = self.defender.name
+        self.state = State(self)
 
         self.players = self.defender, self.attacker
         # TODO (steve) -- bidirectional map instead of map,units
@@ -307,7 +314,7 @@ class Game(Persistent):
         """Processes actions sent from game clients."""
         # Needs more logic for handling turns/plies.
         action['when'] = now()
-        action['num'] = num = self.state['num']
+        num = action['num'] = self.state['num']
         try:
             curr_unit = action['unit'].id
         except AttributeError:
@@ -320,6 +327,11 @@ class Game(Persistent):
             prev_act = self.log['actions'][-1]['type']
         except (KeyError, IndexError):
             prev_act = None
+
+        expected_unit = self.action_queue.get_unit_for_action(num)
+        if curr_unit != expected_unit:
+            msg = 'battle: unit {0} is not the expected unit {1}'
+            raise ValueError(msg.format(curr_unit, expected_unit))
 
         if action['type'] == 'timed_out':
             text = [["Failed to act."]]
@@ -442,6 +454,9 @@ class ActionQueue(Persistent):
         super(ActionQueue, self).__init__()
         self.game = game
         self.units = self._get_unit_queue(self.game.battlefield.units)
+
+    def get_player_for_action(self, num):
+        return self.get_unit_for_action(num).container.owner
 
     def get_unit_for_action(self, num):
         if num < 1:

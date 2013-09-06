@@ -11,13 +11,15 @@ import weapons
 from stone import Stone
 from const import ELEMENTS, WEP_LIST
 from units import Scient
+from player import WorldPlayer
 
 
 class Container(Persistent):
     """contains units"""
 
-    def __init__(self, data=None, free_spaces=8):
+    def __init__(self, data=None, free_spaces=8, owner=None):
         super(Container, self).__init__()
+        self.owner = owner
         self.max_free_spaces = free_spaces
         self.free_spaces = free_spaces
         if data is None:
@@ -103,8 +105,9 @@ class Container(Persistent):
 
 class Squad(Container):
     """contains a number of Units. Takes a list of Units"""
-    def __init__(self, data=None, name=None, kind=None, element=None):
-        super(Squad, self).__init__(data=data, free_spaces=8)
+    def __init__(self, data=None, name=None, kind=None, element=None,
+                 owner=None):
+        super(Squad, self).__init__(data=data, free_spaces=8, owner=owner)
         self.name = name
         if data is None and kind == 'mins':
             self._fill_default_units(element)
