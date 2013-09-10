@@ -25,9 +25,6 @@ def api(f):
                 abort(400)
         file_data = {}
         for name, upload in request.files.items():
-            if name in g.api_data:
-                err = 'File "{0}" clobbers form data'
-                return api_error(err.format(name)), 200
             file_data[name] = upload
         file_data = variabledecode.variable_decode(file_data)
         g.api_data.update(file_data)

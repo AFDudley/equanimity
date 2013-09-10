@@ -1,16 +1,12 @@
 from flask.ext.login import (login_required, login_user, logout_user,
                              current_user)
-from flask import Blueprint, redirect, url_for, g
+from flask import Blueprint, g
 from equanimity.player import Player
 from server.utils import AttributeDict
 from server.forms.users import LoginForm, SignupForm
 from server.decorators import api
 
 users = Blueprint('users', __name__, url_prefix='/api/user')
-
-
-def home():
-    return redirect(url_for('frontend.index'))
 
 
 @users.route('/signup', methods=['POST'])
@@ -24,7 +20,7 @@ def signup():
     Return:
         user json
     """
-    form = SignupForm().to_python(g.form_data, state=AttributeDict())
+    form = SignupForm().to_python(g.api_data, state=AttributeDict())
     user = Player(form['username'], form['email'], form['password'])
     login_user(user, remember=True)
     user.login()
@@ -43,7 +39,7 @@ def login():
         user json
     """
     state = AttributeDict()
-    LoginForm().to_python(g.form_data, state=state)
+    LoginForm().to_python(g.api_data, state=state)
     login_user(state.user, remember=True)
     state.user.login()
     return state.user

@@ -415,10 +415,14 @@ class BattleProcessActionTest(GameTestBase):
 
     def test_using_different_units(self):
         # get a ValueError by using two different units in a row
-        act = Action(type='move', unit=self.defender.squads[0][0])
+        act = Action(type='move', unit=self.unit(2))
         self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(unit=self.defender.squads[0][1])]
+        self.game.log['actions'] = [Action(unit=self.unit(4))]
         self.assertRaises(ValueError, self.game.process_action, act)
+        try:
+            self.game.process_action(act)
+        except ValueError as e:
+            self.assertIn('Unit from the previous action', str(e))
 
     def test_first_movement(self):
         # do a legitimate movement, on a first action
@@ -499,10 +503,15 @@ class BattleProcessActionTest(GameTestBase):
         self.assertActionResult(ret, 2, type='attack', unit=d.uid, target=loc)
 
     def test_double_attack(self):
-        act = Action(type='attack', unit=self.d)
+        d = self.unit(2)
+        act = Action(type='attack', unit=d)
         self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(unit=self.d, type='attack')]
+        self.game.log['actions'] = [Action(unit=d, type='attack')]
         self.assertRaises(ValueError, self.game.process_action, act)
+        try:
+            self.game.process_action(act)
+        except ValueError as e:
+            self.assertIn('Second action in ply must be', str(e))
 
     def test_final_action(self):
         self.game.apply_queued = MagicMock(side_effect=self.game.apply_queued)
@@ -513,6 +522,15 @@ class BattleProcessActionTest(GameTestBase):
         ret = self.game.process_action(act)
         self.game.apply_queued.assert_called_with()
         self.assertActionResult(ret, 4, type='pass', unit=self.unit(4).uid)
+
+    def test_unexpected_unit(self):
+        d = self.unit(6)
+        act = Action(type='pass', unit=d)
+        self.assertRaises(ValueError, self.game.process_action, act)
+        try:
+            self.game.process_action(act)
+        except ValueError as e:
+            self.assertIn('not the expected unit', str(e))
 
 
 class ActionQueueTest(GameTestBase):

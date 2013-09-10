@@ -20,9 +20,15 @@ class PlayerTest(FlaskTestDB):
 
 class WorldPlayerTest(FlaskTestDB):
 
+    def setUp(self):
+        WorldPlayer._world = None
+        super(WorldPlayerTest, self).setUp()
+
     def test_create(self):
         player = WorldPlayer()
         self.assertEqual(player.uid, WORLD_UID)
+        player.persist()
+        self.assertRaises(ValueError, WorldPlayer)
 
     def test_is_world(self):
         player = WorldPlayer()
@@ -33,3 +39,12 @@ class WorldPlayerTest(FlaskTestDB):
         player.persist()
         self.assertTrue(self.db['players'][0])
         self.assertEqual(self.db['players'][0].uid, player.uid)
+
+    def test_get(self):
+        p = WorldPlayer()
+        p.persist()
+        q = WorldPlayer.get()
+        self.assertEqual(p, q)
+        WorldPlayer._world = None
+        q = WorldPlayer.get()
+        self.assertEqual(p, q)

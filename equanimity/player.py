@@ -23,11 +23,11 @@ class Player(Persistent, UserMixin):
     """Object that contains player infomration."""
     def __init__(self, username, email, password, squads=None):
         Persistent.__init__(self)
-        self.uid = db['player_uid'].get_next_id()
         self.username = username
         self.email = email
         self.password = password
         self._set_defaults(squads=squads)
+        self.uid = db['player_uid'].get_next_id()
 
     def _set_defaults(self, squads=None):
         self.created_at = datetime.utcnow()
@@ -142,7 +142,11 @@ class Player(Persistent, UserMixin):
 
 class WorldPlayer(Player):
 
+    _world = None
+
     def __init__(self):
+        if self._world is not None:
+            raise ValueError('WorldPlayer already created')
         Persistent.__init__(self)
         self.uid = WORLD_UID
         self.username = 'World'
@@ -151,6 +155,7 @@ class WorldPlayer(Player):
         self._set_defaults()
 
     def persist(self):
+        self.__class__._world = self
         db['players'][self.uid] = self
         transaction.commit()
 
@@ -158,7 +163,7 @@ class WorldPlayer(Player):
         return True
 
     @classmethod
-    def get(self):
-        if self._world is None:
-            self._world = db['players'][WORLD_UID]
-        return self._world
+    def get(cls):
+        if cls._world is None:
+            cls._world = db['players'][WORLD_UID]
+        return cls._world

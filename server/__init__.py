@@ -1,12 +1,11 @@
 import os
 import logging
-from formencode import variabledecode
 from formencode.htmlfill import render as render_form
 from flask.ext.seasurf import SeaSurf
 from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager
-from flask import Flask, g, abort, request
+from flask import Flask, g
 
 
 """ ZODB """
@@ -71,11 +70,8 @@ def inject_context_processors(app):
 
 def attach_before_request_handlers(app):
     @app.before_request
-    def load_form_data():
-        try:
-            g.form_data = variabledecode.variable_decode(request.form)
-        except ValueError:
-            abort(400)
+    def set_defaults():
+        g.api_data = None
 
 
 def attach_loggers(app):

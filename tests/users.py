@@ -39,8 +39,8 @@ class UserTestBase(FlaskTestDB):
         self.assert200(r)
         return r
 
-    def login(self, check_status=True):
-        r = self.post('users.login', data=self.get_login_user_data())
+    def login(self, check_status=True, **kwargs):
+        r = self.post('users.login', data=self.get_login_user_data(), **kwargs)
         if check_status:
             self.assert200(r)
         return r

@@ -273,13 +273,16 @@ class Game(Persistent):
         return {key.uid: val for key, val in queue.iteritems()}
 
     def map_result(self, result):
+        """ replaces unit references with their hash
+        TODO (steve) -- this may be unnecessary and cause problems """
         for t in result:
             if isinstance(t[0], Unit):
                 t[0] = t[0].uid
         return result
 
     def map_action(self, **action):
-        """replaces unit refrences to referencing their hash."""
+        """replaces unit refrences to referencing their hash.
+        TODO (steve) -- this may be unnecessary and cause problems """
         new = Action(**action)
         if new['unit'] is not None:
             new['unit'] = new['unit'].uid

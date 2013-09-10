@@ -1,9 +1,7 @@
 import os
 from unittest import TestCase
-from mock import patch
 from server import create_app, attach_loggers
-from server.utils import AttributeDict, construct_full_url
-from base import FlaskTest
+from server.utils import AttributeDict, construct_full_url, api_error
 
 
 class AttributeDictTest(TestCase):
@@ -42,6 +40,17 @@ class UtilsTest(TestCase):
         self.assertEqual(target, construct_full_url('https://example.com/'))
 
 
+class APIErrorTest(TestCase):
+
+    def test_api_error(self):
+        out = api_error('err')['errors']
+        self.assertEqual(out, dict(main=['err'], fields={}))
+        out = api_error({'err': 'xxx'})['errors']
+        self.assertEqual(out, dict(main=[], fields={'err': 'xxx'}))
+        out = api_error(['err', 'xxx'])['errors']
+        self.assertEqual(out, dict(main=['err', 'xxx'], fields={}))
+
+
 class AppInitTest(TestCase):
 
     def test_subdomain_create_app(self):
@@ -78,12 +87,3 @@ class AppInitTest(TestCase):
         finally:
             if old is not None:
                 os.environ['EQUANIMITY_SERVER_SETTINGS'] = old
-
-
-class RequestFormDecodeTest(FlaskTest):
-
-    @patch('server.variabledecode.variable_decode')
-    def test_bad_request_form(self, mock_decode):
-        mock_decode.side_effect = ValueError
-        r = self.post('users.login')
-        self.assert400(r)
