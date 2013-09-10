@@ -1,71 +1,71 @@
-from functools import wraps
-from formencode import Invalid
 from flask.ext.login import (login_required, login_user, logout_user,
                              current_user)
-from flask import (Blueprint, redirect, url_for, flash, render_template,
-                   request, g)
+from flask import Blueprint, redirect, url_for, g
 from equanimity.player import Player
 from server.utils import AttributeDict
 from server.forms.users import LoginForm, SignupForm
+from server.decorators import api
 
-users = Blueprint('users', __name__, url_prefix='/user')
+users = Blueprint('users', __name__, url_prefix='/api/user')
 
 
 def home():
     return redirect(url_for('frontend.index'))
 
 
-def login_unrequired(f):
-    @wraps(f)
-    def wrapped(*args, **kwargs):
-        if not current_user.is_anonymous():
-            flash('Currently logged in')
-            return home()
-        return f(*args, **kwargs)
-    return wrapped
-
-
-@users.route('/signup', methods=['POST', 'GET'])
-@login_unrequired
+@users.route('/signup', methods=['POST'])
+@api
 def signup():
-    form = SignupForm()
-    if request.method == 'GET':
-        return render_template('users/signup.html', form=form)
-    try:
-        form = form.to_python(g.form_data, state=AttributeDict())
-    except Invalid as e:
-        return render_template('users/signup.html', form=form,
-                               errors=e.unpack_errors())
+    """ Methods: POST
+    Fields:
+        username
+        email
+        password
+    Return:
+        user json
+    """
+    form = SignupForm().to_python(g.form_data, state=AttributeDict())
     user = Player(form['username'], form['email'], form['password'])
     login_user(user, remember=True)
     user.login()
     user.persist()
-    flash('Created new user "{0}"'.format(user.display_username))
-    return home()
+    return user
 
 
-@users.route('/login', methods=['POST', 'GET'])
-@login_unrequired
+@users.route('/login', methods=['POST'])
+@api
 def login():
-    form = LoginForm()
-    if request.method == 'GET':
-        return render_template('users/login.html', form=form)
+    """ Method: POST
+    Fields:
+        username
+        password
+    Return:
+        user json
+    """
     state = AttributeDict()
-    try:
-        form = form.to_python(g.form_data, state=state)
-    except Invalid as e:
-        return render_template('users/login.html', form=form,
-                               errors=e.unpack_errors())
+    LoginForm().to_python(g.form_data, state=state)
     login_user(state.user, remember=True)
     state.user.login()
-    flash('Logged in as "{0}"'.format(state.user.display_username))
-    return home()
+    return state.user
 
 
 @users.route('/logout')
 @login_required
+@api
 def logout():
-    if not current_user.is_anonymous():
-        logout_user()
-        flash('Logged out successfully')
-    return home()
+    """ Method: GET
+    Fields:
+        None
+    Returns:
+        uid of player logged out
+    """
+    uid = current_user.uid
+    logout_user()
+    return dict(uid=uid)
+
+
+@users.route('/me')
+@login_required
+@api
+def me():
+    return current_user

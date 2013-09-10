@@ -40,7 +40,7 @@ class Unit(Stone):
         self.DOD = None
         self.fed_on = None
         self.val = self.value()
-        self.id = db['unit_uid'].get_next_id()
+        self.uid = db['unit_uid'].get_next_id()
         transaction.commit()
 
     @property
@@ -76,7 +76,7 @@ class Unit(Stone):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (self.id == other.id)
+            return (self.uid == other.uid)
         return False
 
     def __ne__(self, other):

@@ -120,12 +120,10 @@ class Log(PersistentMapping):
 
 class State(PersistentMapping):
 
-    phases = ['unit_placement', 'combat']
-
     """A dictionary containing the current game state."""
     def __init__(self, game, num=1, pass_count=0, hp_count=0,
                  old_defsquad_hp=0, queued=None, locs=None, HPs=None,
-                 game_over=False, whose_action=None):
+                 game_over=False, **_):
         self.game = game
         if HPs is None:
             HPs = PersistentMapping()
@@ -133,19 +131,14 @@ class State(PersistentMapping):
             queued = PersistentMapping()
         if locs is None:
             locs = PersistentMapping()
-        if phase is None:
-            if phase not in self.phases:
-                raise ValueError('Invalid phase {0}'.format(phase))
-            phase = 'unit_placement'
+        whose_action = self.game.action_queue.get_player_for_action(num).uid
         super(State, self).__init__(num=num, pass_count=pass_count,
                                     hp_count=hp_count, queued=queued,
                                     old_defsquad_hp=old_defsquad_hp,
                                     locs=locs, HPs=HPs, game_over=game_over,
-                                    whose_action=whose_action, phase=phase)
+                                    whose_action=whose_action)
 
     def check(self, game):
-        if self['phase'] != 'combat':
-            return
         """Checks for game ending conditions.
         (Assumes two players and no action cue.)"""
         num = self['num']
@@ -190,13 +183,9 @@ class State(PersistentMapping):
 
         #game is not over, state is stored, update state.
         self['num'] += 1
-        self['whose_action'] = self.get_player_for_action(self['num']).id
+        aq = self.game.action_queue
+        self['whose_action'] = aq.get_player_for_action(self['num']).uid
         transaction.commit()
-
-    def start_combat(self, action_queue):
-        if self.phase == 'combat':
-            raise ValueError('Phase is already in combat')
-        self['whose_action'] = self.get_player_for_action(self['num']).id
 
 
 class Game(Persistent):
@@ -211,8 +200,6 @@ class Game(Persistent):
         self.battlefield = Battlefield(grid, self.defender.squads[0],
                                        self.attacker.squads[0],
                                        element=element)
-        self.state = State(self)
-
         self.players = self.defender, self.attacker
         # TODO (steve) -- bidirectional map instead of map,units
         self.map = self.unit_map()
@@ -220,8 +207,9 @@ class Game(Persistent):
         self.winner = None
         self.log = Log(self.players, self.units, self.battlefield.grid)
         self.log['owners'] = self.log.get_owners()
-        self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
         self.action_queue = ActionQueue(self)
+        self.state = State(self)
+        self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
         return transaction.commit()
 
     def put_squads_on_field(self):
@@ -240,7 +228,7 @@ class Game(Persistent):
         """mapping of unit ids to objects, used for serialization."""
         mapping = PersistentMapping()
         for unit in self.battlefield.units:
-            mapping[unit] = unit.id
+            mapping[unit] = unit.uid
         return mapping
 
     def map_unit(self):
@@ -282,19 +270,19 @@ class Game(Persistent):
     def map_queue(self):
         """apply unit mapping to units in queue."""
         queue = self.battlefield.get_dmg_queue()
-        return {key.id: val for key, val in queue.iteritems()}
+        return {key.uid: val for key, val in queue.iteritems()}
 
     def map_result(self, result):
         for t in result:
             if isinstance(t[0], Unit):
-                t[0] = t[0].id
+                t[0] = t[0].uid
         return result
 
     def map_action(self, **action):
         """replaces unit refrences to referencing their hash."""
         new = Action(**action)
         if new['unit'] is not None:
-            new['unit'] = new['unit'].id
+            new['unit'] = new['unit'].uid
         return new
 
     def last_message(self):
@@ -316,11 +304,11 @@ class Game(Persistent):
         action['when'] = now()
         num = action['num'] = self.state['num']
         try:
-            curr_unit = action['unit'].id
+            curr_unit = action['unit'].uid
         except AttributeError:
             curr_unit = None
         try:
-            prev_unit = self.log['actions'][-1]['unit'].id
+            prev_unit = self.log['actions'][-1]['unit'].uid
         except (KeyError, IndexError, AttributeError):
             prev_unit = None
         try:
@@ -328,8 +316,8 @@ class Game(Persistent):
         except (KeyError, IndexError):
             prev_act = None
 
-        expected_unit = self.action_queue.get_unit_for_action(num)
-        if curr_unit != expected_unit:
+        expected_unit = self.action_queue.get_unit_for_action(num).uid
+        if curr_unit is not None and curr_unit != expected_unit:
             msg = 'battle: unit {0} is not the expected unit {1}'
             raise ValueError(msg.format(curr_unit, expected_unit))
 
@@ -363,12 +351,12 @@ class Game(Persistent):
                 loc = action['unit'].location
                 text = self.battlefield.move_scient(loc, action['target'])
                 if text:
-                    text = [[action['unit'].id, action['target']]]
+                    text = [[action['unit'].uid, action['target']]]
             else:
                 text = self.battlefield.move_scient(action['unit'].location,
                                                     action['target'])
                 if text:
-                    text = [[action['unit'].id, action['target']]]
+                    text = [[action['unit'].uid, action['target']]]
 
         elif action['type'] == 'attack':
             # If it's the second action in the ply and
@@ -439,7 +427,7 @@ class Game(Persistent):
 
         # split survivors into victors and prisoners
         for unit in self.log['states'][-1]['HPs']:
-            if self.log['owners'][unit.id] == self.winner.name:
+            if self.log['owners'][unit.uid] == self.winner.name:
                 victors.append(unit)
             else:
                 prisoners.append(unit)

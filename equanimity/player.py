@@ -24,9 +24,9 @@ class Player(Persistent, UserMixin):
     def __init__(self, username, email, password, squads=None):
         Persistent.__init__(self)
         self.uid = db['player_uid'].get_next_id()
-        self.set_username(username)
-        self.set_email(email)
-        self.set_password(password)
+        self.username = username
+        self.email = email
+        self.password = password
         self._set_defaults(squads=squads)
 
     def _set_defaults(self, squads=None):
@@ -42,13 +42,16 @@ class Player(Persistent, UserMixin):
         self.roads = None
         self.treaties = None
 
+    def api_view(self):
+        return dict(username=self.name, email=self.email, uid=self.uid)
+
     @property
     def squads(self):
         return self._squads
 
-    @property.squads
+    @squads.setter
     def squads(self, squads):
-        self.squads = squads
+        self._squads = squads
         if squads is not None:
             for sq in squads:
                 sq.owner = self
@@ -57,15 +60,30 @@ class Player(Persistent, UserMixin):
     def name(self):
         return self.display_username
 
-    def set_username(self, username):
-        self.username = username.lower()
+    @property
+    def username(self):
+        return self._username
+
+    @username.setter
+    def username(self, username):
+        self._username = username.lower()
         self.display_username = username
 
-    def set_email(self, email):
-        self.email = email.lower()
+    @property
+    def email(self):
+        return self._email
 
-    def set_password(self, password):
-        self.password = bcrypt.generate_password_hash(password)
+    @email.setter
+    def email(self, email):
+        self._email = email.lower()
+
+    @property
+    def password(self):
+        return self._password
+
+    @password.setter
+    def password(self, password):
+        self._password = bcrypt.generate_password_hash(password)
 
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password, password)
@@ -127,9 +145,9 @@ class WorldPlayer(Player):
     def __init__(self):
         Persistent.__init__(self)
         self.uid = WORLD_UID
-        self.set_username('World')
+        self.username = 'World'
         self.email = ''
-        self.password = ''
+        self._password = ''
         self._set_defaults()
 
     def persist(self):

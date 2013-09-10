@@ -19,7 +19,7 @@ from clock import Clock
 
 class Field(persistent.Persistent):
     """Player owned field logic."""
-    def __init__(self, owner=None, world_coord, ply_time=240):
+    def __init__(self, world_coord, owner=None, ply_time=240):
         self.locked = False
         self.world_coord = world_coord
         if owner is None:
@@ -62,7 +62,7 @@ class Field(persistent.Persistent):
         atkr = Player.get(1)
         atkr.squads = [atksquad]
         # TODO write a new game object.
-        self.game = Game(grid=self.grid, defender=dfndr, attacker=atkr)
+        self.game = Game(grid=self.grid, defender=self.owner, attacker=atkr)
         # place units on battlefield
         # TODO (steve) -- the defender accesses the stronghold to predetermine
         # how its units will be placed at the start of a battle?

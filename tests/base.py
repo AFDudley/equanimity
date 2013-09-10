@@ -26,7 +26,7 @@ class FlaskTest(TestCase):
 
     # If xhr is True, requests will add X-Requested-With and return response
     # with response.json set to parsed data
-    xhr = False
+    xhr = True
 
     def setUp(self):
         self.old_env = os.environ.get('EQUANIMITY_SERVER_SETTINGS')

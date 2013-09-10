@@ -10,6 +10,11 @@ class UserTestBase(FlaskTestDB):
         self.password = 'testtest'
         self.uid = 1
 
+    @property
+    def user_schema(self):
+        return dict(username=self.username, email=self.email.lower(),
+                    uid=self.uid)
+
     def get_create_user_data(self):
         return dict(username=self.username, password=self.password,
                     email=self.email)
@@ -54,11 +59,11 @@ class UserTestBase(FlaskTestDB):
     def assertUserNotExists(self):
         self.assertEqual(self.db['player_uid'].uid, 0)
 
-    def assertLoggedIn(self):
-        r = self.get('frontend.index')
+    def assertLoggedIn(self, r=None):
+        if r is None:
+            r = self.get('users.me')
+        self.assertValidJSON(r, self.user_schema)
         self.assert200(r)
-        self.assertIn(self.username, r.data)
-        self.assertIn('Logout', r.data)
 
     def assertNotLoggedIn(self):
         r = self.get('frontend.index')
@@ -138,10 +143,6 @@ class SignupTest(UserTestBase):
         self.create_user(data=data)
         self.assertUserNotExists()
 
-    def test_signup_page(self):
-        r = self.get('users.signup')
-        self.assert200(r)
-
 
 class LoginTest(UserTestBase):
 
@@ -149,10 +150,6 @@ class LoginTest(UserTestBase):
         super(LoginTest, self).setUp()
         self.create_user()
         self.logout()
-
-    def test_login_page(self):
-        r = self.get('users.login')
-        self.assert200(r)
 
     def test_login(self):
         self.assertNotLoggedIn()
@@ -180,8 +177,7 @@ class LoginTest(UserTestBase):
         self.login()
         self.assertLoggedIn()
         r = self.login()
-        self.assertIn('Currently logged in', r.data)
-        self.assertLoggedIn()
+        self.assertLoggedIn(r)
 
     def test_logout(self):
         self.login()

@@ -1,4 +1,5 @@
 from urlparse import urlparse, urlunparse
+from collections import Mapping
 
 
 def construct_full_url(url):
@@ -28,3 +29,16 @@ class AttributeDict(dict):
         if key in self:
             return dict.__getitem__(self, key)
         return object.__getattribute__(self, key)
+
+
+def api_error(err):
+    """ Converts a error dict returned from a failed formencode Schema
+    to something easier to work with """
+    out = dict(main=[], fields={})
+    if isinstance(err, basestring):
+        out['main'].append(err)
+    elif isinstance(err, Mapping):
+        out['fields'].update(err)
+    else:
+        out['main'] += err
+    return dict(errors=out)

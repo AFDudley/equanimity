@@ -131,12 +131,12 @@ class StateTest(BattleTestBase):
 
     def setUp(self):
         super(StateTest, self).setUp()
-        self.s = State()
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
                                squads=[rand_squad()])
         defsquad = rand_squad()
         self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
         self.game = Game(self.attacker, self.defender)
+        self.s = State(self.game)
         self.s['old_defsquad_hp'] = defsquad.hp()
 
     def test_create(self):
@@ -293,9 +293,9 @@ class GameTest(GameTestBase):
         self.bf.dmg_queue[dfdr].append([100, 2])
         dmg_q = self.game.map_queue()
         self.assertTrue(dmg_q)
-        self.assertIn(dfdr.id, dmg_q)
-        for id, dmg in dmg_q.iteritems():
-            if id == dfdr.id:
+        self.assertIn(dfdr.uid, dmg_q)
+        for uid, dmg in dmg_q.iteritems():
+            if uid == dfdr.uid:
                 self.assertEqual(dmg, [[100, 2]])
             else:
                 self.assertEqual(dmg, [])
@@ -305,12 +305,12 @@ class GameTest(GameTestBase):
         dfdr = self.defender.squads[0][0]
         self.bf.dmg_queue[dfdr].append([1, 2])
         qd = self.bf.apply_queued()
-        self.assertEqual(self.game.map_result(qd), [[dfdr.id, 1]])
+        self.assertEqual(self.game.map_result(qd), [[dfdr.uid, 1]])
 
     def test_map_action(self):
         d = self.defender.squads[0][0]
         act = self.game.map_action(unit=d)
-        self.assertEqual(act['unit'], d.id)
+        self.assertEqual(act['unit'], d.uid)
 
     def test_last_message(self):
         self._place_squads()
@@ -360,7 +360,7 @@ class GameTest(GameTestBase):
         survivors = self.defender.squads[0][:2]
         survivors += self.attacker.squads[0][:1]
         hps = {unit: unit.hp for unit in survivors}
-        self.game.state = State(HPs=hps)
+        self.game.state = State(self.game, HPs=hps)
         self.game.end('Defender won')
         self.assertGameOver(self.defender, 'Defender won')
         self.assertEqual(sorted(self.defender.squads[0][:2]),
@@ -382,6 +382,9 @@ class BattleProcessActionTest(GameTestBase):
     def a(self):
         return self.attacker.squads[0][0]
 
+    def unit(self, num):
+        return self.game.action_queue.get_unit_for_action(num)
+
     def assertActionResult(self, result, num, type, msg=None, target=None,
                            unit=None):
         if num % 4:
@@ -399,56 +402,59 @@ class BattleProcessActionTest(GameTestBase):
     def test_doing_nothing(self):
         # with no unit, no prev_unit, no prev_act, passing
         act = Action()
-        self.game.state = State(num=1)
+        self.game.state = State(self.game, num=1)
         ret = self.game.process_action(act)
         self.assertActionResult(ret, 1, 'pass', 'Action Passed.')
 
     def test_timing_out(self):
         # same, but timing out
         act = Action(type='timed_out')
-        self.game.state = State(num=1)
+        self.game.state = State(self.game, num=1)
         ret = self.game.process_action(act)
         self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.')
 
     def test_using_different_units(self):
         # get a ValueError by using two different units in a row
         act = Action(type='move', unit=self.defender.squads[0][0])
-        self.game.state = State(num=2)
+        self.game.state = State(self.game, num=2)
         self.game.log['actions'] = [Action(unit=self.defender.squads[0][1])]
         self.assertRaises(ValueError, self.game.process_action, act)
 
     def test_first_movement(self):
         # do a legitimate movement, on a first action
-        self.bf.place_object(self.d, Hex(0, 0))
+        d = self.unit(1)
+        self.bf.place_object(d, Hex(0, 0))
         loc = Hex(0, 1)
-        act = Action(type='move', unit=self.d, target=loc)
-        self.game.state = State(num=1)
+        act = Action(type='move', unit=d, target=loc)
+        self.game.state = State(self.game, num=1)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
         ret = self.game.process_action(act)
         self.assertTrue(self.game.log['actions'])
         self.assertTrue(self.game.log['messages'])
         self.game.state.check.assert_called_with(self.game)
-        self.assertActionResult(ret, 1, 'move', target=loc, unit=6)
+        self.assertActionResult(ret, 1, 'move', target=loc, unit=d.uid)
 
     def test_second_movement(self):
         # do a legitimate movement, on a second action
-        self.bf.place_object(self.d, Hex(0, 0))
+        d = self.unit(2)
+        self.bf.place_object(d, Hex(0, 0))
         loc = Hex(0, 1)
-        act = Action(type='move', unit=self.d, target=loc)
-        self.game.state = State(num=2)
+        act = Action(type='move', unit=d, target=loc)
+        self.game.state = State(self.game, num=2)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        self.game.log['actions'] = [Action(unit=self.d, type='pass')]
+        self.game.log['actions'] = [Action(unit=d, type='pass')]
         ret = self.game.process_action(act)
         self.assertTrue(self.game.log['actions'])
         self.assertTrue(self.game.log['messages'])
         self.game.state.check.assert_called_with(self.game)
-        self.assertActionResult(ret, 2, 'move', unit=self.d.id, target=loc)
+        self.assertActionResult(ret, 2, 'move', unit=d.uid, target=loc)
 
     def test_double_movement(self):
         # cause an Exception by doing two sequential movements
-        act = Action(type='move', unit=self.d)
-        self.game.state = State(num=2)
-        self.game.log['actions'] = [Action(unit=self.d, type='move')]
+        d = self.unit(2)
+        act = Action(type='move', unit=d)
+        self.game.state = State(self.game, num=2)
+        self.game.log['actions'] = [Action(unit=d, type='move')]
         self.assertRaises(ValueError, self.game.process_action, act)
         try:
             self.game.process_action(act)
@@ -458,52 +464,55 @@ class BattleProcessActionTest(GameTestBase):
     def test_unknown(self):
         # cause an Exception by doing an unknown action
         act = Action(type='xxx')
-        self.game.state = State(num=1)
+        self.game.state = State(self.game, num=1)
         self.assertRaises(ValueError, self.game.process_action, act)
 
     def test_first_attack(self):
-        self.bf.place_object(self.d, Hex(0, 0))
-        self.bf.place_object(self.a, Hex(0, 1))
+        d = self.unit(1)
+        a = self.unit(3)
+        self.bf.place_object(d, Hex(0, 0))
+        self.bf.place_object(a, Hex(0, 1))
         wep = Sword(E, create_comp(earth=128))
-        self.d.equip(wep)
+        d.equip(wep)
         loc = Hex(0, 1)
-        act = Action(unit=self.d, type='attack', target=loc)
-        self.game.state = State(num=1)
+        act = Action(unit=d, type='attack', target=loc)
+        self.game.state = State(self.game, num=1)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
         ret = self.game.process_action(act)
         self.game.state.check.assert_called_with(self.game)
-        self.assertActionResult(ret, 1, type='attack', unit=self.d.id,
-                                target=loc)
+        self.assertActionResult(ret, 1, type='attack', unit=d.uid, target=loc)
 
     def test_second_attack(self):
-        self.bf.place_object(self.d, Hex(0, 0))
-        self.bf.place_object(self.a, Hex(0, 1))
+        d = self.unit(2)
+        a = self.unit(3)
+        self.bf.place_object(d, Hex(0, 0))
+        self.bf.place_object(a, Hex(0, 1))
         wep = Sword(E, create_comp(earth=128))
-        self.d.equip(wep)
+        d.equip(wep)
         loc = Hex(0, 1)
-        act = Action(unit=self.d, type='attack', target=loc)
-        self.game.state = State(num=2)
+        act = Action(unit=d, type='attack', target=loc)
+        self.game.state = State(self.game, num=2)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        self.game.log['actions'] = [Action(unit=self.d, type='pass')]
+        self.game.log['actions'] = [Action(unit=d, type='pass')]
         ret = self.game.process_action(act)
         self.game.state.check.assert_called_with(self.game)
-        self.assertActionResult(ret, 2, type='attack', unit=self.d.id,
-                                target=loc)
+        self.assertActionResult(ret, 2, type='attack', unit=d.uid, target=loc)
 
     def test_double_attack(self):
         act = Action(type='attack', unit=self.d)
-        self.game.state = State(num=2)
+        self.game.state = State(self.game, num=2)
         self.game.log['actions'] = [Action(unit=self.d, type='attack')]
         self.assertRaises(ValueError, self.game.process_action, act)
 
     def test_final_action(self):
         self.game.apply_queued = MagicMock(side_effect=self.game.apply_queued)
-        self.game.state = State(num=4)
-        self.game.log['actions'] = [Action(unit=self.d, type='pass')] * 3
-        act = Action(type='pass', unit=self.d)
+        self.game.state = State(self.game, num=4)
+        self.game.log['actions'] = [Action(unit=self.unit(i + 1), type='pass')
+                                    for i in range(3)]
+        act = Action(type='pass', unit=self.unit(4))
         ret = self.game.process_action(act)
         self.game.apply_queued.assert_called_with()
-        self.assertActionResult(ret, 4, type='pass', unit=self.d.id)
+        self.assertActionResult(ret, 4, type='pass', unit=self.unit(4).uid)
 
 
 class ActionQueueTest(GameTestBase):

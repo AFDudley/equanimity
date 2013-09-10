@@ -11,7 +11,6 @@ import weapons
 from stone import Stone
 from const import ELEMENTS, WEP_LIST
 from units import Scient
-from player import WorldPlayer
 
 
 class Container(Persistent):
