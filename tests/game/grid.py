@@ -3,7 +3,7 @@ from equanimity.grid import Grid, Hex, Tile, HexCube
 from equanimity.const import E
 from equanimity.stone import Stone
 from equanimity.units import Scient
-from base import create_comp, FlaskTestDB
+from ..base import create_comp, FlaskTestDB
 
 
 class TileTest(FlaskTestDB):

@@ -61,18 +61,12 @@ class Test(Command):
         return files
 
     def _get_nose_command(self):
-        testfiles = self._get_py_files('tests/')
-        #if self.with_integration:
-            #testfiles += self._get_py_files('tests/', 'integration/')
-        if not testfiles:
-            print('No tests found.')
-            return
-        nosecmd = ('nosetests -v -w tests/ --with-coverage '
-                   '--cover-package=server --cover-package=equanimity '
-                   '--disable-docstring')
+        nosecmd = ('nosetests -v -w tests/ --all-modules '
+                   '--with-coverage --cover-package=server '
+                   '--cover-package=equanimity --disable-docstring ')
         if self.run_failed:
             nosecmd += ' --failed'
-        nose = ' '.join(shlex.split(nosecmd) + testfiles)
+        nose = ' '.join(shlex.split(nosecmd))
         return nose
 
     def _remove_coverage(self):

@@ -1,4 +1,4 @@
-from base import FlaskTestDB
+from ..base import FlaskTestDB
 from equanimity.player import Player, WorldPlayer
 from equanimity.const import WORLD_UID
 

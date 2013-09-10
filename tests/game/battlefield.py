@@ -6,7 +6,7 @@ from equanimity.battlefield import Battlefield
 from equanimity.stone import Stone
 from equanimity.const import E, F
 from equanimity.weapons import Sword, Wand, Bow, Glove
-from base import create_comp, FlaskTestDB
+from ..base import create_comp, FlaskTestDB
 
 
 class BattlefieldTest(FlaskTestDB):

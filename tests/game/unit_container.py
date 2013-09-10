@@ -1,7 +1,7 @@
 from equanimity.unit_container import Container, Squad
 from equanimity.units import Scient, Nescient
 from equanimity.const import E, F, I, W, WEP_LIST
-from base import create_comp, FlaskTestDB
+from ..base import create_comp, FlaskTestDB
 
 
 class ContainerTest(FlaskTestDB):

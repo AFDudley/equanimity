@@ -1,7 +1,7 @@
 from unittest import TestCase
 from equanimity.const import E
 from equanimity.weapons import Sword, Bow, Glove, Wand, Weapon
-from base import create_comp
+from ..base import create_comp
 
 
 class WeaponTest(TestCase):

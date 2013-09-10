@@ -7,7 +7,7 @@ from equanimity.world import init_db
 from server import db, create_app
 from server.decorators import script, api
 from users import UserTestBase
-from base import FlaskTest
+from ..base import FlaskTest
 
 
 class APIDecoratorTest(UserTestBase):

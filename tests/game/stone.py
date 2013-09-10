@@ -1,7 +1,7 @@
 from unittest import TestCase
 from equanimity.stone import Stone, Composition
 from equanimity.const import ELEMENTS, E
-from base import create_comp
+from ..base import create_comp
 
 
 class CompositionTest(TestCase):

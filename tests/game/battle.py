@@ -1,7 +1,7 @@
 import itertools
 from unittest import TestCase
 from mock import MagicMock
-from base import create_comp, FlaskTestDB, pairwise
+from ..base import create_comp, FlaskTestDB, pairwise
 from server.utils import AttributeDict
 from equanimity.grid import Grid, Hex
 from equanimity.const import E, F

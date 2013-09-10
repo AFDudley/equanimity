@@ -1,4 +1,4 @@
-from base import FlaskTest
+from ..base import FlaskTest
 from server import csrf
 
 

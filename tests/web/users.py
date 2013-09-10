@@ -1,4 +1,4 @@
-from base import FlaskTestDB
+from ..base import FlaskTestDB
 
 
 class UserTestBase(FlaskTestDB):

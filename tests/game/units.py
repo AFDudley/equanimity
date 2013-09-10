@@ -3,7 +3,7 @@ from equanimity.units import Unit, Scient, Nescient, Part
 from equanimity.weapons import Glove
 from equanimity.const import E, I, W, F, ELEMENTS, ORTH
 from equanimity.stone import Stone
-from base import create_comp, FlaskTestDB
+from ..base import create_comp, FlaskTestDB
 
 
 class UnitsTest(FlaskTestDB):
