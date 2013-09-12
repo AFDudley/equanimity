@@ -8,6 +8,7 @@ from server.decorators import script
 
 def get_args():
     p = ArgumentParser(prog='Equanimity')
+    p.add_argument('--config', default='dev', help='Server config file to use')
     s = p.add_subparsers()
     p_user = s.add_parser('user', help='User account management')
     s_user = p_user.add_subparsers()
@@ -28,7 +29,6 @@ def _convert_args_to_dict(args):
     return d
 
 
-@script()
 def create_user(username, password, email):
     client = current_app.test_client()
     data = dict(username=username, password=password, email=email)
@@ -42,7 +42,9 @@ def create_user(username, password, email):
 
 def run_command(args):
     args = _convert_args_to_dict(args)
-    args.pop('func')(**args)
+    config = args.pop('config')
+    func = script(config=config)(args.pop('func'))
+    return func(**args)
 
 
 if __name__ == '__main__':
