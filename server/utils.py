@@ -1,5 +1,7 @@
+import time
 from urlparse import urlparse, urlunparse
 from collections import Mapping
+from server import redis
 
 
 def construct_full_url(url):
@@ -42,3 +44,21 @@ def api_error(err):
     else:
         out['main'] += err
     return dict(errors=out)
+
+
+class RateLimit(object):
+    # http://flask.pocoo.org/snippets/70/
+    expiration_window = 10
+
+    def __init__(self, key_prefix, limit, per):
+        self.reset = (int(time.time()) // per) * per + per
+        self.key = key_prefix + str(self.reset)
+        self.limit = limit
+        self.per = per
+        p = redis.pipeline()
+        p.incr(self.key)
+        p.expireat(self.key, self.reset + self.expiration_window)
+        self.current = min(p.execute()[0], limit)
+
+    remaining = property(lambda x: x.limit - x.current)
+    over_limit = property(lambda x: x.current >= x.limit)

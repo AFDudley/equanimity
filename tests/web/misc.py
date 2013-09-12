@@ -1,7 +1,9 @@
 import os
 from unittest import TestCase
 from server import create_app, attach_loggers
-from server.utils import AttributeDict, construct_full_url, api_error
+from server.utils import (AttributeDict, construct_full_url, api_error,
+                          RateLimit)
+from ..base import FlaskTest
 
 
 class AttributeDictTest(TestCase):
@@ -87,3 +89,24 @@ class AppInitTest(TestCase):
         finally:
             if old is not None:
                 os.environ['EQUANIMITY_SERVER_SETTINGS'] = old
+
+
+class RateLimitTest(FlaskTest):
+
+    def test_rate_limit_object(self):
+        r = RateLimit('key', 10, 100)
+        self.assertIn('key', r.key)
+        self.assertEqual(r.limit, 10)
+        self.assertEqual(r.per, 100)
+        self.assertEqual(r.current, 1)
+        self.assertFalse(r.over_limit)
+        self.assertEqual(r.remaining, 9)
+
+        r = RateLimit('key', 10, 100)
+        self.assertEqual(r.current, 2)
+        self.assertFalse(r.over_limit)
+        self.assertEqual(r.remaining, 8)
+
+        r.current = 10
+        self.assertTrue(r.over_limit)
+        self.assertEqual(r.remaining, 0)

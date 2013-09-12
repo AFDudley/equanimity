@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import g, current_app, request, jsonify, abort
 from formencode import variabledecode, Invalid as InvalidSchema
-from server.utils import api_error
+from server.utils import api_error, RateLimit
 
 
 def api(f):
@@ -70,3 +70,24 @@ def script(*create_app_args, **create_app_kwargs):
                 return f(*args, **kwargs)
         return wrapped
     return _script
+
+
+def _on_over_limit(limit):
+    return jsonify(dict(message='You hit the rate limit')), 400
+
+
+def ratelimit(limit, per=300, over_limit=_on_over_limit,
+              scope_func=lambda: request.remote_addr,
+              key_func=lambda: request.endpoint):
+    # http://flask.pocoo.org/snippets/70/
+    def decorator(f):
+        @wraps(f)
+        def rate_limited(*args, **kwargs):
+            key = 'rate-limit/%s/%s/' % (key_func(), scope_func())
+            rlimit = RateLimit(key, limit, per)
+            g._view_rate_limit = rlimit
+            if over_limit is not None and rlimit.over_limit:
+                return over_limit(rlimit)
+            return f(*args, **kwargs)
+        return rate_limited
+    return decorator

@@ -197,7 +197,7 @@ class Stronghold(Persistent):
             raise
 
     def name_squad(self, squad_num, name):
-        squad = self.sqauds[squad_num]
+        squad = self.squads[squad_num]
         squad.name = str(name)
         squad._p_changed = 1
         return transaction.commit()

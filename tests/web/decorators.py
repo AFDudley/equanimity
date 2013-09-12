@@ -4,8 +4,8 @@ from os import urandom
 from StringIO import StringIO
 from flask import Blueprint, url_for
 from equanimity.world import init_db
-from server import db, create_app
-from server.decorators import script, api
+from server import db, create_app, redis
+from server.decorators import script, api, ratelimit
 from users import UserTestBase
 from ..base import FlaskTest
 
@@ -86,3 +86,35 @@ class ScriptDecoratorTest(TestCase):
             init_db(reset=True)
             self.assertIn('players', db)
         test()
+
+
+class RateLimitDecoratorTest(TestCase):
+
+    def setUp(self):
+        super(RateLimitDecoratorTest, self).setUp()
+        self.app = create_app()
+        redis.flushdb()
+        self.b = Blueprint('test', __name__, url_prefix='/test')
+
+    def test_rate_limit_decorator(self):
+        limit = 5
+
+        @self.b.route('/')
+        @ratelimit(limit, per=10000)
+        def test():
+            return 'OK'
+
+        self.app.register_blueprint(self.b)
+        client = self.app.test_client()
+        with self.app.test_request_context('/'):
+            url = url_for('test.test')
+
+        for i in xrange(limit - 1):
+            r = client.get(url)
+            print r.data, r.status_code
+            self.assertEqual(r.status_code, 200)
+            self.assertIn('OK', r.data)
+
+        r = client.get(url)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('hit the rate limit', r.data)

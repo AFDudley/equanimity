@@ -6,7 +6,7 @@ from mock import Mock
 from flask import url_for, json
 from voluptuous import Schema as JSONSchema, Invalid as InvalidJSONSchema
 from formencode import variabledecode
-from server import db, create_app
+from server import db, create_app, redis
 from equanimity.world import init_db
 
 
@@ -31,6 +31,7 @@ class FlaskTest(TestCase):
     def setUp(self):
         self.old_env = os.environ.get('EQUANIMITY_SERVER_SETTINGS')
         self.app = create_app(config='test')
+        redis.flushdb()
         self.app.testing = True
         self.client = self.app.test_client()
         self.client.__enter__()
