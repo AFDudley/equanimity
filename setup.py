@@ -63,7 +63,8 @@ class Test(Command):
     def _get_nose_command(self):
         nosecmd = ('nosetests -v -w tests/ --all-modules '
                    '--with-coverage --cover-package=server '
-                   '--cover-package=equanimity --disable-docstring ')
+                   '--cover-package=equanimity --cover-package=tools.client '
+                   '--disable-docstring ')
         if self.run_failed:
             nosecmd += ' --failed'
         nose = ' '.join(shlex.split(nosecmd))
