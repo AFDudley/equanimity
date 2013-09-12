@@ -4,7 +4,7 @@ from os import urandom
 from StringIO import StringIO
 from flask import Blueprint, url_for
 from equanimity.world import init_db
-from server import db, create_app, redis
+from server import db, create_app
 from server.decorators import script, api, ratelimit
 from users import UserTestBase
 from ..base import FlaskTest
@@ -49,7 +49,7 @@ class APIResponseProcessorTest(TestCase):
         self.assertEqual(r.status_code, 500)
 
     def test_api_status_code_handling(self):
-        app = create_app()
+        app = create_app(config='test')
         b = Blueprint('test', __name__, url_prefix='/test')
 
         @b.route('/')
@@ -92,8 +92,9 @@ class RateLimitDecoratorTest(TestCase):
 
     def setUp(self):
         super(RateLimitDecoratorTest, self).setUp()
-        self.app = create_app()
-        redis.flushdb()
+        self.app = create_app(config='test')
+        with self.app.test_request_context():
+            init_db(reset=True)
         self.b = Blueprint('test', __name__, url_prefix='/test')
 
     def test_rate_limit_decorator(self):

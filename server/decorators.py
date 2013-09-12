@@ -83,7 +83,7 @@ def ratelimit(limit, per=300, over_limit=_on_over_limit,
     def decorator(f):
         @wraps(f)
         def rate_limited(*args, **kwargs):
-            key = 'rate-limit/%s/%s/' % (key_func(), scope_func())
+            key = '%s/%s' % (key_func(), scope_func())
             rlimit = RateLimit(key, limit, per)
             g._view_rate_limit = rlimit
             if over_limit is not None and rlimit.over_limit:

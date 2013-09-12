@@ -15,6 +15,7 @@ import persistent
 from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
 
+from collections import defaultdict
 from datetime import datetime
 from threading import Lock
 
@@ -22,7 +23,7 @@ from const import WORLD_UID
 from field import Field
 from player import WorldPlayer
 from server import db
-from equanimity.db import AutoID
+from db import AutoID
 
 
 def init_db(reset=False, verbose=False):
@@ -30,7 +31,8 @@ def init_db(reset=False, verbose=False):
                  players=IOBTree(),           # maps uid (int) -> Player
                  player_username=OOBTree(),  # maps username (str) -> Player
                  player_email=OOBTree(),     # maps email (str) -> Player
-                 unit_uid=AutoID('unit'))
+                 unit_uid=AutoID('unit'),
+                 rate_limit=defaultdict(AutoID))
     for k, v in start.iteritems():
         if reset:
             db[k] = v
@@ -38,6 +40,7 @@ def init_db(reset=False, verbose=False):
             db.setdefault(k, v)
         if verbose:
             print k, db[k]
+    transaction.commit()
 
 
 class World(object):

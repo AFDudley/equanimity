@@ -2,7 +2,7 @@ from persistent import Persistent
 
 
 class AutoID(Persistent):
-    def __init__(self, name):
+    def __init__(self, name=''):
         super(AutoID, self).__init__()
         self.name = name
         self.uid = 0

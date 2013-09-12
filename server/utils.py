@@ -1,7 +1,9 @@
 import time
+import transaction
+from threading import Lock
 from urlparse import urlparse, urlunparse
 from collections import Mapping
-from server import redis
+from server import db
 
 
 def construct_full_url(url):
@@ -50,15 +52,16 @@ class RateLimit(object):
     # http://flask.pocoo.org/snippets/70/
     expiration_window = 10
 
+    lock = Lock()
+
     def __init__(self, key_prefix, limit, per):
         self.reset = (int(time.time()) // per) * per + per
         self.key = key_prefix + str(self.reset)
         self.limit = limit
         self.per = per
-        p = redis.pipeline()
-        p.incr(self.key)
-        p.expireat(self.key, self.reset + self.expiration_window)
-        self.current = min(p.execute()[0], limit)
+        with self.lock:
+            self.current = db['rate_limit'][self.key].get_next_id()
+            transaction.commit()
 
     remaining = property(lambda x: x.limit - x.current)
     over_limit = property(lambda x: x.current >= x.limit)

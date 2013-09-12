@@ -2,15 +2,10 @@ import os
 import logging
 from formencode.htmlfill import render as render_form
 from flask.ext.seasurf import SeaSurf
-from flask.ext.redis import Redis
 from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager
 from flask import Flask, g
-
-
-""" Redis (this is safe as a global) """
-redis = Redis()
 
 
 """ ZODB """
@@ -108,9 +103,6 @@ def create_app(subdomain='', config=None):
 
     """ Logging """
     attach_loggers(app)
-
-    """ Redis """
-    redis.init_app(app)
 
     """ ZODB """
     db.init_app(app)
