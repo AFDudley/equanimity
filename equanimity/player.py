@@ -142,11 +142,7 @@ class Player(Persistent, UserMixin):
 
 class WorldPlayer(Player):
 
-    _world = None
-
     def __init__(self):
-        if self._world is not None:
-            raise ValueError('WorldPlayer already created')
         Persistent.__init__(self)
         self.uid = WORLD_UID
         self.username = 'World'
@@ -164,6 +160,4 @@ class WorldPlayer(Player):
 
     @classmethod
     def get(cls):
-        if cls._world is None:
-            cls._world = db['players'][WORLD_UID]
-        return cls._world
+        return db['players'].get(WORLD_UID)

@@ -4,10 +4,9 @@ clock.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-from datetime import datetime
 import copy
-
-from zeo import Zeo
+from datetime import datetime
+from server import db
 
 
 def now():
@@ -47,9 +46,8 @@ class Clock():
         self.uot_name = uot_name
 
     def __init__(self, addr=('localhost', 9100)):
-        world = Zeo(addr)
-        self.dob = copy.deepcopy(world.root['dob'])
-        self.duration = {'day': copy.deepcopy(world.root['day_length'])}
+        self.dob = copy.deepcopy(db['dob'])
+        self.duration = {'day': copy.deepcopy(db['day_length'])}
         self.duration['week'] = self.duration['day'] * 6
         self.duration['month'] = self.duration['week'] * 5
         self.duration['season'] = self.duration['month'] * 3
@@ -61,7 +59,6 @@ class Clock():
                          'season': 'Earth', 'year': 'one', 'generation': 'one'}
         #Get uot_num and uot_name correct.
         self.update()
-        world.db.close()
 
     def since_dob(self, uot=None):
         """Returns total seconds since dob in game Units of Time.

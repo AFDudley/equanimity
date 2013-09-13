@@ -8,8 +8,7 @@ from equanimity.const import E, F
 from equanimity.weapons import Sword
 from equanimity.units import Scient
 from equanimity.player import Player
-from equanimity.helpers import rand_squad
-from equanimity.unit_container import Squad
+from equanimity.unit_container import Squad, rand_squad
 from equanimity.battle import (now, Action, Message, ChangeList, BattleChanges,
                                InitialState, Log, State, Game)
 

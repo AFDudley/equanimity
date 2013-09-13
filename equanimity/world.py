@@ -32,7 +32,9 @@ def init_db(reset=False, verbose=False):
                  player_username=OOBTree(),  # maps username (str) -> Player
                  player_email=OOBTree(),     # maps email (str) -> Player
                  unit_uid=AutoID('unit'),
-                 rate_limit=defaultdict(AutoID))
+                 units=IOBTree(),
+                 rate_limit=defaultdict(AutoID),
+                 weapons=IOBTree())
     for k, v in start.iteritems():
         if reset:
             db[k] = v
@@ -45,8 +47,7 @@ def init_db(reset=False, verbose=False):
 
 class World(object):
     def __init__(self):
-        self.field_transfer_lock = Lock()
-        self.squad_transfer_lock = Lock()
+        self.transfer_lock = Lock()
         self.player = None
 
     @classmethod
@@ -80,13 +81,9 @@ class World(object):
         #fields should be a frozendict
         #http://stackoverflow.com/questions/2703599/what-would-be-a-frozen-dict
         db['fields'] = persistent.mapping.PersistentMapping()
-        #clean up?
-        db['player_uid'] = AutoID('player')
-        db['players'] = IOBTree()
-        db['player_email'] = OOBTree()
-        db['player_username'] = OOBTree()
-        db['unit_uid'] = AutoID('unit')
+        init_db(reset=True)
         self.player = db['players'].setdefault(WORLD_UID, WorldPlayer())
+        self.player.persist()
         transaction.commit()
 
     def _make_fields(self, x, y):
@@ -104,23 +101,19 @@ class World(object):
         """Transfers a field from one owner to another."""
         c = field_coords
         # Do the transfer atomically
-        with self.field_transfer_lock:
+        with self.transfer_lock:
             new_owner.fields[c] = old_owner.fields[c]
             del old_owner.fields[c]
             new_owner.fields[c].owner = new_owner
-        return transaction.commit()
+        transaction.commit()
 
     def move_squad(self, src, squad_num, dest):
         """Moves a squad from a stronghold to a queue."""
         #src and dest are both fields
         #TODO: check for adjacency.
         # Do the transfer atomically
-        with self.squad_transfer_lock:
+        with self.transfer_lock:
             squad = src.stronghold.squads[squad_num]
             dest.attackerqueue.append((src.owner, squad))
             src.stronghold.remove_squad(squad_num)
-        return transaction.commit()
-
-    def process_action(self, action):
-        # TODO
-        pass
+        transaction.commit()

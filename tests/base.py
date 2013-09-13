@@ -7,11 +7,19 @@ from flask import url_for, json
 from voluptuous import Schema as JSONSchema, Invalid as InvalidJSONSchema
 from formencode import variabledecode
 from server import db, create_app
+from equanimity.const import E
+from equanimity.units import Scient
 from equanimity.world import init_db
 
 
 def create_comp(earth=0, wind=0, fire=0, ice=0):
     return dict(Earth=earth, Wind=wind, Fire=fire, Ice=ice)
+
+
+def _scient(element=E, **comp_args):
+    if not comp_args:
+        comp_args['earth'] = 128
+    return Scient(element, create_comp(**comp_args))
 
 
 def pairwise(iterable):
@@ -129,6 +137,14 @@ class FlaskTest(TestCase):
 
     def assert500(self, response):
         self.assertStatus(500, response)
+
+    def assertExceptionContains(self, exc, submsg, f, *args, **kwargs):
+        try:
+            f(*args, **kwargs)
+        except exc as e:
+            self.assertIn(submsg, str(e))
+        else:
+            self.fail('{0} not raised'.format(exc.__name__))
 
     def assertNoException(self, exc, f, *args, **kwargs):
         try:

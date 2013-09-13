@@ -16,3 +16,5 @@ REDIS_HOST = 'localhost'
 #REDIS_PASSWORD = 'password'
 REDIS_PORT = 6379
 REDIS_DATABASE = 7
+
+DEBUG_LOGGING = False

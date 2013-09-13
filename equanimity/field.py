@@ -8,8 +8,7 @@ import transaction
 import persistent
 from math import ceil
 
-from stone import Stone
-from helpers import get_element
+from stone import Stone, get_element
 from grid import Grid
 from player import Player, WorldPlayer
 from battle import Game
@@ -29,7 +28,7 @@ class Field(persistent.Persistent):
         self.element = 'Ice'  # For testing
         #self.element = get_element(self.grid.comp)
         self.clock = Clock()
-        self.stronghold = Stronghold(self.owner, self.element, self.clock)
+        self.stronghold = Stronghold(self)
         self.plantings = persistent.mapping.PersistentMapping()
         self.attackerqueue = persistent.list.PersistentList()
         self.game = None
@@ -45,7 +44,7 @@ class Field(persistent.Persistent):
             'add_planting', 'name_unit', 'imbue_unit', 'unequip_scient',
             'equip_scient', 'move_unit', 'imbue_weapon', 'split_weapon',
             'form_squad', 'name_squad', 'remove_squad', 'set_squad_locations',
-            'set_defender_locations', 'move_squad_to_defenders',
+            'set_defender_locations', 'move_squad_to_defenders', 'form_weapon',
             'unset_defenders',
         ]
         self.world_actions = ['move_squad']

@@ -28,7 +28,6 @@ class WorldPlayerTest(FlaskTestDB):
         player = WorldPlayer()
         self.assertEqual(player.uid, WORLD_UID)
         player.persist()
-        self.assertRaises(ValueError, WorldPlayer)
 
     def test_is_world(self):
         player = WorldPlayer()
@@ -43,8 +42,5 @@ class WorldPlayerTest(FlaskTestDB):
     def test_get(self):
         p = WorldPlayer()
         p.persist()
-        q = WorldPlayer.get()
-        self.assertEqual(p, q)
-        WorldPlayer._world = None
         q = WorldPlayer.get()
         self.assertEqual(p, q)

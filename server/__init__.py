@@ -5,12 +5,15 @@ from flask.ext.seasurf import SeaSurf
 from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager
+from flask.ext.jsonrpc import JSONRPC
 from flask import Flask, g
 
 
 """ ZODB """
 db = ZODB()
 
+""" JSONRPC """
+rpc = JSONRPC(service_url='/api')
 
 """ Bcrypt """
 bcrypt = Bcrypt()
@@ -106,6 +109,9 @@ def create_app(subdomain='', config=None):
 
     """ ZODB """
     db.init_app(app)
+
+    """ JSONRPC """
+    rpc.init_app(app)
 
     """ Bcrypt """
     bcrypt.init_app(app)

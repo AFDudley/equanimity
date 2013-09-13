@@ -4,9 +4,12 @@ stone.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
+import random
 from collections import Mapping
 from persistent import Persistent
-from const import ELEMENTS, ORTH, OPP
+from operator import itemgetter
+from helpers import rand_element
+from const import ELEMENTS, ORTH, OPP, KINDS
 
 
 class Composition(dict):
@@ -200,3 +203,88 @@ class Stone(Persistent, Mapping):
 
     def __hash__(self):
         return id(self)
+
+
+""" Stone/Comp helpers """
+
+
+def t2c(tup):
+    """Converts a tuple to a comp"""
+    if len(tup) != 4:
+        raise Exception("Incorrect number of values in tuple")
+    comp = Stone()
+    for i in range(4):
+        comp[ELEMENTS[i]] = tup[i]
+    return comp
+
+
+def get_element(comp):
+    """Gets the primary element from a comp, or choses at random from equals.
+    """
+    sort = sorted(comp.iteritems(), key=itemgetter(1), reverse=True)
+    if sort[0][1] == sort[3][1]:  # they are all equal
+        return random.choice(sort)[0]
+    elif sort[0][1] == sort[2][1]:
+        return random.choice(sort[:3])[0]
+    elif sort[0][1] == sort[1][1]:
+        return random.choice(sort[:2])[0]
+    else:
+        return sort[0][0]
+
+
+def max_comp(suit, kind='Scient'):
+    """Returns the maximum composition of 'kind' of element 'suit'"""
+    comp = Stone()
+    if kind == 'Scient':
+        comp[suit] = 255
+        comp[OPP[suit]] = 0
+        comp[ORTH[suit][0]] = comp[ORTH[suit][1]] = 127
+        return comp
+    if kind == 'Weapon':
+        comp2 = Stone()
+        comp2[suit] = comp[suit] = 63
+        comp2[OPP[suit]] = comp[OPP[suit]] = 0
+        comp2[ORTH[suit][0]] = comp[ORTH[suit][1]] = 0
+        comp2[ORTH[suit][1]] = comp[ORTH[suit][0]] = 63
+        return (comp, comp2)
+    if kind == 'Nescient':
+        comp2 = Stone()
+        comp2[suit] = comp[suit] = 255
+        comp2[OPP[suit]] = comp[OPP[suit]] = 0
+        comp2[ORTH[suit][0]] = comp[ORTH[suit][1]] = 0
+        comp2[ORTH[suit][1]] = comp[ORTH[suit][0]] = 254
+        return (comp, comp2)
+    if kind == 'Stone':
+        for i in comp:
+            comp[i] = 255
+        return comp
+
+
+def rand_comp(suit=None, kind=None, max_v=255):
+    """Returns a random comp in 'suit' for use instaniating 'kind'
+       If 'suit' is not valid, random element used.
+       If 'kind' is not valid stone is used
+       if 'kind' is 'Stone' suit ignored"""
+    if not suit in ELEMENTS:
+        suit = rand_element()
+
+    comp = Stone()
+    if kind is None or kind not in KINDS:
+        kind = 'Stone'
+
+    if kind == 'Stone':
+        for element in comp:
+            comp[element] = random.randint(0, max_v)
+        return comp
+    else:
+        if kind == 'Scient':
+            comp[suit] = random.randint(1, max_v)
+            for picked in ORTH[suit]:
+                # NOTE: if comp[suit] = 1 orths will be 0.
+                comp[picked] = random.randint(0, (comp[suit] / 2))
+            return comp
+
+        else:  # Nescient is currently the only other kind
+            comp[suit] = random.randint(1, max_v)
+            comp[random.choice(ORTH[suit])] = random.randint(1, comp[suit])
+            return comp

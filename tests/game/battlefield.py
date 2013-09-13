@@ -101,6 +101,7 @@ class BattlefieldTest(FlaskTestDB):
         self.assertEqual(nes.location, body['right'].location)
 
         # blocked movement
+        del nes.__dict__['take_body']  # get rid of the mock to shut up pickle
         x, y = body.values()[0].location
         bf.grid[x][y].contents = Scient(E, create_comp(earth=128))
         self.assertRaises(ValueError, bf.move_nescient, body, nes)

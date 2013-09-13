@@ -9,8 +9,12 @@ from persistent import Persistent
 from persistent.list import PersistentList
 import weapons
 from stone import Stone
-from const import ELEMENTS, WEP_LIST
-from units import Scient
+from const import ELEMENTS, WEP_LIST, OPP, ORTH
+from units import Scient, rand_unit
+from helpers import validate_length, rand_string, rand_element
+
+
+SQUAD_NAME_LEN = dict(min=1, max=64)
 
 
 class Container(Persistent):
@@ -105,18 +109,30 @@ class Container(Persistent):
 class Squad(Container):
     """contains a number of Units. Takes a list of Units"""
     def __init__(self, data=None, name=None, kind=None, element=None,
-                 owner=None):
+                 owner=None, stronghold=None):
         super(Squad, self).__init__(data=data, free_spaces=8, owner=owner)
         self.name = name
         if data is None and kind == 'mins':
-            self._fill_default_units(element)
+            self._fill_default_units(element, set_name=(name is None))
+        self.stronghold = stronghold
         transaction.commit()
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        if name is None:
+            name = rand_string()
+        validate_length(name, **SQUAD_NAME_LEN)
+        self._name = name
 
     def hp(self):
         """Returns the total HP of the Squad."""
         return sum([unit.hp for unit in self])
 
-    def _fill_default_units(self, element):
+    def _fill_default_units(self, element, set_name=False):
         if element is None:
             raise("Kind requires element from {0}.".format(ELEMENTS))
         # The code below creates 4 units of element with a comp
@@ -130,7 +146,7 @@ class Squad(Container):
             scient.equip(getattr(weapons, wep)(element, Stone()))
             scient.name = "Ms. " + wep
             self.append(scient)
-        if self.name is None:
+        if set_name:
             self.name = element + ' mins'
 
     def __repr__(self, more=None):
@@ -148,3 +164,75 @@ class Squad(Container):
 
     def __call__(self, more=None):
         return self.__repr__(more=more)
+
+    def api_view(self):
+        return dict(uid=self.uid, name=self.name,
+                    units=[u.uid for u in self.units])
+
+
+""" Squad helpers """
+
+
+def rand_squad(owner=None, suit=None, kind='Scient'):
+    """Returns a Squad of five random Scients of suit. Random suit used
+       if none given."""
+    #please clean me up.
+    squad = Squad(owner=owner)
+    if kind == 'Scient':
+        size = 5
+        if not suit in ELEMENTS:
+            for _ in range(size):
+                squad.append(rand_unit(rand_element(), kind))
+        else:
+            for _ in range(size):
+                squad.append(rand_unit(suit, kind))
+    else:
+        if not suit in ELEMENTS:
+            while squad.free_spaces >= 2:
+                squad.append(rand_unit(rand_element()))
+            if squad.free_spaces == 1:
+                squad.append(rand_unit(rand_element(), kind='Scient'))
+        else:
+            while squad.free_spaces >= 2:
+                squad.append(rand_unit(suit))
+            if squad.free_spaces == 1:
+                squad.append(rand_unit(suit, kind='Scient'))
+    squad.name = rand_string()
+    return squad
+
+
+def print_rand_squad(suit=None):
+    squad = rand_squad(suit)
+    for unit in squad:
+        print unit
+    return squad
+
+
+def show_squad(squad):
+    print squad(more=1)
+
+
+def max_squad_by_value(value):
+    """Takes an integer, ideally even because we round down, and returns a
+    squad such that comp[element] == value, comp[orth] == value/2, comp[opp]
+    == 0"""
+    squad = Squad()
+    value = value / 2  # more logical, really.
+    half = value / 2
+    for i in ELEMENTS:
+        s = Stone()
+        s[i] = value
+        s[OPP[i]] = 0
+        for o in ORTH[i]:
+            s[o] = half
+        squad.append(Scient(i, s))
+    return squad
+
+
+def one_three_zeros(value):
+    squad = Squad()
+    for i in ELEMENTS:
+        s = Stone()
+        s[i] = value
+        squad.append(Scient(i, s))
+    return squad

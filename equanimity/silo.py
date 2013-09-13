@@ -6,22 +6,23 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import transaction
 
-from stone import Stone
+from stone import Stone, Composition
 from const import ELEMENTS, ORTH, OPP
 
 
 class Silo(Stone):
     """A silo is a really big stone that returns stones when requested."""
-    def set_limit(self, limit):
-        self.limit.update(limit)
-        self._p_changed = 1
-        transaction.commit()
 
     def __init__(self, limit=None):
         Stone.__init__(self)
         #the limit will be set to 1.5 times a years harvest.
         if limit is not None:
             self.set_limit(self, limit)
+
+    def set_limit(self, limit):
+        self.limit.update(limit)
+        self._p_changed = 1
+        transaction.commit()
 
     def transmute(self, comp):
         """attempts to transmute existing points into Stone of equested comp.
@@ -79,6 +80,7 @@ class Silo(Stone):
     def get(self, comp):
         """Attempts to split the requsted stone,
         attempts transmuation if split fails."""
+        comp = Composition.create(comp)
         if sum(comp.values()) > self.value():
             msg = ("There are not enough points in the silo to create a stone "
                    "of {0}")

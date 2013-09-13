@@ -5,11 +5,16 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import transaction
+import random
 from datetime import datetime
-from stone import Stone, Composition
+from stone import Stone, Composition, rand_comp
 from const import ELEMENTS, E, F, I, W, ORTH, OPP
 from grid import Hex
 from server import db
+from helpers import validate_length, rand_string, rand_element
+
+
+UNIT_NAME_LEN = dict(max=64, min=1)
 
 
 class Unit(Stone):
@@ -41,7 +46,23 @@ class Unit(Stone):
         self.fed_on = None
         self.val = self.value()
         self.uid = db['unit_uid'].get_next_id()
+        db['units'][self.uid] = self
         transaction.commit()
+
+    @classmethod
+    def get(self, id):
+        return db['units'].get(id)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        if name is None:
+            name = rand_string()
+        validate_length(name, **UNIT_NAME_LEN)
+        self._name = name
 
     @property
     def location(self):
@@ -234,3 +255,36 @@ class Part(object):
     def __repr__(self):
         s = '<{0}: {1} [{2}]>'
         return s.format(self.__class__.__name__, self.location, self.nescient)
+
+
+""" Unit helpers """
+
+
+def rand_unit(suit=None, kind='Scient'):
+    """Returns a random Scient of suit. Random suit used if none given."""
+    kinds = ('Scient', 'Nescient')
+    if not kind in kinds:
+        kind = random.choice(kinds)
+
+    if not suit in ELEMENTS:
+        suit = rand_element()
+        comp = rand_comp(suit, kind)
+    else:
+        comp = rand_comp(suit, kind)
+
+    if kind == 'Scient':
+        return Scient(suit, comp, rand_string())
+    else:
+        return Nescient(suit, rand_comp(suit, 'Nescient'), rand_string())
+
+
+def stats(unit):
+    print unit.name + ": " + str(unit.comp)
+    print "Physical: " + str(unit.p)
+    print "Magical: " + str(unit.m)
+    print "Attack: " + str(unit.atk)
+    print "Defense: " + str(unit.defe)
+    print "P ATK: " + str(unit.patk)
+    print "P DEF: " + str(unit.pdef)
+    print "M ATK: " + str(unit.matk)
+    print "M DEF: " + str(unit.mdef)
