@@ -44,7 +44,7 @@ class Field(persistent.Persistent):
             'add_planting', 'name_unit', 'imbue_unit', 'unequip_scient',
             'equip_scient', 'move_unit', 'imbue_weapon', 'split_weapon',
             'form_squad', 'name_squad', 'remove_squad', 'set_squad_locations',
-            'set_defender_locations', 'move_squad_to_defenders', 'form_weapon',
+            'set_defender_locations', 'move_squad_to_defenders',
             'unset_defenders',
         ]
         self.world_actions = ['move_squad']

@@ -21,7 +21,6 @@ class Silo(Stone):
 
     def set_limit(self, limit):
         self.limit.update(limit)
-        self._p_changed = 1
         transaction.commit()
 
     def transmute(self, comp):
@@ -71,7 +70,6 @@ class Silo(Stone):
                 #s = Stone()
                 #s.limit.update(comp)
                 #s.comp = comp #nasty hack for "Big" stones.
-                self._p_changed = 1
                 transaction.commit()
                 return Stone(comp)
         else:
@@ -89,10 +87,9 @@ class Silo(Stone):
             # these will fail if comp > limit
             try:
                 s = self.split(comp)
-                self._p_changed = 1
                 transaction.commit()
                 return s
-            except:
+            except Exception:
                 raise
                 #raise Exception("Transmute not implemented.")
                 """s = self.transmute(comp)

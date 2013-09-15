@@ -58,15 +58,6 @@ def imbue_unit(field_location, comp, unit_id):
 
 
 @login_required
-@rpc.method('equanimity.form_weapon(list, str, dict, str) -> dict',
-            validate=True)
-def form_weapon(field_location, element, comp, weapon_type):
-    stronghold = _get_stronghold(field_location)
-    weapon = stronghold.form_weapon(element, comp, weapon_type)
-    return weapon.api_view()
-
-
-@login_required
 @rpc.method('equanimity.split_weapon(list, dict, int) -> dict', validate=True)
 def split_weapon(field_location, comp, weapon_num):
     stronghold = _get_stronghold(field_location)

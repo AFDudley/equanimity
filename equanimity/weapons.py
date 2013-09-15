@@ -16,6 +16,16 @@ class Weapon(Stone):
         super(Weapon, self).__init__(comp)
         self.type = wep_type
         self.element = element
+        self.stronghold = None
+        self.stronghold_pos = None
+
+    def add_to_stronghold(self, stronghold, pos):
+        self.stronghold = stronghold
+        self.stronghold_pos = pos
+
+    def remove_from_stronghold(self):
+        self.stronghold = None
+        self.stronghold_pos = None
 
     def get_attack_pattern(self):
         return [(0, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (-1, 1), (1, 1),

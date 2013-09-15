@@ -55,6 +55,10 @@ class Container(Persistent):
 
     """ List-like interface """
 
+    def remove(self, unit):
+        i = self.units.index(unit)
+        del self.units[i]
+
     def append(self, unit):
         if self.free_spaces < unit.size:
             msg = "There is not enough space in this container for this unit"
@@ -96,8 +100,8 @@ class Container(Persistent):
     def __delitem__(self, pos):
         self.units[pos].container = None
         self.units[pos].container_pos = None
-        self.free_spaces += self[pos].size
-        self.val -= self[pos].value()
+        self.free_spaces += self.units[pos].size
+        self.val -= self.units[pos].value()
         del self.units[pos]
         for i, unit in enumerate(self.units[pos:]):
             unit.container_pos = pos + i
@@ -109,13 +113,22 @@ class Container(Persistent):
 class Squad(Container):
     """contains a number of Units. Takes a list of Units"""
     def __init__(self, data=None, name=None, kind=None, element=None,
-                 owner=None, stronghold=None):
+                 owner=None):
         super(Squad, self).__init__(data=data, free_spaces=8, owner=owner)
         self.name = name
         if data is None and kind == 'mins':
             self._fill_default_units(element, set_name=(name is None))
-        self.stronghold = stronghold
+        self.stronghold = None
+        self.stronghold_pos = None
         transaction.commit()
+
+    def add_to_stronghold(self, stronghold, pos):
+        self.stronghold = stronghold
+        self.stronghold_pos = pos
+
+    def remove_from_stronghold(self):
+        self.stronghold = None
+        self.stronghold_pos = None
 
     @property
     def name(self):

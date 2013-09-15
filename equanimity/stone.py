@@ -121,7 +121,7 @@ class Stone(Persistent, Mapping):
            leaves any remaining point in stone and returns stone."""
         # Type checking isn't really necessary...
         if not isinstance(stone, Stone):
-            raise TypeError("Stone must be a Stone.")
+            stone = Stone(Composition.create(stone))
         for s in ELEMENTS:
             if (self.comp[s] + stone[s]) <= self.limit[s]:
                 self.comp[s] += stone[s]
