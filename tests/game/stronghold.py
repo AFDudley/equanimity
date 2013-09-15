@@ -175,3 +175,17 @@ class StrongholdTest(FlaskTestDB):
         self.assertIn(ua.uid, self.s.units)
         self.assertIn(ub.uid, self.s.units)
         self.assertIn(sq, self.s.squads)
+
+    def test_name_squad(self):
+        unit = self.s.form_scient(E, create_comp(earth=10))
+        sq = self.s.form_squad(unit_ids=(unit.uid,), name='sq')
+        self.assertEqual(sq.name, 'sq')
+        self.s.name_squad(sq.stronghold_pos, 'xxx')
+        self.assertEqual(sq.name, 'xxx')
+
+    def test_remove_squad(self):
+        unit = self.s.form_scient(E, create_comp(earth=10))
+        sq = self.s.form_squad(unit_ids=(unit.uid,), name='sq')
+        self.assertIn(sq, self.s.squads)
+        sqq = self.s.remove_squad(sq.stronghold_pos)
+        self.assertEqual(sq, sqq)
