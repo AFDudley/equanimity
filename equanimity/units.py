@@ -41,13 +41,21 @@ class Unit(Stone):
         self.container = None
         self.container_pos = None
         self.sex = sex
-        self.DOB = now
-        self.DOD = None
+        self.dob = now
+        self.dod = None
         self.fed_on = None
         self.val = self.value()
         self.uid = db['unit_uid'].get_next_id()
         db['units'][self.uid] = self
         transaction.commit()
+
+    def api_view(self):
+        dod = self.dod
+        if dod is not None:
+            dod = dod.isoformat()
+        return dict(stone=self.comp, element=self.element, name=self.name,
+                    location=tuple(self.location), sex=self.sex,
+                    dob=self.dob.isoformat(), dod=dod, uid=self.uid)
 
     @classmethod
     def get(self, id):
@@ -163,6 +171,15 @@ class Scient(Unit):
         weapon = self.weapon
         self.weapon = None
         return weapon
+
+    def api_view(self):
+        data = super(Scient, self).api_view()
+        more = dict(weapon=self.weapon.api_view(),
+                    weapon_bonus=self.weapon_bonus.comp,
+                    equip_limit=self.equip_limit.comp,
+                    size=self.size, move=self.move)
+        data.update(more)
+        return data
 
 
 class Nescient(Unit):

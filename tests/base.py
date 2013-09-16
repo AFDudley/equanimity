@@ -9,7 +9,7 @@ from formencode import variabledecode
 from server import db, create_app
 from equanimity.const import E
 from equanimity.units import Scient
-from equanimity.world import init_db
+from equanimity.world import init_db, World
 
 
 def create_comp(earth=0, wind=0, fire=0, ice=0):
@@ -197,3 +197,13 @@ class FlaskTestDB(FlaskTest):
     def tearDown(self):
         transaction.abort()
         super(FlaskTestDB, self).tearDown()
+
+
+class FlaskTestDBWorld(FlaskTestDB):
+
+    def setUp(self):
+        super(FlaskTestDBWorld, self).setUp()
+        self.world = World()
+        self.world._setup('1', 2, 2)
+        self.world._make_fields(2, 2)
+        transaction.commit()

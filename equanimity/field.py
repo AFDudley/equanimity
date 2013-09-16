@@ -21,6 +21,7 @@ class Field(persistent.Persistent):
     def __init__(self, world_coord, owner=None, ply_time=240):
         self.locked = False
         self.world_coord = world_coord
+        self._owner = None
         if owner is None:
             owner = WorldPlayer.get()
         self.owner = owner
@@ -71,9 +72,18 @@ class Field(persistent.Persistent):
         self.game.put_squads_on_field()
         return transaction.commit()
 
-    def set_owner(self, owner):
-        self.owner = owner
-        return transaction.commit()
+    @property
+    def owner(self):
+        return self._owner
+
+    @owner.setter
+    def owner(self, owner):
+        if owner == self._owner:
+            return
+        if self._owner is not None:
+            del self._owner.fields[self.world_coord]
+        self._owner = owner
+        owner.fields[self.world_coord] = self
 
     def change_state(self):
         # called everyday by world?

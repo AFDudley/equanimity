@@ -1,10 +1,9 @@
 from ..base import FlaskTestDB
 
 
-class UserTestBase(FlaskTestDB):
+class UserTestMixin(object):
 
     def setUp(self):
-        super(UserTestBase, self).setUp()
         self.email = 'teST@gmail.com'
         self.username = 'testuserX'
         self.password = 'testtest'
@@ -75,6 +74,13 @@ class UserTestBase(FlaskTestDB):
 
     def assertUserCount(self, ct):
         self.assertEqual(self.db['player_uid'].uid, ct)
+
+
+class UserTestBase(FlaskTestDB, UserTestMixin):
+
+    def setUp(self):
+        FlaskTestDB.setUp(self)
+        UserTestMixin.setUp(self)
 
 
 class SignupTest(UserTestBase):

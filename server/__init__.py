@@ -41,8 +41,11 @@ def setup_login_manager(app):
 def register_blueprints(app):
     from views.frontend import frontend
     from views.users import users
+    from views.stronghold import stronghold
     app.register_blueprint(frontend)
     app.register_blueprint(users)
+    rpc.register_blueprint(stronghold)
+    app.register_blueprint(stronghold)
 
 
 def load_config(app, subdomain, config=None):

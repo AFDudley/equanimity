@@ -18,7 +18,6 @@ from unit_container import Squad
 from weapons import weapons
 from unit_container import Container
 from const import ORTH, OPP, WEP_LIST, ELEMENTS
-from grid import Hex
 from factory import Stable, Armory, Home, Farm
 from silo import Silo
 from copy import deepcopy
@@ -129,9 +128,7 @@ class Stronghold(Persistent):
 
     @classmethod
     def get(self, field_location):
-        field_location = Hex._make(field_location)
-        field = db['fields'].get(field_location)
-        return field.stronghold
+        return db['fields'][tuple(field_location)].stronghold
 
     def create_factory(self, kind):
         """Adds a factory to a stronghold, raises exception if factory already

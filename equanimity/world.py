@@ -97,14 +97,12 @@ class World(object):
             db['fields'][coord] = f
             transaction.commit()
 
-    def award_field(self, old_owner, field_coords, new_owner):
+    def award_field(self, new_owner, coords):
         """Transfers a field from one owner to another."""
-        c = field_coords
         # Do the transfer atomically
+        field = db['fields'][coords]
         with self.transfer_lock:
-            new_owner.fields[c] = old_owner.fields[c]
-            del old_owner.fields[c]
-            new_owner.fields[c].owner = new_owner
+            field.owner = new_owner
         transaction.commit()
 
     def move_squad(self, src, squad_num, dest):
