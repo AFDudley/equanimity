@@ -135,17 +135,20 @@ class StrongholdTest(FlaskTestDB):
         unit = self.s.form_scient(E, create_comp(earth=10))
         self.assertIs(unit.weapon, None)
         weapon = self.s.form_weapon(E, create_comp(earth=1), 'Bow')
-        pos = weapon.stronghold_pos
-        self.s.equip_scient(unit.uid, pos)
+        self.s.equip_scient(unit.uid, weapon.stronghold_pos)
         self.assertEqual(unit.weapon, weapon)
-        self.assertIs(self.s.weapons.get(pos), None)
+        self.assertIs(weapon.stronghold, None)
+        self.assertIs(weapon.stronghold_pos, None)
         old_weapon = weapon
 
         # Re-equipping should unequip previous
         weapon = self.s.form_weapon(E, create_comp(earth=2), 'Wand')
         self.s.equip_scient(unit.uid, weapon.stronghold_pos)
         self.assertEqual(unit.weapon, weapon)
-        self.assertIs(self.s.weapons.get(weapon.stronghold_pos), None)
+        self.assertIs(weapon.stronghold, None)
+        self.assertIs(weapon.stronghold_pos, None)
+        self.assertIsNot(old_weapon.stronghold, None)
+        self.assertIsNot(old_weapon.stronghold_pos, None)
         self.assertEqual(self.s.weapons.get(old_weapon.stronghold_pos),
                          old_weapon)
 
@@ -156,6 +159,8 @@ class StrongholdTest(FlaskTestDB):
         self.assertIsNot(unit.weapon, None)
         self.s.unequip_scient(unit.uid)
         self.assertIs(unit.weapon, None)
+        self.assertIsNot(weapon.stronghold, None)
+        self.assertIsNot(weapon.stronghold_pos, None)
         self.assertEqual(self.s.weapons.get(weapon.stronghold_pos), weapon)
 
     def test_form_squad(self):
@@ -175,6 +180,8 @@ class StrongholdTest(FlaskTestDB):
         self.assertIn(ua.uid, self.s.units)
         self.assertIn(ub.uid, self.s.units)
         self.assertIn(sq, self.s.squads)
+        self.assertEqual(sq.stronghold, self.s)
+        self.assertIsNot(sq.stronghold_pos, None)
 
     def test_name_squad(self):
         unit = self.s.form_scient(E, create_comp(earth=10))

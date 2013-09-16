@@ -119,6 +119,10 @@ class Stronghold(Persistent):
         transaction.commit()
 
     @property
+    def location(self):
+        return self.field.world_coord
+
+    @property
     def clock(self):
         return self.field.clock
 
@@ -128,7 +132,9 @@ class Stronghold(Persistent):
 
     @classmethod
     def get(self, field_location):
-        return db['fields'][tuple(field_location)].stronghold
+        field = db['fields'].get(tuple(field_location))
+        if field is not None:
+            return field.stronghold
 
     def create_factory(self, kind):
         """Adds a factory to a stronghold, raises exception if factory already
@@ -204,9 +210,7 @@ class Stronghold(Persistent):
         """Imbue a unit with stone of comp from silo."""
         stone = self.silo.get(comp)
         unit = self.units[unit_id]
-        print 'A', unit, unit.uid, unit_id, unit.container
         unit.imbue(stone)
-        print 'B', unit, unit.uid, unit_id, unit.container
         if unit.container.name != 'stronghold':
             unit.container._update_value()
         transaction.commit()

@@ -55,10 +55,6 @@ class Container(Persistent):
 
     """ List-like interface """
 
-    def remove(self, unit):
-        i = self.units.index(unit)
-        del self.units[i]
-
     def append(self, unit):
         if self.free_spaces < unit.size:
             msg = "There is not enough space in this container for this unit"
@@ -179,8 +175,9 @@ class Squad(Container):
         return self.__repr__(more=more)
 
     def api_view(self):
-        return dict(uid=self.uid, name=self.name,
-                    units=[u.uid for u in self.units])
+        return dict(name=self.name, units=[u.uid for u in self.units],
+                    stronghold=getattr(self.stronghold, 'location', None),
+                    stronghold_pos=self.stronghold_pos)
 
 
 """ Squad helpers """

@@ -1,8 +1,10 @@
 from random import randint
+from datetime import datetime
 from equanimity.units import Unit, Scient, Nescient, Part
 from equanimity.weapons import Glove
 from equanimity.const import E, I, W, F, ELEMENTS, ORTH
 from equanimity.stone import Stone
+from equanimity.grid import Hex
 from ..base import create_comp, FlaskTestDB
 
 
@@ -16,6 +18,9 @@ class UnitsTest(FlaskTestDB):
     def test_create(self):
         self.assertEqual(self.u.name, 'x')
         self.assertEqual(self.u.comp, self.comp)
+
+    def test_get(self):
+        self.assertEqual(Unit.get(self.u.uid), self.u)
 
     def test_create_no_name(self):
         self.u = Unit(E, self.comp)
@@ -55,6 +60,18 @@ class UnitsTest(FlaskTestDB):
     def test_equality(self):
         self.assertEqual(self.u, self.u)
         self.assertNotEqual(self.u, Unit(E, self.comp, name='x'))
+
+    def test_api_view(self):
+        self.u.dod = datetime.utcnow()
+        view = self.u.api_view()
+        self.assertIsNot(view['dod'], None)
+        self.assertIsNot(view['dob'], None)
+        self.assertIsNot(view['comp'], None)
+        self.assertEqual(view['uid'], self.u.uid)
+        self.assertEqual(view['element'], self.u.element)
+        self.assertEqual(view['name'], self.u.name)
+        self.assertEqual(view['sex'], self.u.sex)
+        self.assertEqual(Hex._make(view['location']), self.u.location)
 
 
 class ScientTest(FlaskTestDB):

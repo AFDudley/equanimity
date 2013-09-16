@@ -1,3 +1,4 @@
+import transaction
 from flask import Blueprint
 from flask.ext.login import current_user
 from equanimity.stronghold import Stronghold
@@ -36,6 +37,7 @@ def place_unit(field_location, unit_id, grid_location):
 def name_unit(field_location, unit_id, name):
     stronghold = _get_stronghold(field_location)
     unit = stronghold.name_unit(unit_id, name)
+    transaction.commit()
     return dict(unit=unit.api_view())
 
 
@@ -52,6 +54,7 @@ def equip_scient(field_location, unit_id, weapon_num):
 def unequip_scient(field_location, unit_id):
     stronghold = _get_stronghold(field_location)
     weapon = stronghold.unequip_scient(unit_id)
+    transaction.commit()
     return dict(weapon=weapon.api_view())
 
 
@@ -60,6 +63,7 @@ def unequip_scient(field_location, unit_id):
 def imbue_unit(field_location, comp, unit_id):
     stronghold = _get_stronghold(field_location)
     unit = stronghold.imbue_unit(comp, unit_id)
+    transaction.commit()
     return dict(unit=unit.api_view())
 
 
@@ -68,6 +72,7 @@ def imbue_unit(field_location, comp, unit_id):
 def split_weapon(field_location, comp, weapon_num):
     stronghold = _get_stronghold(field_location)
     weapon = stronghold.split_weapon(comp, weapon_num)
+    transaction.commit()
     return dict(weapon=weapon.api_view())
 
 
@@ -76,15 +81,16 @@ def split_weapon(field_location, comp, weapon_num):
 def imbue_weapon(field_location, comp, weapon_num):
     stronghold = _get_stronghold(field_location)
     weapon = stronghold.imbue_weapon(comp, weapon_num)
+    transaction.commit()
     return dict(weapon=weapon.api_view())
 
 
-@rpc.method('equanimity.form_squad(list, list, name=str) -> dict',
-            validate=True)
+@rpc.method('equanimity.form_squad(list, list) -> dict', validate=True)
 @require_login
-def form_squad(field_location, unit_ids, name=None):
+def form_squad(field_location, unit_ids):
     stronghold = _get_stronghold(field_location)
-    squad = stronghold.form_squad(unit_ids, name=name)
+    squad = stronghold.form_squad(unit_ids)
+    transaction.commit()
     return dict(squad=squad.api_view())
 
 
@@ -93,6 +99,7 @@ def form_squad(field_location, unit_ids, name=None):
 def name_squad(field_location, squad_num, name):
     stronghold = _get_stronghold(field_location)
     squad = stronghold.name_squad(squad_num, name)
+    transaction.commit()
     return dict(squad=squad.api_view())
 
 
@@ -100,5 +107,6 @@ def name_squad(field_location, squad_num, name):
 @require_login
 def remove_squad(field_location, squad_num):
     stronghold = _get_stronghold(field_location)
-    squads = stronghold.remove_squad(squad_num)
-    return dict(squads=[s.api_view() for s in squads])
+    stronghold.remove_squad(squad_num)
+    transaction.commit()
+    return dict(squads=[s.api_view() for s in stronghold.squads])

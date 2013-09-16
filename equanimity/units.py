@@ -34,8 +34,6 @@ class Unit(Stone):
         super(Unit, self).__init__(comp)
         now = datetime.utcnow()
         self.element = element
-        if name is None:
-            name = str(hash(self))
         self.name = name
         self.location = location
         self.container = None
@@ -53,7 +51,7 @@ class Unit(Stone):
         dod = self.dod
         if dod is not None:
             dod = dod.isoformat()
-        return dict(stone=self.comp, element=self.element, name=self.name,
+        return dict(comp=self.comp, element=self.element, name=self.name,
                     location=tuple(self.location), sex=self.sex,
                     dob=self.dob.isoformat(), dod=dod, uid=self.uid)
 

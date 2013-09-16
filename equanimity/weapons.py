@@ -21,7 +21,7 @@ class Weapon(Stone):
 
     def api_view(self):
         return dict(type=self.type, element=self.element, comp=self.comp,
-                    stronghold=getattr(self.stronghold, 'world_coord', None),
+                    stronghold=getattr(self.stronghold, 'location', None),
                     stronghold_pos=self.stronghold_pos)
 
     def add_to_stronghold(self, stronghold, pos):
