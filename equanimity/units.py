@@ -174,8 +174,10 @@ class Scient(Unit):
 
     def api_view(self):
         data = super(Scient, self).api_view()
-        more = dict(weapon=self.weapon.api_view(),
-                    weapon_bonus=self.weapon_bonus.comp,
+        weapon = self.weapon
+        if weapon is not None:
+            weapon = weapon.api_view()
+        more = dict(weapon=weapon, weapon_bonus=self.weapon_bonus.comp,
                     equip_limit=self.equip_limit.comp,
                     size=self.size, move=self.move)
         data.update(more)

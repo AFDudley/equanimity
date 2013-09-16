@@ -1,5 +1,6 @@
 from functools import wraps
 from flask import g, current_app, request, jsonify, abort
+from flask.ext.login import current_user
 from formencode import variabledecode, Invalid as InvalidSchema
 from server.utils import api_error, RateLimit
 
@@ -91,3 +92,15 @@ def ratelimit(limit, per=300, over_limit=_on_over_limit,
             return f(*args, **kwargs)
         return rate_limited
     return decorator
+
+
+def require_login(f):
+    # The official one is flask.ext.login.login_required, but that doesn't
+    # work with any json-rpc endpoints. This one does, as long as the decorator
+    # is applied after the @rpc decorator
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_active():
+            abort(401)
+        return f(*args, **kwargs)
+    return wrapped
