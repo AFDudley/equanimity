@@ -2,10 +2,72 @@
 from common import hack_syspath
 hack_syspath(__file__)
 from argparse import ArgumentParser
-from flask import current_app, url_for, json
+from flask import current_app, url_for
 from equanimity.player import Player
 from server import db
 from server.decorators import script
+
+
+import requests
+from flask import json
+from flask.ext.jsonrpc import ServiceProxy
+from urlparse import urljoin
+
+
+class ClientServiceProxy(ServiceProxy):
+
+    def send_payload(self, params, **kwargs):
+        return requests.post(self.service_url, data=json.dumps(params),
+                             **kwargs)
+
+    def __call__(self, params, **kwargs):
+        resp = self.send_payload(params, **kwargs)
+        return resp.json()
+
+
+class EquanimityClient(object):
+
+    def __init__(self, url='http://127.0.0.1:5000', service_name='equanimity'):
+        self.url = url
+        self.proxy = ClientServiceProxy(urljoin(url, '/api'),
+                                        service_name=service_name)
+        self.clear_cookies()
+
+    def clear_cookies(self):
+        self.cookies = {}
+
+    def signup(self, username, password, email):
+        url = urljoin(self.url, '/auth/signup')
+        data = dict(username=username, password=password, email=email)
+        return self._post(url, data=data)
+
+    def login(self, username, password):
+        url = urljoin(self.url, '/auth/login')
+        data = dict(username=username, password=password)
+        return self._post(url, data=data)
+
+    def logout(self):
+        url = urljoin(self.url, '/auth/logout')
+        return self._get(url)
+
+    def rpc(self, method, params):
+        methods = method.split('.')
+        action = self.proxy
+        for m in methods:
+            action = getattr(action, m)
+        return action(params, cookies=self.cookies)
+
+    def _post(self, *args, **kwargs):
+        kwargs.setdefault('cookies', {}).update(self.cookies)
+        r = requests.post(*args, **kwargs)
+        self.cookies = dict(r.cookies)
+        return r
+
+    def _get(self, *args, **kwargs):
+        kwargs.setdefault('cookies', {}).update(self.cookies)
+        r = requests.get(*args, **kwargs)
+        self.cookies = dict(r.cookies)
+        return r
 
 
 def get_args():

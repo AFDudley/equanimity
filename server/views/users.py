@@ -6,7 +6,7 @@ from server.utils import AttributeDict
 from server.forms.users import LoginForm, SignupForm
 from server.decorators import api
 
-users = Blueprint('users', __name__, url_prefix='/api/user')
+users = Blueprint('users', __name__, url_prefix='/auth')
 
 
 @users.route('/signup', methods=['POST'])
