@@ -1,28 +1,57 @@
 #!/usr/bin/env python
 from common import hack_syspath
 hack_syspath(__file__)
-from argparse import ArgumentParser
-from flask import current_app, url_for
-from equanimity.player import Player
-from server import db
-from server.decorators import script
-
-
 import requests
+from uuid import uuid1
+from argparse import ArgumentParser
 from flask import json
-from flask.ext.jsonrpc import ServiceProxy
+from flask.ext.jsonrpc.proxy import ServiceProxy
 from urlparse import urljoin
 
 
+""" Example CLI Usage:
+
+./client.py <username> <password> <action> <args...>
+
+All args are eval'd to convert to the correct python type. This affects how
+you type the args. The quotes are necessary because of the shell.
+
+Lists: "[0,1]"
+Tuples: "(0,1)"
+Dictionaries: "{'arg':7}"
+Strings: "'a_word'"
+Integers: 5
+Floats: 0.5
+
+Creating an account:
+./client.py myusername mypassword signup myemail@email.com
+
+Performing an action:
+./client.py myusername mypassword form_squad "[0,0]" "[0,1,4]"
+./client.py myusername mypassword name_squad "[0,0]" 2 "'squadname'"
+
+"""
+
 class ClientServiceProxy(ServiceProxy):
 
+    def _make_payload(self, params):
+        return json.dumps({
+            'jsonrpc': self.version,
+            'method': self.service_name,
+            'params': params,
+            'id': str(uuid1())
+        })
+
     def send_payload(self, params, **kwargs):
-        return requests.post(self.service_url, data=json.dumps(params),
+        return requests.post(self.service_url, data=self._make_payload(params),
                              **kwargs)
 
     def __call__(self, params, **kwargs):
         resp = self.send_payload(params, **kwargs)
-        return resp.json()
+        try:
+            return resp.json()
+        except ValueError:
+            return resp.content
 
 
 class EquanimityClient(object):
@@ -73,73 +102,24 @@ class EquanimityClient(object):
 def get_args():
     p = ArgumentParser(prog='Equanimity')
     p.add_argument('--config', default='dev', help='Server config file to use')
-    s = p.add_subparsers()
-    p_user = s.add_parser('user', help='User account management')
-    s_user = p_user.add_subparsers()
 
-    """ ./client.py user create """
-    p_user_create = s_user.add_parser('create', help='Create user')
-    p_user_create.add_argument('username')
-    p_user_create.add_argument('password')
-    p_user_create.add_argument('email')
-    p_user_create.set_defaults(func=create_user)
-
-    """ ./client.py user show """
-    p_user_show = s_user.add_parser('show', help='Show user info')
-    p_user_show.add_argument('username')
-    p_user_show.set_defaults(func=show_user)
-
-    """ ./client.py user list """
-    p_user_list = s_user.add_parser('list', help='List users')
-    p_user_list.add_argument('--limit', default=20, type=int,
-                             help='How many to show')
-    p_user_list.add_argument('--offset', default=0, type=int,
-                             help='Offset from where to begin listing')
-    p_user_list.set_defaults(func=show_users)
-
-    return p.parse_args()
-
-
-def create_user(username, password, email):
-    client = current_app.test_client()
-    data = dict(username=username, password=password, email=email)
-    r = client.post(url_for('users.signup'), data=data)
-    if r.status_code == 200:
-        data = json.loads(r.data)
-        if not data.get('errors', ''):
-            print 'Created user'
-        else:
-            print 'Failed to create user'
-    else:
-        print 'Error while creating user'
-    print r.data
-
-
-def show_user(username):
-    p = Player.get_by_username(username)
-    if p is None:
-        print 'Player "{0}" not found'.format(username)
-    else:
-        print p
-
-
-def show_users(limit, offset):
-    found = False
-    for i in range(offset, offset + limit):
-        if i in db['players']:
-            print db['players'][i]
-            found = True
-    if not found:
-        print 'No player found for this range'
-
-
-def run_command(args):
-    args = dict(**args.__dict__)
-    config = args.pop('config')
-    func = script(config=config)(args.pop('func'))
-    return func(**args)
+    p.add_argument('--url', default='http://127.0.0.1:5000/',
+                   help='URL of server')
+    p.add_argument('username', help='User to perform action as')
+    p.add_argument('password', help='Password for user authentication')
+    p.add_argument('method', help='Name of rpc method')
+    p.add_argument('params', nargs='*', help='Rpc method parameters')
+    args = p.parse_args()
+    # We need to convert the argument strings to native data types
+    args.params = map(eval, args.params)
+    return args
 
 
 if __name__ == '__main__':
     args = get_args()
-    run_command(args)
+    c = EquanimityClient(args.url)
+    if args.method == 'signup':
+        print c.signup(args.username, args.password, args.params[0]).json()
+    else:
+        c.login(args.username, args.password)
+        print c.rpc(args.method, args.params)
