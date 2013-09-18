@@ -109,17 +109,19 @@ def get_args():
     p.add_argument('password', help='Password for user authentication')
     p.add_argument('method', help='Name of rpc method')
     p.add_argument('params', nargs='*', help='Rpc method parameters')
-    args = p.parse_args()
+    return p.parse_args()
+
+
+def process_args(args):
     # We need to convert the argument strings to native data types
     args.params = map(eval, args.params)
-    return args
-
-
-if __name__ == '__main__':
-    args = get_args()
     c = EquanimityClient(args.url)
     if args.method == 'signup':
         print c.signup(args.username, args.password, args.params[0]).json()
     else:
         c.login(args.username, args.password)
         print c.rpc(args.method, args.params)
+
+
+if __name__ == '__main__':
+    process_args(get_args())
