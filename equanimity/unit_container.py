@@ -55,6 +55,11 @@ class Container(Persistent):
 
     """ List-like interface """
 
+    def remove(self, unit):
+        if unit.container != self:
+            raise ValueError('Unit is not in this container')
+        del self[unit.container_pos]
+
     def append(self, unit):
         if self.free_spaces < unit.size:
             msg = "There is not enough space in this container for this unit"
@@ -88,14 +93,11 @@ class Container(Persistent):
         self.units[pos] = unit
         self.val += unit.value() - old.value()
         self.free_spaces += old.size - unit.size
-        old.container = None
-        old.container_pos = None
-        unit.container_pos = pos
-        unit.container = self
+        old.remove_from_container()
+        unit.add_to_container(self, pos)
 
     def __delitem__(self, pos):
-        self.units[pos].container = None
-        self.units[pos].container_pos = None
+        self.units[pos].remove_from_container()
         self.free_spaces += self.units[pos].size
         self.val -= self.units[pos].value()
         del self.units[pos]
@@ -207,7 +209,6 @@ def rand_squad(owner=None, suit=None, kind='Scient'):
                 squad.append(rand_unit(suit))
             if squad.free_spaces == 1:
                 squad.append(rand_unit(suit, kind='Scient'))
-    squad.name = rand_string()
     return squad
 
 

@@ -240,6 +240,10 @@ class Grid(Stone):
         span = xrange(-self.radius, self.radius + 1)
         return ifilter(self.in_bounds, product(span, span))
 
+    def placement_coords(self):
+        """ Returns coords for one side of the field """
+        return ifilter(lambda x: x[0] > 0, self.iter_coords())
+
     def occupied_coords(self):
         return (t.location for t in self.iter_tiles() if t.occupied())
 

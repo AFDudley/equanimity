@@ -9,14 +9,11 @@ This needs to be refactored to properly generate json/serialized output
 and should be refactored with battle as well.
 
 """
-from datetime import datetime
-
 import transaction
+from datetime import datetime
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
-
-from grid import Grid
 from battlefield import Battlefield
 from units import Unit
 
@@ -190,16 +187,14 @@ class State(PersistentMapping):
 
 class Game(Persistent):
     """Almost-state-machine that maintains game state."""
-    def __init__(self, attacker, defender, grid=None, element=None):
+    def __init__(self, field, attacker, defender):
         super(Game, self).__init__()
-        if grid is None:
-            grid = Grid()
-        self.grid = grid
+        self.field = field
+        self.grid = field.grid
         self.defender = defender
         self.attacker = attacker
-        self.battlefield = Battlefield(grid, self.defender.squads[0],
-                                       self.attacker.squads[0],
-                                       element=element)
+        self.battlefield = Battlefield(field, self.defender.squads[0],
+                                       self.attacker.squads[0])
         self.players = self.defender, self.attacker
         # TODO (steve) -- bidirectional map instead of map,units
         self.map = self.unit_map()
@@ -214,13 +209,7 @@ class Game(Persistent):
 
     def put_squads_on_field(self):
         """Puts the squads on the battlefield."""
-        btl = self.battlefield
-        for squad_num, squad in enumerate(btl.squads):
-            for unit_num, unit in enumerate(squad):
-                # If the unit was already placed, it's ok
-                # This is to assert that all units are in place or receive
-                # a valid place
-                btl.place_object(unit, unit.location)
+        self.battlefield.put_squads_on_field()
         self.log['init_locs'] = self.log.init_locs()
         return transaction.commit()
 

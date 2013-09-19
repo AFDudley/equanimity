@@ -20,8 +20,7 @@ UNIT_NAME_LEN = dict(max=64, min=1)
 class Unit(Stone):
     attrs = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
 
-    def __init__(self, element, comp, name=None, location=Hex.null,
-                 sex='female'):
+    def __init__(self, element, comp, name=None, sex='female'):
         if not element in ELEMENTS:
             fmt = "Invalid element: {0}, valid elements are {1}"
             raise Exception(fmt.format(element, ELEMENTS))
@@ -35,9 +34,8 @@ class Unit(Stone):
         now = datetime.utcnow()
         self.element = element
         self.name = name
-        self.location = location
-        self.container = None
-        self.container_pos = None
+        self.location = Hex.null
+        self.remove_from_container()
         self.sex = sex
         self.dob = now
         self.dod = None
@@ -71,6 +69,14 @@ class Unit(Stone):
         self._name = name
 
     @property
+    def chosen_location(self):
+        return self._chosen_location
+
+    @chosen_location.setter
+    def chosen_location(self, loc):
+        self._chosen_location = Hex._make(loc)
+
+    @property
     def location(self):
         return self._location
 
@@ -98,6 +104,18 @@ class Unit(Stone):
     def stats(self):
         return dict(zip(self.attrs, [getattr(self, s) for s in self.attrs]))
 
+    def add_to_container(self, container, pos):
+        self.container = container
+        self.container_pos = pos
+        # Reset out chosen location, since it is dependent on the context
+        # of its container
+        self.chosen_location = Hex.null
+
+    def remove_from_container(self):
+        self.container = None
+        self.container_pos = None
+        self.chosen_location = Hex.null
+
     def __repr__(self):
         return '<{0} "{1}">'.format(self.__class__.__name__, self.name)
 
@@ -120,15 +138,14 @@ class Scient(Unit):
     """
 
     def __init__(self, element, comp, name=None, weapon=None,
-                 weapon_bonus=None, location=Hex.null, sex='female'):
+                 weapon_bonus=None, sex='female'):
         comp = Composition.create(comp)
         for o in comp.orth(element):
             if o > comp[element] / 2:
                 raise ValueError("Scients' orthogonal elements cannot be "
                                  "more than half the primary element's "
                                  "value.")
-        super(Scient, self).__init__(element, comp, name=name, sex=sex,
-                                     location=location)
+        super(Scient, self).__init__(element, comp, name=name, sex=sex)
         self.size = 1
         self.move = 4
         self.weapon = weapon
@@ -186,7 +203,7 @@ class Nescient(Unit):
     """A non-playable unit."""
 
     def __init__(self, element, comp, name=None, weapon=None, sex='female',
-                 location=Hex.null, facing=None, body=None):
+                 facing=None, body=None):
         if body is None:
             body = {'head':  None, 'left': None, 'right': None, 'tail': None}
         comp = Stone(comp)
@@ -199,8 +216,7 @@ class Nescient(Unit):
                 raise ValueError("Nescients' orthogonal value cannot exceed "
                                  "the primary element value.")
 
-        super(Nescient, self).__init__(element, comp, name=name, sex=sex,
-                                       location=location)
+        super(Nescient, self).__init__(element, comp, name=name, sex=sex)
         self.size = 2
         self.move = 4
         #Set nescient type.
@@ -238,7 +254,6 @@ class Nescient(Unit):
         for part in body:  # MESSY!!!!
             body[part] = Part(self)
         self.body = body
-        self.location = location  # ...
         self.facing = facing
         self.weapon = self  # hack for attack logic.
 

@@ -6,26 +6,29 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import transaction
 import persistent
+import random
 from math import ceil
-
 from stone import Stone, get_element
-from grid import Grid
+from grid import Grid, Hex
 from player import Player, WorldPlayer
 from battle import Game
 from stronghold import Stronghold
 from clock import Clock
+from unit_container import Squad
 
 
 class Field(persistent.Persistent):
     """Player owned field logic."""
-    def __init__(self, world_coord, owner=None, ply_time=240):
+    def __init__(self, world_coord, owner=None, grid=None, ply_time=240):
         self.locked = False
         self.world_coord = world_coord
         self._owner = None
         if owner is None:
             owner = WorldPlayer.get()
         self.owner = owner
-        self.grid = Grid()
+        if grid is None:
+            grid = Grid()
+        self.grid = grid
         self.element = 'Ice'  # For testing
         #self.element = get_element(self.grid.comp)
         self.clock = Clock()
@@ -52,6 +55,45 @@ class Field(persistent.Persistent):
         self.actions = (self.battle_actions + self.stronghold_actions +
                         self.world_actions)
 
+    def place_scient(self, unit, location):
+        location = Hex._make(location)
+        # Placement can only be on one side of the field
+        if location[0] <= 0:
+            raise ValueError('First coordinate of location must be positive')
+        # Unit must be in a squad
+        if not isinstance(unit.container, Squad):
+            raise ValueError('Unit must be in a squad to be placed on a field')
+        # Location must fit on grid
+        if not self.grid.in_bounds(location):
+            msg = 'Location {0} does not fit on the field'
+            raise ValueError(msg.format(location))
+        # Unit must not collide with other units placed in its squad
+        for u in unit.container:
+            if u != unit and u.chosen_location == location:
+                msg = 'Location is already occupied by squad member {0}'
+                raise ValueError(msg.format(u))
+        unit.chosen_location = location
+
+    def rand_place_scient(self, unit):
+        """Randomly place a unit on the grid."""
+        available = set(self.grid.placement_coords())
+        if not available:
+            raise ValueError("Grid is full")
+        taken = set([u.chosen_location for u in unit.container
+                     if not u.chosen_location.is_null()])
+        available = available - taken
+        return self.place_scient(unit, random.choice(available))
+
+    def rand_place_squad(self, squad):
+        """place the units in a squad randomly on the battlefield"""
+        # Clear any previously chosen locations
+        for u in squad:
+            u.chosen_location = Hex.null
+        available = set(self.grid.placement_coords())
+        positions = random.sample(available, len(squad))
+        for unit, pos in zip(squad, positions):
+            self.place_scient(unit, pos)
+
     def setup_battle(self):
         # TODO (steve) -- this is a helper method for testing
         # and needs to be replaced
@@ -62,7 +104,7 @@ class Field(persistent.Persistent):
         atkr = Player.get(1)
         atkr.squads = [atksquad]
         # TODO write a new game object.
-        self.game = Game(grid=self.grid, defender=self.owner, attacker=atkr)
+        self.game = Game(self, defender=self.owner, attacker=atkr)
         # place units on battlefield
         # TODO (steve) -- the defender accesses the stronghold to predetermine
         # how its units will be placed at the start of a battle?

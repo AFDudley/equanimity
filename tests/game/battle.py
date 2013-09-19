@@ -1,12 +1,13 @@
 import itertools
 from unittest import TestCase
 from mock import MagicMock
-from ..base import create_comp, FlaskTestDB, pairwise
+from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
 from server.utils import AttributeDict
 from equanimity.grid import Grid, Hex
 from equanimity.const import E, F
 from equanimity.weapons import Sword
 from equanimity.units import Scient
+from equanimity.field import Field
 from equanimity.player import Player
 from equanimity.unit_container import Squad, rand_squad
 from equanimity.battle import (now, Action, Message, ChangeList, BattleChanges,
@@ -110,7 +111,7 @@ class LogTest(FlaskTestDB):
         self.assertEqual(owners, {0: 'testplayer'})
 
 
-class BattleTestBase(FlaskTestDB):
+class BattleTestBase(FlaskTestDBWorld):
     def assertGameOver(self, winner, condition):
         self.assertTrue(self.game.state['game_over'])
         self.assertEqual(self.game.winner, winner)
@@ -134,7 +135,8 @@ class StateTest(BattleTestBase):
                                squads=[rand_squad()])
         defsquad = rand_squad()
         self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
-        self.game = Game(self.attacker, self.defender)
+        self.field = Field(Hex(0, 0))
+        self.game = Game(self.field, self.attacker, self.defender)
         self.s = State(self.game)
         self.s['old_defsquad_hp'] = defsquad.hp()
 
@@ -223,11 +225,16 @@ class GameTestBase(BattleTestBase):
                                squads=[atksquad])
         self.defender = Player('Def', 'y@gmail.com', 'yyy',
                                squads=[defsquad])
-        self.game = Game(self.attacker, self.defender, element=element)
+        self.field = Field(Hex(0, 0))
+        self.game = Game(self.field, self.attacker, self.defender)
 
     @property
     def bf(self):
         return self.game.battlefield
+
+    @property
+    def f(self):
+        return self.game.field
 
     @property
     def units(self):
@@ -235,8 +242,8 @@ class GameTestBase(BattleTestBase):
                                            self.defender.squads[0])))
 
     def _place_squads(self):
-        self.bf.rand_place_squad(self.attacker.squads[0])
-        self.bf.rand_place_squad(self.defender.squads[0])
+        self.f.rand_place_squad(self.attacker.squads[0])
+        self.f.rand_place_squad(self.defender.squads[0])
         self.game.put_squads_on_field()
 
 
@@ -258,7 +265,8 @@ class GameTest(GameTestBase):
     def test_unit_map(self):
         m = self.game.unit_map()
         self.assertEqual(sorted(m.keys()), self.units)
-        self.assertEqual(sorted(m.values()), range(1, len(self.units) + 1))
+        expect_ids = sorted([unit.uid for unit in self.units])
+        self.assertEqual(sorted(m.values()), expect_ids)
 
     def test_map_unit(self):
         unit_map = self.game.unit_map()
@@ -426,7 +434,8 @@ class BattleProcessActionTest(GameTestBase):
     def test_first_movement(self):
         # do a legitimate movement, on a first action
         d = self.unit(1)
-        self.bf.place_object(d, Hex(0, 0))
+        d.chosen_location = Hex(0, 0)
+        self.bf.place_object(d)
         loc = Hex(0, 1)
         act = Action(type='move', unit=d, target=loc)
         self.game.state = State(self.game, num=1)
@@ -440,7 +449,8 @@ class BattleProcessActionTest(GameTestBase):
     def test_second_movement(self):
         # do a legitimate movement, on a second action
         d = self.unit(2)
-        self.bf.place_object(d, Hex(0, 0))
+        d.chosen_location = Hex(0, 0)
+        self.bf.place_object(d)
         loc = Hex(0, 1)
         act = Action(type='move', unit=d, target=loc)
         self.game.state = State(self.game, num=2)
@@ -473,8 +483,10 @@ class BattleProcessActionTest(GameTestBase):
     def test_first_attack(self):
         d = self.unit(1)
         a = self.unit(3)
-        self.bf.place_object(d, Hex(0, 0))
-        self.bf.place_object(a, Hex(0, 1))
+        d.chosen_location = Hex(0, 0)
+        a.chosen_location = Hex(0, 1)
+        self.bf.place_object(d)
+        self.bf.place_object(a)
         wep = Sword(E, create_comp(earth=128))
         d.equip(wep)
         loc = Hex(0, 1)
@@ -488,8 +500,10 @@ class BattleProcessActionTest(GameTestBase):
     def test_second_attack(self):
         d = self.unit(2)
         a = self.unit(3)
-        self.bf.place_object(d, Hex(0, 0))
-        self.bf.place_object(a, Hex(0, 1))
+        d.chosen_location = Hex(0, 0)
+        a.chosen_location = Hex(0, 1)
+        self.bf.place_object(d)
+        self.bf.place_object(a)
         wep = Sword(E, create_comp(earth=128))
         d.equip(wep)
         loc = Hex(0, 1)

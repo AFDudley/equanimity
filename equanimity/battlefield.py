@@ -5,13 +5,11 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 """contains battlefield objects"""
-import random
 from datetime import datetime
 from bidict import inverted
 from stone import Stone, Composition
 from units import Scient, Nescient, Part
-from grid import Grid, Hex, HexCube
-from const import E
+from grid import Hex, HexCube
 
 """
 Refactoring notes:
@@ -22,17 +20,11 @@ Replace ValueError with a custom exception
 
 class Battlefield(object):
     """contains grid, units and the logic for unit damage and movement."""
-    def __init__(self, grid=None, defsquad=None, atksquad=None, element=None):
-        # TODO (steve) -- inherit element from Field when battlefield is
-        # created
-        if element is None:
-            element = E
-        if grid is None:
-            grid = Grid()
-        # grid is a tuple of tuples containing tiles
-        self.game_id = 0  # ?
-        self.grid = grid
-        self.element = E
+    def __init__(self, field, defsquad, atksquad):
+        self.game_id = 0
+        self.grid = field.grid
+        self.field = field
+        self.element = field.element
         self.graveyard = []
         self.defsquad = defsquad
         self.atksquad = atksquad
@@ -140,8 +132,15 @@ class Battlefield(object):
             nescient.facing = direction
         return True
 
-    def place_nescient(self, nescient, dest):
+    def place_nescient(self, nescient, dest=None):
         """place a nescient so that its right is at dest."""
+        if not nescient.location.is_null():
+            raise ValueError('Nescient has already been placed')
+        if dest is None:
+            dest = nescient.chosen_location
+        if dest.is_null():
+            msg = 'Nescient {0} does not have a place to be'
+            raise ValueError(msg.format(nescient))
         facing = nescient.facing
         if facing is None:
             facing = 'North'
@@ -162,6 +161,15 @@ class Battlefield(object):
                 drctns.append(direction)  # might want to return body as well.
         return drctns
 
+    def put_squads_on_field(self):
+        for unit in self.defsquad:
+            self.place_object(unit)
+        for unit in self.atksquad:
+            # Attackers are placed on the opposite side
+            loc = unit.chosen_location
+            loc = Hex(-loc[0], -loc[1])
+            self.place_object(unit, dest=loc)
+
     def rotate(self, nescient, direction):
         """rotates Nescient so that head is facing direction"""
         new_body = self.make_body(nescient.body['right'].location, direction)
@@ -179,12 +187,12 @@ class Battlefield(object):
         else:
             return self.grid.get_adjacent(location)
 
-    def place_object(self, obj, dest):
+    def place_object(self, obj, dest=None):
         """places an object on a tile."""
         if isinstance(obj, Scient):
-            return self.place_scient(obj, dest)
+            return self.place_scient(obj, dest=dest)
         elif isinstance(obj, Nescient):
-            return self.place_nescient(obj, dest)
+            return self.place_nescient(obj, dest=dest)
         elif isinstance(obj, Stone):
             # TODO -- should the stone be placed or what?
             raise NotImplementedError('Placing stones is not ready')
@@ -205,28 +213,20 @@ class Battlefield(object):
         src_tile.move_contents_to(dest_tile)
         return True
 
-    def place_scient(self, unit, loc):
-        """Places unit at tile, if already on grid, move_scient is called"""
-        if not unit.location.is_null():
-            return self.move_scient(unit.location, loc)
-        else:
-            self.grid.get(loc).set_contents(unit)
-            self.dmg_queue.setdefault(unit, [])
-            return True
-
-    def rand_place_scient(self, unit):
-        """Randomly place a unit on the grid."""
-        available = list(self.grid.unoccupied_coords())
-        if not available:
-            raise ValueError("Grid is full")
-        return self.place_scient(unit, random.choice(available))
-
-    def rand_place_squad(self, squad):
-        """place the units in a squad randomly on the battlefield"""
-        available = list(self.grid.unoccupied_coords())
-        positions = random.sample(available, len(squad))
-        for unit, pos in zip(squad, positions):
-            self.place_scient(unit, pos)
+    def place_scient(self, scient, dest=None):
+        if not scient.location.is_null():
+            raise ValueError('Scient was already placed on battlefield')
+        if dest is None:
+            dest = scient.chosen_location
+        if dest.is_null():
+            msg = 'Scient {0} does not have a place to be'
+            raise ValueError(msg.format(scient))
+        if not self.grid.in_bounds(dest):
+            raise ValueError('Destination {0} is not on grid'.format(dest))
+        scient.location = dest
+        self.dmg_queue.setdefault(scient, [])
+        self.grid.get(dest).set_contents(scient)
+        return True
 
     def flush_units(self):
         """
