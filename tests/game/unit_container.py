@@ -66,6 +66,23 @@ class ContainerTest(FlaskTestDB):
         self.assertEqual(self.nes.container, self.c)
         self.assertEqual(self.nes.container_pos, 0)
 
+    def test_remove(self):
+        self.c.append(self.s)
+        self.c.append(self.nes)
+        self.assertEqual(self.c.free_spaces, 5)
+        self.assertEqual(self.c.value(), self.s.value() + self.nes.value())
+        self.assertEqual(self.s.container, self.c)
+        self.assertEqual(self.nes.container, self.c)
+        self.assertEqual(self.s.container_pos, 0)
+        self.assertEqual(self.nes.container_pos, 1)
+        self.c.remove(self.s)
+        self.assertEqual(self.c.free_spaces, 6)
+        self.assertEqual(self.c.value(), self.nes.value())
+        self.assertIs(self.s.container, None)
+        self.assertEqual(self.nes.container, self.c)
+        self.assertEqual(self.nes.container_pos, 0)
+        self.assertRaises(ValueError, self.c.remove, self.s)
+
     def test_update_free_space_too_many_units(self):
         self.assertRaises(ValueError, Container, [self.s] * 20)
 

@@ -133,9 +133,16 @@ class BattlefieldTest(FlaskTestDBWorld):
         nes.facing = 'South'
         self.assertRaises(ValueError, bf.place_nescient, nes)
 
+        # Null placement
+        nes.chosen_location = Hex.null
+        self.assertRaises(ValueError, bf.place_nescient, nes)
+
         # Valid placement
         nes.chosen_location = (2, 2)
         self.assertTrue(bf.place_nescient(nes))
+
+        # Replacement
+        self.assertRaises(ValueError, bf.place_nescient, nes)
 
     def test_get_rotations(self):
         # Test unable to move at all
@@ -243,6 +250,12 @@ class BattlefieldTest(FlaskTestDBWorld):
         self.assertEqual(bf.grid[0][0].contents, s)
         self.assertEqual(s.location, Hex(0, 0))
         self.assertEqual(bf.dmg_queue[s], [])
+        # replacement
+        self.assertRaises(ValueError, bf.place_scient, s)
+        # null dest
+        s = Scient(E, create_comp(earth=128))
+        s.chosen_location = Hex.null
+        self.assertRaises(ValueError, bf.place_scient, s)
         # placing in occupied spot
         t = Scient(E, create_comp(earth=128))
         t.chosen_location = Hex(0, 0)
