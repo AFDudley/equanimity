@@ -15,6 +15,7 @@ from battle import Game
 from stronghold import Stronghold
 from clock import Clock
 from unit_container import Squad
+from units import Scient
 
 
 class Field(persistent.Persistent):
@@ -56,6 +57,8 @@ class Field(persistent.Persistent):
                         self.world_actions)
 
     def place_scient(self, unit, location):
+        if unit.__class__ != Scient:
+            raise ValueError('Unit {0} must be a scient'.format(unit))
         location = Hex._make(location)
         # Placement can only be on one side of the field
         if location[0] <= 0:

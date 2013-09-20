@@ -194,6 +194,7 @@ class Stronghold(Persistent):
     def form_scient(self, element, comp, name=None):
         """Takes a stone from stronghold and turns it into a Scient."""
         scient = Scient(element, self.silo.get(comp), name=name)
+        scient.owner = self.owner
         self.free_units.append(scient)
         self.units[scient.uid] = scient
         self.feed_unit(scient.uid)

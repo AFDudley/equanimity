@@ -177,3 +177,24 @@ class StrongholdTest(RPCTestBase):
         squads = r['result'].get('squads')
         self.assertIsNot(squads, None)
         self.assertEqual(len(squads), 0)
+
+    def test_place_unit(self):
+        sq = self.test_form_squad()
+        unit_id = sq['units'][0]
+        loc = [1, 1]
+        r = self.proxy.place_unit(unit_id, loc)
+        self.assertNoError(r)
+        unit = r['result'].get('unit')
+        self.assertEqual(list(unit['chosen_location']), loc)
+
+    def test_place_unit_no_squad(self):
+        s = self.make_scient(E, create_comp(earth=1))
+        r = self.proxy.place_unit(s.uid, [1, 1])
+        self.assertError(r, 'isn\'t in a squad')
+
+    def test_place_unit_no_stronghold(self):
+        sq = self.test_form_squad()
+        self.s.squads[sq['stronghold_pos']].stronghold = None
+        self.s.squads[sq['stronghold_pos']].stronghold_pos = None
+        r = self.proxy.place_unit(sq['units'][0], [1, 1])
+        self.assertError(r, 'isn\'t in a stronghold')

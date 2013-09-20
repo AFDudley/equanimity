@@ -51,7 +51,8 @@ class Unit(Stone):
             dod = dod.isoformat()
         return dict(comp=self.comp, element=self.element, name=self.name,
                     location=tuple(self.location), sex=self.sex,
-                    dob=self.dob.isoformat(), dod=dod, uid=self.uid)
+                    dob=self.dob.isoformat(), dod=dod, uid=self.uid,
+                    chosen_location=tuple(self.chosen_location))
 
     @classmethod
     def get(self, id):

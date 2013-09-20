@@ -2,6 +2,8 @@ import transaction
 from flask import Blueprint
 from flask.ext.login import current_user
 from equanimity.stronghold import Stronghold
+from equanimity.units import Unit
+from equanimity.unit_container import Squad
 from server import rpc
 from server.decorators import require_login
 
@@ -24,12 +26,23 @@ def _get_stronghold(field_location, **kwargs):
     return _get_thing(Stronghold, field_location, **kwargs)
 
 
-@rpc.method('equanimity.place_unit(list, int, list) -> dict', validate=True)
+def _get_unit(uid, **kwargs):
+    return _get_thing(Unit, uid, **kwargs)
+
+
+@rpc.method('equanimity.place_unit(int, list) -> dict', validate=True)
 @require_login
-def place_unit(field_location, unit_id, grid_location):
-    # TODO -- implement on stronghold
-    # needs to move the unit from the stronghold to a battlefield
-    pass
+def place_unit(unit_id, grid_location):
+    unit = _get_unit(unit_id)
+    squad = unit.container
+    if not isinstance(squad, Squad):
+        raise ValueError('Unit isn\'t in a squad')
+    stronghold = squad.stronghold
+    if stronghold is None:
+        raise ValueError('Unit\'s squad isn\'t in a stronghold')
+    stronghold.field.place_scient(unit, grid_location)
+    transaction.commit()
+    return dict(unit=unit.api_view())
 
 
 @rpc.method('equanimity.name_unit(list, int, str) -> dict', validate=True)
