@@ -78,8 +78,10 @@ class CompositionTest(TestCase):
         c = Composition.create(4, 4, 4, 4)
         self.assertValidComposition(c, 4)
         # Create from existing Composition (idempotent)
-        c = Composition.create(c)
-        self.assertValidComposition(c, 4)
+        d = Composition.create(c)
+        self.assertValidComposition(d, 4)
+        # It should make a new one as well
+        self.assertNotEqual(id(c), id(d))
 
 
 class StoneTest(TestCase):
@@ -87,6 +89,11 @@ class StoneTest(TestCase):
     def test_create_stone(self):
         s = Stone()
         self.assertEqual(s.comp, create_comp())
+
+    def test_create_with_limit(self):
+        limit = create_comp(earth=128)
+        s = Stone(limit=limit)
+        self.assertEqual(s.limit, limit)
 
     def test_create_stone_with_stone(self):
         s = Stone(comp=Stone())
@@ -181,3 +188,16 @@ class StoneTest(TestCase):
     def test_opp(self):
         s = Stone(Composition.create(earth=1, ice=3, fire=2, wind=4))
         self.assertEqual(s.opp(E), 4)
+
+    def test_extract_reward(self):
+        s = Stone(create_comp(earth=7, ice=4))
+        t = s.extract_award()
+        self.assertEqual(t.comp, create_comp(earth=3, ice=2))
+        self.assertEqual(s.comp, create_comp(earth=4, ice=2))
+
+    def test_copy(self):
+        s = Stone(create_comp(earth=128), limit=create_comp(earth=200))
+        t = s.copy()
+        self.assertNotEqual(id(s), id(t))
+        self.assertEqual(s.comp, t.comp)
+        self.assertEqual(s.limit, t.limit)

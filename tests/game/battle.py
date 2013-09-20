@@ -1,6 +1,6 @@
 import itertools
 from unittest import TestCase
-from mock import MagicMock
+from mock import MagicMock, patch
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
 from server.utils import AttributeDict
 from equanimity.grid import Grid, Hex
@@ -8,6 +8,7 @@ from equanimity.const import E, F
 from equanimity.weapons import Sword
 from equanimity.units import Scient
 from equanimity.field import Field
+from equanimity.stone import Stone
 from equanimity.player import Player
 from equanimity.unit_container import Squad, rand_squad
 from equanimity.battle import (now, Action, Message, ChangeList, BattleChanges,
@@ -361,7 +362,22 @@ class GameTest(GameTestBase):
         init_state = self.game.initial_state()
         self.assertTrue(isinstance(init_state, InitialState))
 
-    def test_end(self):
+    def test_compute_award(self):
+        self.defender.squads[0][0].hp = 0
+        comp = self.defender.squads[0][0].copy()
+        wep_comp = Stone(create_comp(earth=2))
+        weapon = Sword(E, wep_comp)
+        wep_comp = wep_comp.copy().extract_award()
+        self.defender.squads[0][0].equip(weapon)
+        awards = self.game.compute_awards()
+        comp = comp.extract_award()
+        self.assertEqual(awards, [comp, wep_comp])
+
+    @patch('equanimity.silo.Silo.imbue_list')
+    @patch.object(Game, 'compute_awards')
+    def test_end(self, mock_compute_awards, mock_imbue):
+        awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
+        mock_compute_awards.return_value = awards
         self._place_squads()
         self.game.winner = self.defender
         survivors = self.defender.squads[0][:2]
@@ -374,6 +390,8 @@ class GameTest(GameTestBase):
                          sorted(self.game.log['change_list']['victors']))
         self.assertEqual(sorted(self.attacker.squads[0][:1]),
                          sorted(self.game.log['change_list']['prisoners']))
+        mock_compute_awards.assert_called_once_with()
+        mock_imbue.assert_called_once_with(awards)
 
 
 class BattleProcessActionTest(GameTestBase):

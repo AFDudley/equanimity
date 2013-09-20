@@ -54,7 +54,9 @@ class Composition(dict):
         elif len(args) == 1:
             val = args[0]
             if isinstance(val, cls):
-                return val
+                c = Composition()
+                c.update(val)
+                return c
             elif isinstance(val, Mapping):
                 return cls.from_dict(val)
             else:
@@ -105,7 +107,7 @@ class Composition(dict):
 
 class Stone(Persistent, Mapping):
     # Limit should be overwritten by classes that inherit from Stone.
-    def __init__(self, comp=None):
+    def __init__(self, comp=None, limit=None):
         Persistent.__init__(self)
         if comp is None:
             comp = Composition(0)
@@ -114,7 +116,13 @@ class Stone(Persistent, Mapping):
         else:
             comp = Composition.create(comp)
         self.comp = comp
-        self.limit = Composition(255)
+        if limit is None:
+            limit = Composition(255)
+        self.limit = limit
+
+    def copy(self):
+        return Stone(comp=Composition.create(self.comp),
+                     limit=Composition.create(self.limit))
 
     def imbue(self, stone):
         """adds the values of stone.comp to self.comp up to self.limit.
@@ -148,6 +156,13 @@ class Stone(Persistent, Mapping):
                 else:
                     self.comp[e] -= comp[e]
                     s[e] = comp[e]
+        return s
+
+    def extract_award(self):
+        s = self.copy()
+        for e in self.comp.iterkeys():
+            s[e] = self[e] // 2
+            self[e] -= s[e]
         return s
 
     """ TODO (steve) -- merge stone & comp ? """

@@ -407,6 +407,16 @@ class Game(Persistent):
         """Returns stuff to create the client side of the game"""
         return InitialState(self.log)
 
+    def compute_awards(self):
+        awards = []
+        for squad in self.battlefield.squads:
+            for unit in squad:
+                if unit.hp <= 0:
+                    awards.append(unit.extract_award())
+                    if unit.weapon is not None:
+                        awards.append(unit.weapon.extract_award())
+        return awards
+
     def end(self, condition):
         """ Mame over state, handles log closing,
         writes change list for world"""
@@ -423,9 +433,12 @@ class Game(Persistent):
                 victors.append(unit)
             else:
                 prisoners.append(unit)
+
         # calculate awards
-        awards = PersistentMapping()  # should be a stone.
+        awards = self.compute_awards()
+        self.field.stronghold.silo.imbue_list(awards)
         self.log['change_list'] = BattleChanges(victors, prisoners, awards)
+        transaction.commit()
 
 
 class ActionQueue(Persistent):
