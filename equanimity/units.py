@@ -4,7 +4,6 @@ units.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import transaction
 import random
 from datetime import datetime
 from stone import Stone, Composition, rand_comp
@@ -43,7 +42,6 @@ class Unit(Stone):
         self.val = self.value()
         self.uid = db['unit_uid'].get_next_id()
         db['units'][self.uid] = self
-        transaction.commit()
 
     def api_view(self):
         dod = self.dod

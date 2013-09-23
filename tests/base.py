@@ -187,10 +187,11 @@ class FlaskTest(TestCase):
 
 class FlaskTestDB(FlaskTest):
 
-    def setUp(self):
+    def setUp(self, do_init_db=True):
         super(FlaskTestDB, self).setUp()
         transaction.abort()
-        init_db(reset=True)
+        if do_init_db:
+            init_db(reset=True)
         transaction.commit()
         self.db = db
 
@@ -202,8 +203,7 @@ class FlaskTestDB(FlaskTest):
 class FlaskTestDBWorld(FlaskTestDB):
 
     def setUp(self):
-        super(FlaskTestDBWorld, self).setUp()
+        super(FlaskTestDBWorld, self).setUp(do_init_db=False)
         self.world = World()
-        self.world._setup('1', 2, 2)
-        self.world._make_fields(2, 2)
+        self.world.create('1', 2, 2)
         transaction.commit()

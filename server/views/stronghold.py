@@ -59,6 +59,7 @@ def name_unit(field_location, unit_id, name):
 def equip_scient(field_location, unit_id, weapon_num):
     stronghold = _get_stronghold(field_location)
     unit = stronghold.equip_scient(unit_id, weapon_num)
+    transaction.commit()
     return dict(unit=unit.api_view())
 
 

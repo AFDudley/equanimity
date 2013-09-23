@@ -1,8 +1,131 @@
 from equanimity.grid import Hex
 from equanimity.world import World
 from equanimity.const import E
-from equanimity.stronghold import Stronghold
+from equanimity.stronghold import Stronghold, MappedContainer, SparseList
+from server.utils import AttributeDict
 from ..base import FlaskTestDB, create_comp
+
+
+class MappedContainerTest(FlaskTestDB):
+
+    def setUp(self):
+        super(MappedContainerTest, self).setUp()
+        self.m = MappedContainer()
+
+    def _make_value(self, uid):
+
+        class AttributeDictUID(AttributeDict):
+
+            def __eq__(self, other):
+                return self.uid == other.uid
+
+            def __ne__(self, other):
+                return not self.__eq__(other)
+
+        return AttributeDictUID(uid=uid, size=1, value=lambda: 5,
+                                remove_from_container=lambda: True,
+                                add_to_container=lambda x, y: True)
+
+    def test_create(self):
+        self.assertEqual(self.m.name, 'stronghold')
+        self.assertTrue(hasattr(self.m, 'map'))
+
+    def test_setitem_getitem_delitem(self):
+        val = self._make_value(2)
+        self.m[2] = val
+        self.assertEqual(self.m[2], val)
+        del self.m[2]
+        self.assertRaises(KeyError, self.m.__getitem__, 2)
+
+    def test_setitem_bad(self):
+        self.assertRaises(KeyError, self.m.__setitem__, 2, self._make_value(3))
+
+    def test_contains(self):
+        val = self._make_value(7)
+        self.m[7] = val
+        self.assertIn(7, self.m)
+
+    def test_append(self):
+        val = self._make_value(7)
+        self.m.append(val)
+        self.assertIn(7, self.m)
+        # reappend overwrites
+        valx = self._make_value(7)
+        self.m.append(valx)
+        self.assertNotEqual(id(val), id(valx))
+        self.assertEqual(id(self.m[7]), id(valx))
+
+    def test_pop(self):
+        val = self._make_value(7)
+        self.m[7] = val
+        r = self.m.pop(7)
+        self.assertEqual(r, val)
+        self.assertNotIn(7, self.m)
+        self.assertNotIn(7, self.m.map)
+
+
+class SparseListTest(FlaskTestDB):
+
+    def setUp(self):
+        super(SparseListTest, self).setUp()
+        self.s = SparseList()
+
+    def test_create(self):
+        self.assertEqual(self.s.index, 0)
+        self.assertTrue(hasattr(self.s, 'items'))
+
+    def test_append(self):
+        r = self.s.append(7)
+        self.assertEqual(self.s.index, 1)
+        self.assertEqual(r, 0)
+        self.assertEqual(self.s.items[r], 7)
+        r = self.s.append(8)
+        self.assertEqual(self.s.index, 2)
+        self.assertEqual(r, 1)
+        self.assertEqual(self.s.items[r], 8)
+
+    def test_len(self):
+        self.assertEqual(len(self.s), 0)
+        self.s.append(1)
+        self.assertEqual(len(self.s), 1)
+        self.s.append(2)
+        self.assertEqual(len(self.s), 2)
+        self.s.append(2)
+        self.assertEqual(len(self.s), 3)
+
+    def test_getitem(self):
+        self.s.append(7)
+        self.assertEqual(self.s.items[0], 7)
+
+    def test_setitem(self):
+        self.s[8] = 10
+        self.assertEqual(self.s[8], 10)
+
+    def test_delitem(self):
+        self.s[7] = 1
+        self.assertEqual(self.s[7], 1)
+        del self.s[7]
+        self.assertRaises(KeyError, self.s.__getitem__, 7)
+
+    def test_iter(self):
+        self.s[7] = 1
+        self.s[8] = 2
+        self.assertEqual(list(self.s), [1, 2])
+
+    def test_repr(self):
+        self.s[7] = 1
+        self.assertEqual(repr(self.s), repr([1]))
+
+    def test_get(self):
+        self.s[7] = 1
+        self.assertEqual(self.s.get(7), 1)
+        self.assertIs(self.s.get(1), None)
+
+    def test_pop(self):
+        self.s[7] = 1
+        r = self.s.pop(7)
+        self.assertEqual(r, 1)
+        self.assertRaises(KeyError, self.s.__getitem__, 7)
 
 
 class StrongholdTest(FlaskTestDB):
@@ -182,6 +305,18 @@ class StrongholdTest(FlaskTestDB):
         self.assertIn(sq, self.s.squads)
         self.assertEqual(sq.stronghold, self.s)
         self.assertIsNot(sq.stronghold_pos, None)
+
+    def test_form_squad_error(self):
+        start_units = len(self.s.free_units)
+        n_units = 20
+        scients = [self.s.form_scient(E, create_comp(earth=1))
+                   for i in range(n_units)]
+        uids = [s.uid for s in scients]
+        sq = self.s.form_squad(unit_ids=uids, name='sq')
+        # squad should not be filled up
+        self.assertLess(len(sq), n_units)
+        self.assertEqual(len(self.s.free_units) - start_units,
+                         n_units - len(sq))
 
     def test_name_squad(self):
         unit = self.s.form_scient(E, create_comp(earth=10))

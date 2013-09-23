@@ -4,7 +4,6 @@ stronghold.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import transaction
 from collections import OrderedDict
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
@@ -36,6 +35,8 @@ class MappedContainer(Container):
         return self.map[key]
 
     def __setitem__(self, key, unit):
+        if key != unit.uid:
+            raise KeyError('Key must equal unit uid')
         self.append(unit)
 
     def __delitem__(self, key):
@@ -116,7 +117,6 @@ class Stronghold(Persistent):
         self.home = None
         self.farm = None
         self.create_factory(field.element)
-        transaction.commit()
 
     @property
     def location(self):
@@ -162,7 +162,6 @@ class Stronghold(Persistent):
                 raise ValueError("This stronghold already has a farm.")
         else:
             raise ValueError("Unknown kind '{0}'".format(kind))
-        transaction.commit()
         return factory
 
     def form_weapon(self, element, comp, weap_type):
@@ -174,7 +173,6 @@ class Stronghold(Persistent):
         weapon = weapons[weap_type](element, self.silo.get(comp))
         pos = self.weapons.append(weapon)
         weapon.add_to_stronghold(self, pos)
-        transaction.commit()
         return weapon
 
     def imbue_weapon(self, comp, weapon_num):
@@ -182,7 +180,6 @@ class Stronghold(Persistent):
         stone = self.silo.get(comp)
         weapon = self.weapons[weapon_num]
         weapon.imbue(stone)
-        transaction.commit()
         return weapon
 
     def split_weapon(self, comp, weapon_num):
@@ -198,13 +195,11 @@ class Stronghold(Persistent):
         self.free_units.append(scient)
         self.units[scient.uid] = scient
         self.feed_unit(scient.uid)
-        transaction.commit()
         return scient
 
     def name_unit(self, unit_id, name):
         unit = self.units[unit_id]
         unit.name = name
-        transaction.commit()
         return unit
 
     def imbue_unit(self, comp, unit_id):
@@ -214,7 +209,6 @@ class Stronghold(Persistent):
         unit.imbue(stone)
         if unit.container.name != 'stronghold':
             unit.container._update_value()
-        transaction.commit()
         return unit
 
     def unequip_scient(self, unit_id):
@@ -223,7 +217,6 @@ class Stronghold(Persistent):
         weapon = unit.unequip()
         pos = self.weapons.append(weapon)
         weapon.add_to_stronghold(self, pos)
-        transaction.commit()
         return weapon
 
     def equip_scient(self, unit_id, weapon_num):
@@ -234,7 +227,6 @@ class Stronghold(Persistent):
         weapon = self.weapons.pop(weapon_num)
         weapon.remove_from_stronghold()
         scient.equip(weapon)
-        transaction.commit()
         return scient
 
     def form_squad(self, unit_ids=tuple(), name=None):
@@ -249,13 +241,11 @@ class Stronghold(Persistent):
                 self.free_units.append(unit)
         pos = self.squads.append(sq)
         sq.add_to_stronghold(self, pos)
-        transaction.commit()
         return sq
 
     def name_squad(self, squad_num, name):
         squad = self.squads[squad_num]
         squad.name = name
-        transaction.commit()
         return squad
 
     def remove_squad(self, squad_num):
@@ -264,29 +254,24 @@ class Stronghold(Persistent):
         squad = self.squads[squad_num]
         del self.squads[squad_num]
         squad.remove_from_stronghold()
-        transaction.commit()
         return squad
 
     def apply_locs_to_squad(self, squad, list_of_locs):
         """takes a list of locations and appliees them to the units in a
         squad"""
         #TODO loc sanity check. on_grid is a start, but not completely correct.
-        if len(squad) == len(list_of_locs):
-            for n in xrange(len(squad)):
-                squad[n].location = list_of_locs[n]
-                squad[n]._p_changed = 1
-            return transaction.commit()
-        else:
+        if len(squad) != len(list_of_locs):
             raise Exception("The squad and the list of locations must be the "
                             "same length.")
+        for n in xrange(len(squad)):
+            squad[n].location = list_of_locs[n]
+            squad[n]._p_changed = 1
 
     def apply_squad_locs(self, squad_num, list_of_locs):
         return self.apply_locs_to_squad(self.squads[squad_num], list_of_locs)
 
     def set_defender_locs(self, list_of_locs):
         self.defender_locs = list_of_locs
-        self._p_changed = 1
-        return transaction.commit()
 
     def apply_defender_locs(self):
         return self.apply_locs_to_squad(self.defenders, self.defender_locs)
@@ -297,7 +282,6 @@ class Stronghold(Persistent):
         pos = self.squads.append(self.defenders)
         self.defenders.add_to_stronghold(self, pos)
         self.defenders = None
-        return transaction.commit()
 
     def set_defenders(self, squad_num):
         """If defenders is empty set squad as defenders."""
@@ -311,7 +295,6 @@ class Stronghold(Persistent):
         self.defenders = self.squads[squad_num]
         self.defenders.remove_from_stronghold()
         del self.squads[squad_num]
-        return transaction.commit()
 
     def make_defenders(self, element):
         """ TODO -- remove this """
@@ -339,7 +322,6 @@ class Stronghold(Persistent):
         """Add unit to container."""
         #wrapper to keep containers private.
         container.append(self.free_units[unit_id])
-        return transaction.commit()
 
     def add_unit_to_defenders(self, unit_id):
         return self.add_unit_to(self.defenders, unit_id)
@@ -368,7 +350,6 @@ class Stronghold(Persistent):
                                  'stronghold')
             container.remove(self.units[unit_id])
         del self.units[unit_id]
-        return transaction.commit()
 
     def remove_unit_from_defenders(self, unit_id):
         return self.remove_unit_from(self.defenders, unit_id)
@@ -407,8 +388,6 @@ class Stronghold(Persistent):
             self.silo.get(unit.comp)
             self.silo._p_changed = 1
             unit.fed_on = now()
-            unit._p_changed = 1
-            return transaction.commit()
 
         unit = self.units[unit_id]
         lnow = now()

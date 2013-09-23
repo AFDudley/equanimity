@@ -92,10 +92,10 @@ class World(object):
         # they should both be hexagons.
         # TODO (steve) -- generate hexagonal field
         for coord in itertools.product(xrange(x), xrange(y)):
-            f = Field(coord)
-            self.player.fields[coord] = f
+            f = Field(coord, owner=self.player)
             db['fields'][coord] = f
-            transaction.commit()
+            self.player.fields[coord] = f
+            #transaction.commit()
 
     def award_field(self, new_owner, coords):
         """Transfers a field from one owner to another."""

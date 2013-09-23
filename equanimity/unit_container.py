@@ -4,7 +4,6 @@ unit_container.py
 Created by AFD on 2013-03-06.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import transaction
 from persistent import Persistent
 from persistent.list import PersistentList
 import weapons
@@ -34,7 +33,6 @@ class Container(Persistent):
         self._update_value()
         self._set_positions()
         self._update_free_space()
-        transaction.commit()
 
     def value(self):
         return self.val
@@ -86,7 +84,7 @@ class Container(Persistent):
         return self.units[pos]
 
     def __setitem__(self, pos, unit):
-        old = self[pos]
+        old = self.units[pos]
         if self.free_spaces + old.size < unit.size:
             msg = "There is not enough space in this container for this unit"
             raise Exception(msg)
@@ -118,7 +116,6 @@ class Squad(Container):
             self._fill_default_units(element, set_name=(name is None))
         self.stronghold = None
         self.stronghold_pos = None
-        transaction.commit()
 
     def add_to_stronghold(self, stronghold, pos):
         self.stronghold = stronghold

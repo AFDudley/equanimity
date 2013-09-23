@@ -116,6 +116,8 @@ class Grid(Stone):
     here: http://www.redblobgames.com/grids/hexagons/
     """
 
+    _coords_cache = {}
+
     directions = bidict({
         0: 'North',
         1: 'Northeast',
@@ -237,8 +239,11 @@ class Grid(Stone):
         Conceptually, it generates a square grid and discards the corner
         coordinates, leaving a hex map.
         """
-        span = xrange(-self.radius, self.radius + 1)
-        return ifilter(self.in_bounds, product(span, span))
+        if self.radius not in self._coords_cache:
+            span = xrange(-self.radius, self.radius + 1)
+            self._coords_cache[self.radius] = filter(self.in_bounds,
+                                                     product(span, span))
+        return iter(self._coords_cache[self.radius])
 
     def placement_coords(self):
         """ Returns coords for one side of the field """
