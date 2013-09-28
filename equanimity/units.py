@@ -31,6 +31,7 @@ class Unit(Stone):
 
         super(Unit, self).__init__(comp)
         now = datetime.utcnow()
+        self.owner = None
         self.element = element
         self.name = name
         self.location = Hex.null

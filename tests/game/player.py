@@ -1,6 +1,9 @@
 from ..base import FlaskTestDB
+from equanimity.units import Scient
+from equanimity.unit_container import Squad
 from equanimity.player import Player, WorldPlayer
-from equanimity.const import WORLD_UID
+from equanimity.const import WORLD_UID, E
+from ..base import create_comp
 
 
 class PlayerTest(FlaskTestDB):
@@ -16,6 +19,22 @@ class PlayerTest(FlaskTestDB):
     def test_repr(self):
         player = Player('x', 'x', 'x')
         self.assertEqual(str(player), '<Player: 1>')
+
+    def test_squads(self):
+        player = Player('x', 'x', 'x')
+        self.assertIs(player._squads, None)
+        self.assertIs(player.squads, None)
+        s = Scient(E, create_comp(earth=1))
+        sq = Squad(data=[s])
+        player.squads = [sq]
+        self.assertIn(sq, player.squads)
+        self.assertEqual(player.squads, [sq])
+        self.assertEqual(sq.owner, player)
+        self.assertEqual(s.owner, player)
+        # If a unit has a different owner, and we put it in the player's squads
+        # it should raise an Exception
+        s.owner = Player('y', 'y', 'y')
+        self.assertRaises(ValueError, setattr, player, 'squads', [sq])
 
 
 class WorldPlayerTest(FlaskTestDB):

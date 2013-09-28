@@ -12,7 +12,7 @@ from equanimity.stone import Stone
 from equanimity.player import Player
 from equanimity.unit_container import Squad, rand_squad
 from equanimity.battle import (now, Action, Message, ChangeList, BattleChanges,
-                               InitialState, Log, State, Game)
+                               InitialState, Log, State, Game, BattleError)
 
 
 class ActionTest(TestCase):
@@ -20,7 +20,7 @@ class ActionTest(TestCase):
     def test_create(self):
         a = Action()
         self.assertGreaterEqual(now(), a['when'])
-        self.assertIs(a['target'], None)
+        self.assertTrue(a['target'].is_null())
         self.assertEqual(a['type'], 'pass')
         self.assertIs(a['unit'], None)
         self.assertIs(a['num'], None)
@@ -410,7 +410,7 @@ class BattleProcessActionTest(GameTestBase):
     def unit(self, num):
         return self.game.action_queue.get_unit_for_action(num)
 
-    def assertActionResult(self, result, num, type, msg=None, target=None,
+    def assertActionResult(self, result, num, type, msg=None, target=Hex.null,
                            unit=None):
         if num % 4:
             self.assertNotIn('applied', result)
@@ -443,11 +443,9 @@ class BattleProcessActionTest(GameTestBase):
         act = Action(type='move', unit=self.unit(2))
         self.game.state = State(self.game, num=2)
         self.game.log['actions'] = [Action(unit=self.unit(4))]
-        self.assertRaises(ValueError, self.game.process_action, act)
-        try:
-            self.game.process_action(act)
-        except ValueError as e:
-            self.assertIn('Unit from the previous action', str(e))
+        self.assertExceptionContains(BattleError,
+                                     'Unit from the previous action',
+                                     self.game.process_action, act)
 
     def test_first_movement(self):
         # do a legitimate movement, on a first action
@@ -486,17 +484,15 @@ class BattleProcessActionTest(GameTestBase):
         act = Action(type='move', unit=d)
         self.game.state = State(self.game, num=2)
         self.game.log['actions'] = [Action(unit=d, type='move')]
-        self.assertRaises(ValueError, self.game.process_action, act)
-        try:
-            self.game.process_action(act)
-        except ValueError as e:
-            self.assertIn('Second action in ply must be', str(e))
+        self.assertExceptionContains(BattleError,
+                                     'Second action in ply must be',
+                                     self.game.process_action, act)
 
     def test_unknown(self):
         # cause an Exception by doing an unknown action
         act = Action(type='xxx')
         self.game.state = State(self.game, num=1)
-        self.assertRaises(ValueError, self.game.process_action, act)
+        self.assertRaises(BattleError, self.game.process_action, act)
 
     def test_first_attack(self):
         d = self.unit(1)
@@ -538,11 +534,9 @@ class BattleProcessActionTest(GameTestBase):
         act = Action(type='attack', unit=d)
         self.game.state = State(self.game, num=2)
         self.game.log['actions'] = [Action(unit=d, type='attack')]
-        self.assertRaises(ValueError, self.game.process_action, act)
-        try:
-            self.game.process_action(act)
-        except ValueError as e:
-            self.assertIn('Second action in ply must be', str(e))
+        self.assertExceptionContains(BattleError,
+                                     'Second action in ply must be',
+                                     self.game.process_action, act)
 
     def test_final_action(self):
         self.game.apply_queued = MagicMock(side_effect=self.game.apply_queued)
@@ -557,11 +551,8 @@ class BattleProcessActionTest(GameTestBase):
     def test_unexpected_unit(self):
         d = self.unit(6)
         act = Action(type='pass', unit=d)
-        self.assertRaises(ValueError, self.game.process_action, act)
-        try:
-            self.game.process_action(act)
-        except ValueError as e:
-            self.assertIn('not the expected unit', str(e))
+        self.assertExceptionContains(BattleError, 'not the expected unit',
+                                     self.game.process_action, act)
 
 
 class ActionQueueTest(GameTestBase):

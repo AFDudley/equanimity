@@ -16,6 +16,7 @@ from stronghold import Stronghold
 from clock import Clock
 from unit_container import Squad
 from units import Scient
+from server import db
 
 
 class Field(persistent.Persistent):
@@ -55,6 +56,14 @@ class Field(persistent.Persistent):
         self.world_actions = ['move_squad']
         self.actions = (self.battle_actions + self.stronghold_actions +
                         self.world_actions)
+
+    @classmethod
+    def get(self, loc):
+        return db['fields'].get(tuple(loc))
+
+    @property
+    def in_battle(self):
+        return (self.game is not None and not self.game.state['game_over'])
 
     def place_scient(self, unit, location):
         if unit.__class__ != Scient:

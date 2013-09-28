@@ -6,7 +6,7 @@ from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager
 from flask.ext.jsonrpc import JSONRPC
-from flask import Flask, g
+from flask import Flask, g, Blueprint
 
 
 """ ZODB """
@@ -42,10 +42,13 @@ def register_blueprints(app):
     from views.frontend import frontend
     from views.users import users
     from views.stronghold import stronghold
+    from views.battle import battle
     app.register_blueprint(frontend)
     app.register_blueprint(users)
-    rpc.register_blueprint(stronghold)
     app.register_blueprint(stronghold)
+    app.register_blueprint(battle)
+    rpc_bp = Blueprint('rpc', __name__, url_prefix='/api')
+    rpc.register_blueprint(rpc_bp)
 
 
 def load_config(app, subdomain, config=None):

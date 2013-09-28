@@ -51,10 +51,14 @@ class Player(Persistent, UserMixin):
 
     @squads.setter
     def squads(self, squads):
-        self._squads = squads
         if squads is not None:
             for sq in squads:
+                for unit in sq:
+                    if unit.owner is not None and unit.owner != self:
+                        raise ValueError('Unit in squad has invalid owner')
+                    unit.owner = self
                 sq.owner = self
+        self._squads = squads
 
     @property
     def name(self):

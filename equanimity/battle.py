@@ -16,18 +16,21 @@ from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
 from battlefield import Battlefield
 from units import Unit
+from grid import Hex
 
 
 def now():
     return str(datetime.utcnow())
 
 
+class BattleError(Exception):
+    pass
+
+
 class Action(PersistentMapping):
-    #'when' needs more thought.
-    #type needs to != 'pass'
     """In a two player game, two actions from a single player make a ply and
        a ply from each player makes a turn. """
-    def __init__(self, unit=None, type='pass', target=None, when=None,
+    def __init__(self, unit=None, type='pass', target=Hex.null, when=None,
                  num=None):
         if when is None:
             when = now()
@@ -106,7 +109,6 @@ class Log(PersistentMapping):
                     owner = player
         return owner
 
-    #LAZE BEAMS!!!!
     def get_owners(self):
         """mapping of unit number to player/owner."""
         owners = PersistentMapping()
@@ -287,14 +289,11 @@ class Game(Persistent):
         return text
 
     def process_action(self, action):
-        # TODO (steve) -- check that 1st, 2nd plies are from attacker,
-        # and that 3rd, 4th plies are from defender
-        # and that action['unit'] matches the action queue's order
-
         """Processes actions sent from game clients."""
         # Needs more logic for handling turns/plies.
         action['when'] = now()
-        num = action['num'] = self.state['num']
+        num = self.state['num']
+        action['num'] = num
         try:
             curr_unit = action['unit'].uid
         except AttributeError:
@@ -311,7 +310,7 @@ class Game(Persistent):
         expected_unit = self.action_queue.get_unit_for_action(num).uid
         if curr_unit is not None and curr_unit != expected_unit:
             msg = 'battle: unit {0} is not the expected unit {1}'
-            raise ValueError(msg.format(curr_unit, expected_unit))
+            raise BattleError(msg.format(curr_unit, expected_unit))
 
         if action['type'] == 'timed_out':
             text = [["Failed to act."]]
@@ -330,16 +329,16 @@ class Game(Persistent):
             """
 
         elif not num % 2 and prev_unit is not None and prev_unit != curr_unit:
-            raise ValueError("battle: Unit from the previous action must be "
-                             "used this action.")
+            raise BattleError("Unit from the previous action must be used "
+                              "this action.")
 
         elif action['type'] == 'move':  # TODO fix move in battlefield.
             # If it's the second action in the ply and
             # it's different from this one.
             if not num % 2:  # if it's the second action in the ply.
                 if prev_act == 'move':
-                    raise ValueError("battle: Second action in ply must be "
-                                     "different from first.")
+                    raise BattleError("Second action in ply must be different "
+                                      "from first.")
                 loc = action['unit'].location
                 text = self.battlefield.move_scient(loc, action['target'])
                 if text:
@@ -355,15 +354,15 @@ class Game(Persistent):
             # it's different from this one.
             if not num % 2:  # if it's the second action in the ply.
                 if prev_act == 'attack':
-                    raise ValueError("battle: Second action in ply must be "
-                                     "different from first.")
+                    raise BattleError("Second action in ply must be different "
+                                      "from first.")
                 text = self.battlefield.attack(action['unit'],
                                                action['target'])
             else:
                 text = self.battlefield.attack(action['unit'],
                                                action['target'])
         else:
-            raise ValueError("battle: Action is of unknown type")
+            raise BattleError("Action is of unknown type")
 
         self.log['actions'].append(self.map_action(**action))
         self.log['messages'].append(Message(num, self.map_result(text)))
