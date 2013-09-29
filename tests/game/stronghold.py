@@ -1,9 +1,8 @@
 from equanimity.grid import Hex
-from equanimity.world import World
 from equanimity.const import E
 from equanimity.stronghold import Stronghold, MappedContainer, SparseList
 from server.utils import AttributeDict
-from ..base import FlaskTestDB, create_comp
+from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
 
 class MappedContainerTest(FlaskTestDB):
@@ -128,12 +127,11 @@ class SparseListTest(FlaskTestDB):
         self.assertRaises(KeyError, self.s.__getitem__, 7)
 
 
-class StrongholdTest(FlaskTestDB):
+class StrongholdTest(FlaskTestDBWorld):
 
     def setUp(self):
         super(StrongholdTest, self).setUp()
-        self.w = World()
-        self.w.create()
+        self.w = self.world
         self.f = self.db['fields'][Hex(0, 0)]
         self.s = self.f.stronghold
         self.s.silo.imbue(create_comp(earth=128))

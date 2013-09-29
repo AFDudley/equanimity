@@ -9,3 +9,4 @@ venv
 virtualenv
 .coverage
 zeo_dev.conf
+.cached_zodb

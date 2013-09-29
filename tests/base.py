@@ -1,5 +1,6 @@
 import os
 import transaction
+import pickle
 from itertools import izip, tee
 from unittest import TestCase
 from mock import Mock
@@ -187,6 +188,8 @@ class FlaskTest(TestCase):
 
 class FlaskTestDB(FlaskTest):
 
+    _cached_db_name = '.cached_zodb'
+
     def setUp(self, do_init_db=True):
         super(FlaskTestDB, self).setUp()
         transaction.abort()
@@ -199,11 +202,35 @@ class FlaskTestDB(FlaskTest):
         transaction.abort()
         super(FlaskTestDB, self).tearDown()
 
+    def _load_cached_db(self):
+        try:
+            f = open(self._cached_db_name)
+        except IOError:
+            return False
+        db = pickle.load(f)
+        if 'version' not in db:
+            return False
+        self.db.update(db)
+        f.close()
+        transaction.commit()
+        return True
+
+    def _cache_db(self):
+        with open(self._cached_db_name, 'w') as f:
+            db = dict(**self.db)
+            pickle.dump(db, f)
+
 
 class FlaskTestDBWorld(FlaskTestDB):
 
     def setUp(self):
         super(FlaskTestDBWorld, self).setUp(do_init_db=False)
         self.world = World()
-        self.world.create('1', 2, 2)
-        transaction.commit()
+        if not self._load_cached_db():
+            print 'creating cached db'
+            self.world.create('1', 2, 2)
+            transaction.commit()
+            self._cache_db()
+        else:
+            print 'loaded cached db'
+        self.assertFalse(True)
