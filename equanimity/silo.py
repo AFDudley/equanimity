@@ -84,16 +84,7 @@ class Silo(Stone):
                    "of {0}")
             raise ValueError(msg.format(comp))
         else:
-            # these will fail if comp > limit
-            try:
-                s = self.split(comp)
-                transaction.commit()
-                return s
-            except Exception:
-                raise
-                #raise Exception("Transmute not implemented.")
-                """s = self.transmute(comp)
-                return s"""
+            return self.split(comp)
 
     def imbue_list(self, los):
         """surplus is destroyed."""

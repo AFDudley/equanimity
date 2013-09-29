@@ -59,16 +59,17 @@ class World(object):
                 del db[key]
         for player in db.get('players', {}).itervalues():
             player.reset_world_state()
-        transaction.commit()
 
-    def create(self, version=0.0, x=2, y=2):
+    #@profile
+    def create(self, version=0.0, x=2, y=2, init_db_reset=True):
         # If the world version is the same, do nothing.
-        if 'version' not in db or db['version'] != version:
+        if db.get('version') != version:
             self.erase()
-            self._setup(version, x, y)
+            self._setup(version, x, y, init_db_reset=init_db_reset)
             self._make_fields(x, y)
+            #transaction.commit()
 
-    def _setup(self, version, x, y):
+    def _setup(self, version, x, y, init_db_reset=True):
         db['day_length'] = 240     # length of game day in seconds.
         db['resign_time'] = 21600  # amount of time in seconds before
                                    # attacker is forced to resign.
@@ -81,10 +82,9 @@ class World(object):
         #fields should be a frozendict
         #http://stackoverflow.com/questions/2703599/what-would-be-a-frozen-dict
         db['fields'] = persistent.mapping.PersistentMapping()
-        init_db(reset=True)
+        init_db(reset=init_db_reset)
         self.player = db['players'].setdefault(WORLD_UID, WorldPlayer())
         self.player.persist()
-        transaction.commit()
 
     def _make_fields(self, x, y):
         """creates all fields used in a game."""
@@ -95,7 +95,6 @@ class World(object):
             f = Field(coord, owner=self.player)
             db['fields'][coord] = f
             self.player.fields[coord] = f
-            #transaction.commit()
 
     def award_field(self, new_owner, coords):
         """Transfers a field from one owner to another."""

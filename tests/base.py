@@ -195,7 +195,7 @@ class FlaskTestDB(FlaskTest):
         transaction.abort()
         if do_init_db:
             init_db(reset=True)
-        transaction.commit()
+            transaction.commit()
         self.db = db
 
     def tearDown(self):
@@ -223,8 +223,11 @@ class FlaskTestDB(FlaskTest):
 
 class FlaskTestDBWorld(FlaskTestDB):
 
-    def setUp(self):
-        super(FlaskTestDBWorld, self).setUp(do_init_db=False)
+    def setUp(self, create_world=True):
+        super(FlaskTestDBWorld, self).setUp(do_init_db=(not create_world))
+        if create_world:
+            self.create_world()
+
+    def create_world(self, version='1', x=2, y=2, init_db_reset=False):
         self.world = World()
-        self.world.create('1', 2, 2)
-        transaction.commit()
+        self.world.create(version, x, y, init_db_reset=init_db_reset)

@@ -21,6 +21,7 @@ from server import db
 
 class Field(persistent.Persistent):
     """Player owned field logic."""
+
     def __init__(self, world_coord, owner=None, grid=None, ply_time=240):
         self.locked = False
         self.world_coord = world_coord
