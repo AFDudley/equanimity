@@ -226,11 +226,5 @@ class FlaskTestDBWorld(FlaskTestDB):
     def setUp(self):
         super(FlaskTestDBWorld, self).setUp(do_init_db=False)
         self.world = World()
-        if not self._load_cached_db():
-            print 'creating cached db'
-            self.world.create('1', 2, 2)
-            transaction.commit()
-            self._cache_db()
-        else:
-            print 'loaded cached db'
-        self.assertFalse(True)
+        self.world.create('1', 2, 2)
+        transaction.commit()
