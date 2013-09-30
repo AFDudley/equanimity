@@ -17,10 +17,11 @@ from persistent.list import PersistentList
 from battlefield import Battlefield
 from units import Unit
 from grid import Hex
+from const import PLY_TIME
 
 
 def now():
-    return str(datetime.utcnow())
+    return datetime.utcnow()
 
 
 class BattleError(Exception):
@@ -79,8 +80,8 @@ class Log(PersistentMapping):
         self['end_time'] = None
         self['init_locs'] = None
         self['messages'] = PersistentList()
-        self['owners'] = None
         self['start_time'] = now()
+        self['owners'] = None
         self['states'] = PersistentList()  # Does this really need to be here?
         self['winner'] = None
         self['world_coords'] = None  # set by battle_server
@@ -188,6 +189,7 @@ class State(PersistentMapping):
 
 
 class Game(Persistent):
+
     """Almost-state-machine that maintains game state."""
     def __init__(self, field, attacker, defender):
         super(Game, self).__init__()
@@ -288,10 +290,30 @@ class Game(Persistent):
             return none
         return text
 
+    def _action_timed_out(self, action):
+        try:
+            prev_action = self.log['actions'][-1]
+        except IndexError:
+            prev_action = None
+        if action['num'] % 2:
+            # First action in ply
+            if prev_action is None:
+                start = self.log['start_time']
+            else:
+                start = prev_action['when']
+        else:
+            # This is the 2nd action in the unit's ply, we need to get
+            # next previous action, when the turn shifted
+            try:
+                start = self.log['actions'][-2]['when']
+            except IndexError:
+                # Fall back on the game start time
+                start = self.log['start_time']
+        return (action['when'] - start > PLY_TIME)
+
     def process_action(self, action):
         """Processes actions sent from game clients."""
         # Needs more logic for handling turns/plies.
-        action['when'] = now()
         num = self.state['num']
         action['num'] = num
         try:
@@ -311,6 +333,9 @@ class Game(Persistent):
         if curr_unit is not None and curr_unit != expected_unit:
             msg = 'battle: unit {0} is not the expected unit {1}'
             raise BattleError(msg.format(curr_unit, expected_unit))
+
+        if self._action_timed_out(action):
+            action['type'] = 'timed_out'
 
         if action['type'] == 'timed_out':
             text = [["Failed to act."]]

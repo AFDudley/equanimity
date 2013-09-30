@@ -5,10 +5,7 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 
-"""
-File containing global constants, tricky to use don't forget about
-.copy()
-"""
+from datetime import timedelta
 
 E = 'Earth'
 F = 'Fire'
@@ -35,3 +32,5 @@ SEX = ('female', 'male')
 OPPSEX = {'female': 'male', 'male': 'female'}
 
 WORLD_UID = 0
+
+PLY_TIME = timedelta(minutes=4)

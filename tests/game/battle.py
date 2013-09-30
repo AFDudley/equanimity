@@ -1,10 +1,11 @@
 import itertools
 from unittest import TestCase
 from mock import MagicMock, patch
+from datetime import timedelta, datetime
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
 from server.utils import AttributeDict
 from equanimity.grid import Grid, Hex
-from equanimity.const import E, F
+from equanimity.const import E, F, PLY_TIME
 from equanimity.weapons import Sword
 from equanimity.units import Scient
 from equanimity.field import Field
@@ -407,6 +408,10 @@ class BattleProcessActionTest(GameTestBase):
     def a(self):
         return self.attacker.squads[0][0]
 
+    @property
+    def past(self):
+        return datetime.utcnow() - PLY_TIME - timedelta(minutes=5)
+
     def unit(self, num):
         return self.game.action_queue.get_unit_for_action(num)
 
@@ -431,8 +436,43 @@ class BattleProcessActionTest(GameTestBase):
         ret = self.game.process_action(act)
         self.assertActionResult(ret, 1, 'pass', 'Action Passed.')
 
-    def test_timing_out(self):
-        # same, but timing out
+    def test_timeout_first_action_start_time(self):
+        self.game.log['start_time'] = self.past
+        act = Action(type='move', unit=self.unit(1))
+        self.game.state = State(self.game, num=1)
+        ret = self.game.process_action(act)
+        self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.',
+                                unit=self.unit(1).uid)
+
+    def test_timeout_second_action_start_time(self):
+        self.game.log['start_time'] = self.past
+        act = Action(type='move', unit=self.unit(2))
+        self.game.state = State(self.game, num=2)
+        self.game.log['actions'] = [Action(unit=self.unit(1))]
+        ret = self.game.process_action(act)
+        self.assertActionResult(ret, 2, 'timed_out', 'Failed to act.',
+                                unit=self.unit(2).uid)
+
+    def test_timeout_first_action_after_other_action(self):
+        act = Action(type='move', unit=self.unit(3))
+        self.game.state = State(self.game, num=3)
+        self.game.log['actions'] = [Action(unit=self.unit(1), when=self.past),
+                                    Action(unit=self.unit(2), when=self.past)]
+        ret = self.game.process_action(act)
+        self.assertActionResult(ret, 3, 'timed_out', 'Failed to act.',
+                                unit=self.unit(3).uid)
+
+    def test_timeout_second_action_after_other_action(self):
+        act = Action(type='move', unit=self.unit(4))
+        self.game.state = State(self.game, num=4)
+        self.game.log['actions'] = [Action(unit=self.unit(1), when=self.past),
+                                    Action(unit=self.unit(2), when=self.past),
+                                    Action(unit=self.unit(3))]
+        ret = self.game.process_action(act)
+        self.assertActionResult(ret, 4, 'timed_out', 'Failed to act.',
+                                unit=self.unit(4).uid)
+
+    def test_timed_out_action(self):
         act = Action(type='timed_out')
         self.game.state = State(self.game, num=1)
         ret = self.game.process_action(act)
