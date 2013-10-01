@@ -339,11 +339,9 @@ class GameTest(GameTestBase):
         self._add_actions(4)
         dfdr = self.defender.squads[0][0]
         self.bf.dmg_queue[dfdr].append([1, 2])
-        self.game.state.check = MagicMock(side_effect=self.game.state.check)
         self.assertFalse(self.game.log['applied'])
         self.game.apply_queued()
         self.assertTrue(self.game.log['applied'])
-        self.game.state.check.assert_called_with(self.game)
 
     def test_get_last_state(self):
         self.game.log['states'] = [1]
@@ -438,9 +436,9 @@ class BattleProcessActionTest(GameTestBase):
 
     def test_timeout_first_action_start_time(self):
         self.game.log['start_time'] = self.past
-        act = Action(type='move', unit=self.unit(1))
+        act = Action(type='move', num=1, unit=self.unit(1))
         self.game.state = State(self.game, num=1)
-        ret = self.game.process_action(act)
+        ret = self.game.process_action(act, check_timedout=False)
         self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.',
                                 unit=self.unit(1).uid)
 
@@ -448,8 +446,8 @@ class BattleProcessActionTest(GameTestBase):
         self.game.log['start_time'] = self.past
         act = Action(type='move', unit=self.unit(2))
         self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(unit=self.unit(1))]
-        ret = self.game.process_action(act)
+        self.game.log['actions'] = [Action(num=1, unit=self.unit(1))]
+        ret = self.game.process_action(act, check_timedout=False)
         self.assertActionResult(ret, 2, 'timed_out', 'Failed to act.',
                                 unit=self.unit(2).uid)
 
@@ -458,17 +456,19 @@ class BattleProcessActionTest(GameTestBase):
         self.game.state = State(self.game, num=3)
         self.game.log['actions'] = [Action(unit=self.unit(1), when=self.past),
                                     Action(unit=self.unit(2), when=self.past)]
-        ret = self.game.process_action(act)
+        ret = self.game.process_action(act, check_timedout=False)
         self.assertActionResult(ret, 3, 'timed_out', 'Failed to act.',
                                 unit=self.unit(3).uid)
 
     def test_timeout_second_action_after_other_action(self):
-        act = Action(type='move', unit=self.unit(4))
+        act = Action(type='move', num=4, unit=self.unit(4))
         self.game.state = State(self.game, num=4)
-        self.game.log['actions'] = [Action(unit=self.unit(1), when=self.past),
-                                    Action(unit=self.unit(2), when=self.past),
-                                    Action(unit=self.unit(3))]
-        ret = self.game.process_action(act)
+        self.game.log['actions'] = [Action(unit=self.unit(1), num=1,
+                                           when=self.past),
+                                    Action(unit=self.unit(2), num=2,
+                                           when=self.past),
+                                    Action(unit=self.unit(3), num=3)]
+        ret = self.game.process_action(act, check_timedout=False)
         self.assertActionResult(ret, 4, 'timed_out', 'Failed to act.',
                                 unit=self.unit(4).uid)
 
@@ -478,11 +478,38 @@ class BattleProcessActionTest(GameTestBase):
         ret = self.game.process_action(act)
         self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.')
 
+    def test_fill_timed_out_actions(self):
+        start = self.game.log['start_time']
+        self.game.log['start_time'] = start - PLY_TIME * 3 - PLY_TIME / 2
+        self.game._fill_timed_out_actions()
+        actions = self.game.log['actions']
+        n = 6
+        self.assertEqual(self.game.state['num'], n + 1)
+        self.assertEqual(len(actions), n)
+        # All numbers should be in sequence
+        for n, act in enumerate(actions):
+            self.assertEqual(n + 1, act['num'])
+            # same ply whens should be equal
+            if n % 2:
+                self.assertEqual(act['when'], actions[n - 1]['when'])
+        # All times should be ascending
+        for i in reversed(range(1, n)):
+            self.assertGreaterEqual(actions[i]['when'],
+                                    actions[i - 1]['when'])
+        # All times should definitely be greater across plies
+        for i in reversed(range(3, n, 2)):
+            self.assertGreater(actions[i]['when'], actions[i - 2]['when'])
+        # Processing an action should work as expected
+        act = Action(type='pass', unit=self.unit(7))
+        ret = self.game.process_action(act)
+        self.assertActionResult(ret, 7, 'pass', 'Action Passed.',
+                                unit=self.unit(7).uid)
+
     def test_using_different_units(self):
         # get a ValueError by using two different units in a row
-        act = Action(type='move', unit=self.unit(2))
+        act = Action(type='move', num=2, unit=self.unit(2))
         self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(unit=self.unit(4))]
+        self.game.log['actions'] = [Action(num=4, unit=self.unit(4))]
         self.assertExceptionContains(BattleError,
                                      'Unit from the previous action',
                                      self.game.process_action, act)
@@ -511,7 +538,7 @@ class BattleProcessActionTest(GameTestBase):
         act = Action(type='move', unit=d, target=loc)
         self.game.state = State(self.game, num=2)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        self.game.log['actions'] = [Action(unit=d, type='pass')]
+        self.game.log['actions'] = [Action(num=2, unit=d, type='pass')]
         ret = self.game.process_action(act)
         self.assertTrue(self.game.log['actions'])
         self.assertTrue(self.game.log['messages'])
@@ -523,7 +550,7 @@ class BattleProcessActionTest(GameTestBase):
         d = self.unit(2)
         act = Action(type='move', unit=d)
         self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(unit=d, type='move')]
+        self.game.log['actions'] = [Action(num=2, unit=d, type='move')]
         self.assertExceptionContains(BattleError,
                                      'Second action in ply must be',
                                      self.game.process_action, act)
@@ -561,10 +588,10 @@ class BattleProcessActionTest(GameTestBase):
         wep = Sword(E, create_comp(earth=128))
         d.equip(wep)
         loc = Hex(0, 1)
-        act = Action(unit=d, type='attack', target=loc)
+        act = Action(unit=d, num=2, type='attack', target=loc)
         self.game.state = State(self.game, num=2)
         self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        self.game.log['actions'] = [Action(unit=d, type='pass')]
+        self.game.log['actions'] = [Action(num=2, unit=d, type='pass')]
         ret = self.game.process_action(act)
         self.game.state.check.assert_called_with(self.game)
         self.assertActionResult(ret, 2, type='attack', unit=d.uid, target=loc)
@@ -573,7 +600,7 @@ class BattleProcessActionTest(GameTestBase):
         d = self.unit(2)
         act = Action(type='attack', unit=d)
         self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(unit=d, type='attack')]
+        self.game.log['actions'] = [Action(unit=d, num=2, type='attack')]
         self.assertExceptionContains(BattleError,
                                      'Second action in ply must be',
                                      self.game.process_action, act)
@@ -581,8 +608,8 @@ class BattleProcessActionTest(GameTestBase):
     def test_final_action(self):
         self.game.apply_queued = MagicMock(side_effect=self.game.apply_queued)
         self.game.state = State(self.game, num=4)
-        self.game.log['actions'] = [Action(unit=self.unit(i + 1), type='pass')
-                                    for i in range(3)]
+        self.game.log['actions'] = [Action(num=i + 1, unit=self.unit(i + 1),
+                                           type='pass') for i in range(3)]
         act = Action(type='pass', unit=self.unit(4))
         ret = self.game.process_action(act)
         self.game.apply_queued.assert_called_with()

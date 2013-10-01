@@ -290,30 +290,59 @@ class Game(Persistent):
             return none
         return text
 
-    def _action_timed_out(self, action):
-        try:
-            prev_action = self.log['actions'][-1]
-        except IndexError:
-            prev_action = None
-        if action['num'] % 2:
-            # First action in ply
-            if prev_action is None:
-                start = self.log['start_time']
-            else:
-                start = prev_action['when']
-        else:
-            # This is the 2nd action in the unit's ply, we need to get
-            # next previous action, when the turn shifted
+    def _get_last_terminating_action(self, current_num=None):
+        # Returns the last recorded action that was the final one in a ply
+        # Don't provide a current num to retrieve the last tip
+        if current_num is None:
             try:
-                start = self.log['actions'][-2]['when']
+                act = self.log['actions'][-1]
             except IndexError:
-                # Fall back on the game start time
-                start = self.log['start_time']
+                return
+            else:
+                if act['num'] % 2:
+                    term_action = -2
+                else:
+                    term_action = -1
+        elif current_num % 2:
+            term_action = -1
+        else:
+            term_action = -2
+        try:
+            return self.log['actions'][term_action]
+        except IndexError:
+            return
+
+    def _get_last_terminating_action_time(self, current_num=None):
+        act = self._get_last_terminating_action(current_num=current_num)
+        if act is None:
+            return self.log['start_time']
+        else:
+            return act['when']
+
+    def _fill_timed_out_actions(self):
+        # Fills the action log with any needed timed_out actions since our
+        # last check. It does not time out the current action we are checking
+        when = self._get_last_terminating_action_time()
+        # Compute how many timed out plies there should be
+        diff = now() - when
+        missed_plies = diff.seconds / PLY_TIME.seconds
+        # Fill in 2 actions per missing ply
+        for i in xrange(missed_plies):
+            for j in xrange(2):
+                then = when + (i + 1) * PLY_TIME
+                act = Action(type='timed_out', when=then)
+                self.process_action(act, check_timedout=False)
+
+    def _action_timed_out(self, action):
+        start = self._get_last_terminating_action_time(action['num'])
+        print action['when'], start
+        print (action['when'] - start).seconds, PLY_TIME.seconds
         return (action['when'] - start > PLY_TIME)
 
-    def process_action(self, action):
+    def process_action(self, action, check_timedout=True):
         """Processes actions sent from game clients."""
-        # Needs more logic for handling turns/plies.
+        if check_timedout:
+            self._fill_timed_out_actions()
         num = self.state['num']
         action['num'] = num
         try:
@@ -325,17 +354,18 @@ class Game(Persistent):
         except (KeyError, IndexError, AttributeError):
             prev_unit = None
         try:
-            prev_act = self.log['actions'][-1]['type']
+            prev_act = self.log['actions'][-1]
         except (KeyError, IndexError):
             prev_act = None
 
-        expected_unit = self.action_queue.get_unit_for_action(num).uid
-        if curr_unit is not None and curr_unit != expected_unit:
-            msg = 'battle: unit {0} is not the expected unit {1}'
-            raise BattleError(msg.format(curr_unit, expected_unit))
-
-        if self._action_timed_out(action):
+        if action['type'] != 'timed_out' and self._action_timed_out(action):
             action['type'] = 'timed_out'
+
+        if curr_unit is not None:
+            expected_unit = self.action_queue.get_unit_for_action(num).uid
+            if curr_unit != expected_unit:
+                msg = 'battle: unit {0} is not the expected unit {1}'
+                raise BattleError(msg.format(curr_unit, expected_unit))
 
         if action['type'] == 'timed_out':
             text = [["Failed to act."]]
@@ -361,7 +391,7 @@ class Game(Persistent):
             # If it's the second action in the ply and
             # it's different from this one.
             if not num % 2:  # if it's the second action in the ply.
-                if prev_act == 'move':
+                if prev_act['type'] == 'move':
                     raise BattleError("Second action in ply must be different "
                                       "from first.")
                 loc = action['unit'].location
@@ -378,7 +408,7 @@ class Game(Persistent):
             # If it's the second action in the ply and
             # it's different from this one.
             if not num % 2:  # if it's the second action in the ply.
-                if prev_act == 'attack':
+                if prev_act['type'] == 'attack':
                     raise BattleError("Second action in ply must be different "
                                       "from first.")
                 text = self.battlefield.attack(action['unit'],
@@ -392,10 +422,9 @@ class Game(Persistent):
         self.log['actions'].append(self.map_action(**action))
         self.log['messages'].append(Message(num, self.map_result(text)))
 
+        self.state.check(self)
         if not num % 4:
             self.apply_queued()
-        else:
-            self.state.check(self)
 
         transaction.commit()
 
@@ -410,7 +439,6 @@ class Game(Persistent):
         text = self.battlefield.apply_queued()
         self.log['applied'].append(Message(self.state['num'],
                                            self.map_result(text)))
-        self.state.check(self)
 
     def get_last_state(self):
         """Returns the last state in the log."""
