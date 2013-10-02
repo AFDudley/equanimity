@@ -331,7 +331,7 @@ class Game(Persistent):
             for j in xrange(2):
                 then = when + (i + 1) * PLY_TIME
                 act = Action(type='timed_out', when=then)
-                self.process_action(act, check_timedout=False)
+                self._process_action(act)
 
     def _action_timed_out(self, action):
         start = self._get_last_terminating_action_time(action['num'])
@@ -339,10 +339,7 @@ class Game(Persistent):
         print (action['when'] - start).seconds, PLY_TIME.seconds
         return (action['when'] - start > PLY_TIME)
 
-    def process_action(self, action, check_timedout=True):
-        """Processes actions sent from game clients."""
-        if check_timedout:
-            self._fill_timed_out_actions()
+    def _process_action(self, action):
         num = self.state['num']
         action['num'] = num
         try:
@@ -433,6 +430,11 @@ class Game(Persistent):
         if not num % 4:
             result['applied'] = dict(self.log['applied'][-1])
         return result
+
+    def process_action(self, action):
+        """Processes actions sent from game clients."""
+        self._fill_timed_out_actions()
+        return self._process_action(action)
 
     def apply_queued(self):
         """queued damage is applied to units from this state"""

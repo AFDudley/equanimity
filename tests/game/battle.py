@@ -438,7 +438,7 @@ class BattleProcessActionTest(GameTestBase):
         self.game.log['start_time'] = self.past
         act = Action(type='move', num=1, unit=self.unit(1))
         self.game.state = State(self.game, num=1)
-        ret = self.game.process_action(act, check_timedout=False)
+        ret = self.game._process_action(act)
         self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.',
                                 unit=self.unit(1).uid)
 
@@ -447,7 +447,7 @@ class BattleProcessActionTest(GameTestBase):
         act = Action(type='move', unit=self.unit(2))
         self.game.state = State(self.game, num=2)
         self.game.log['actions'] = [Action(num=1, unit=self.unit(1))]
-        ret = self.game.process_action(act, check_timedout=False)
+        ret = self.game._process_action(act)
         self.assertActionResult(ret, 2, 'timed_out', 'Failed to act.',
                                 unit=self.unit(2).uid)
 
@@ -456,7 +456,7 @@ class BattleProcessActionTest(GameTestBase):
         self.game.state = State(self.game, num=3)
         self.game.log['actions'] = [Action(unit=self.unit(1), when=self.past),
                                     Action(unit=self.unit(2), when=self.past)]
-        ret = self.game.process_action(act, check_timedout=False)
+        ret = self.game._process_action(act)
         self.assertActionResult(ret, 3, 'timed_out', 'Failed to act.',
                                 unit=self.unit(3).uid)
 
@@ -468,7 +468,7 @@ class BattleProcessActionTest(GameTestBase):
                                     Action(unit=self.unit(2), num=2,
                                            when=self.past),
                                     Action(unit=self.unit(3), num=3)]
-        ret = self.game.process_action(act, check_timedout=False)
+        ret = self.game._process_action(act)
         self.assertActionResult(ret, 4, 'timed_out', 'Failed to act.',
                                 unit=self.unit(4).uid)
 
