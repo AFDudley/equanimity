@@ -23,7 +23,7 @@ class Composition(dict):
         for e in ELEMENTS:
             self[e] = value
         if _value is not None:
-            self._sanity_check()
+            self.sanity_check()
 
     def orth(self, element):
         return [self[k] for k in ORTH[element]]
@@ -70,7 +70,7 @@ class Composition(dict):
         c = cls()
         for e, v in zip(ELEMENTS, [earth, fire, ice, wind]):
             c[e] = v
-        c._sanity_check()
+        c.sanity_check()
         return c
 
     @classmethod
@@ -81,7 +81,7 @@ class Composition(dict):
             raise ValueError('Missing or excessive elements: {0}'.format(tup))
         for e, v in zip(ELEMENTS, tup):
             c[e] = v
-        c._sanity_check()
+        c.sanity_check()
         return c
 
     @classmethod
@@ -92,10 +92,10 @@ class Composition(dict):
             raise ValueError('Invalid dict: {0}'.format(d))
         c = cls()
         c.update(d)
-        c._sanity_check()
+        c.sanity_check()
         return c
 
-    def _sanity_check(self):
+    def sanity_check(self):
         for e in ELEMENTS:
             if self[e] < 0 or self[e] > 255:
                 raise ValueError('Element {0} is {1}'.format(e, self[e]))
@@ -164,6 +164,12 @@ class Stone(Persistent, Mapping):
             s[e] = self[e] // 2
             self[e] -= s[e]
         return s
+
+    def sanity_check(self):
+        for e in ELEMENTS:
+            if self.comp[e] < 0 or self.comp[e] > self.limits[e]:
+                return False
+        return True
 
     """ TODO (steve) -- merge stone & comp ? """
 
