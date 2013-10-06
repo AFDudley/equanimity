@@ -1,6 +1,5 @@
-import logilab.constraint as constraint
-from logilab.constraint import *
-from equanimity.const import ORTH, OPP, E, I, F, W, ELEMENTS
+import logilab.constraint as lc
+from equanimity.const import ORTH, OPP, E, F, I, W, ELEMENTS
 from copy import copy # tired.
 
 class LP_Solver(object):
@@ -16,7 +15,8 @@ class LP_Solver(object):
         self.solution = None
     
     def prepare_comps(self):
-        """Does simple subtraction and removes zeroed keys to make generating solver easier"""
+        """Does simple subtraction and removes zeroed keys to make generating 
+        solver easier"""
         #Simple subtraction
         for k in self.key:
             if self.need[k] < self.silo[k]:
@@ -67,8 +67,9 @@ class LP_Solver(object):
         constraints = []
         for ele in self.subs.keys():
             sup = 'silo' + ele
-            constraints.append(fd.make_expression((sup,), "%s == %s"%(sup,self.silo[ele[-1]])))
-            constraints.append(fd.make_expression((sup, ) +
+            constraints.append(lc.fd.make_expression((sup,),
+            "%s == %s"%(sup,self.silo[ele[-1]])))
+            constraints.append(lc.fd.make_expression((sup, ) +
             tuple(self.subs[ele]), "%s >= %s"%(sup,' + '.join(self.subs[ele]))))
         
         # Create needN constraints
@@ -94,12 +95,15 @@ class LP_Solver(object):
                     new_vars.append(opp)
                     str_thing += ['(' + opp + '/4)']
                 # Create needN == self.need[N] constraint
-                constraints.append(fd.make_expression((v,), "%s == %s"%(v,self.need[v[-1]])))
+                constraints.append(lc.fd.make_expression((v,),
+                "%s == %s"%(v,self.need[v[-1]])))
                 # Create needN == siloQN + siloXN + siloYN + siloZN constraint
                 if len(str_thing) > 1:
-                    constraints.append(fd.make_expression((v, ) + tuple(new_vars), "%s == %s"%(v,' + '.join(str_thing))))
+                    constraints.append(lc.fd.make_expression((v, ) +
+                    tuple(new_vars), "%s == %s"%(v,' + '.join(str_thing))))
                 elif len(str_thing) == 1:
-                    constraints.append(fd.make_expression((v, ) + tuple(new_vars), "%s == %s"%(v,str_thing[0])))
+                    constraints.append(lc.fd.make_expression((v, ) +
+                    tuple(new_vars), "%s == %s"%(v,str_thing[0])))
         #wee bit of optimization.
         constraints.sort(key = lambda c: len(c.formula), reverse=True)
         return constraints
@@ -115,17 +119,16 @@ class LP_Solver(object):
                 else:
                     m = -2
                     #rng = range(0, silo[v[-2]]+1)
-                #self.domains[v] = fd.FiniteDomain(rng)
-                domains[v] = fd.FiniteDomain(range(0, self.silo[v[m]]+1))
+                #self.domains[v] = lc.fd.FiniteDomain(rng)
+                domains[v] = lc.fd.FiniteDomain(range(0, self.silo[v[m]]+1))
             else:
-                domains[v] = fd.FiniteDomain(set([self.need[v[-1]],]))
+                domains[v] = lc.fd.FiniteDomain(set([self.need[v[-1]],]))
         return domains
     def solve(self):
-        r = Repository(self.variables, self.domains, self.constraints)
-        self.solution = Solver().solve_one(r, verbose=0)
-        #self.solution = Solver().solve(r, verbose=1)
+        r = lc.Repository(self.variables, self.domains, self.constraints)
+        self.solution = lc.Solver().solve_one(r, verbose=0)
+        #self.solution = lc.Solver().solve(r, verbose=1)
 
-        
 silo = {'E': 255, 'F': 0, 'I': 0, 'W': 255}
 need = {'E': 0, 'F':60, 'I': 60, 'W': 0}
 print "given silo: %s"%silo
