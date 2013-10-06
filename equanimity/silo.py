@@ -7,7 +7,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 import transaction
 
 from stone import Stone, Composition
-from const import ELEMENTS, ORTH, OPP
+from transmuter import Transmuter
 
 
 class Silo(Stone):
@@ -24,67 +24,31 @@ class Silo(Stone):
         transaction.commit()
 
     def transmute(self, comp):
-        """attempts to transmute existing points into Stone of equested comp.
+        """attempts to transmute existing points into Stone of requested comp.
         """
-        #BROKEN. whoops this is an actual math problem.
-        #2 to 1 for orth elements
-        #4 to 1 for opp elements (which is the same as doing orth twice :)
-        negcomp = {"Earth": 0, "Fire": 0, "Ice": 0, "Wind": 0}
-        for element in ELEMENTS:
-            neg = self.comp[element] - comp[element]
-            if neg < 0:
-                negcomp[element] += neg
-            else:
-                del negcomp[element]
-        if len(negcomp):
-            for element in ELEMENTS:
-                neg = self.comp[element] - comp[element]
-                print "element: %s neg: %s" % (element, neg)
-                if neg < 0:
-                    cost = 2 * abs(neg)  # the abs is for clarity.
-                    orthsum = sum([self.comp[x] for x in ORTH[element]])
-                    remainder = orthsum - cost
-                    print ("element: {0} cost: {1} orthsum: {2} remainder: "
-                           "{3}").format(element, cost, orthsum, remainder)
-                    if remainder <= 0:  # then we take from OPP
-                        new_cost = 2 * abs(remainder)
-                        if new_cost > self.comp[OPP[element]]:
-                            raise Exception("There are not enough points to "
-                                            "complete the transmutation.")
-                        else:
-                            print "new cost %s" % new_cost
-                            self.comp[element] = 0
-                            self.comp[ORTH[element][0]] = 0
-                            self.comp[ORTH[element][1]] = 0
-                            #self.comp[OPP[element]] -= new_cost
-                    else:
-                        new_remainder = self.comp[ORTH[element][0]] - cost
-                        print "new_remainder: %s" % new_remainder
-                        if new_remainder > 0:
-                            self.comp[element] = 0
-                            self.comp[ORTH[element][0]] -= cost
-                        else:
-                            self.comp[element] = 0
-                            self.comp[ORTH[element][0]] = 0
-                            self.comp[ORTH[element][1]] -= new_remainder
-                #s = Stone()
-                #s.limit.update(comp)
-                #s.comp = comp #nasty hack for "Big" stones.
-                transaction.commit()
-                return Stone(comp)
-        else:
-            raise Exception("Do not call transmute directly, call get.")
+        self.split(Transmuter(self.comp, comp).get_split())
+        transaction.commit()
+        return Stone(comp)
 
     def get(self, comp):
         """Attempts to split the requsted stone,
         attempts transmuation if split fails."""
+        #WARNING: Transmutation checks are incomplete/suboptimal.
         comp = Composition.create(comp)
-        if sum(comp.values()) > self.value():
+        if (sum(comp.values()) * 4) > self.value():
             msg = ("There are not enough points in the silo to create a stone "
                    "of {0}")
             raise ValueError(msg.format(comp))
         else:
-            return self.split(comp)
+            can_split = True
+            for k in self.keys():
+                if self[k] < comp[k]:
+                    can_split = False
+            if can_split:
+                return self.split(comp)
+            else:
+                self.split(self.transmute(comp))
+                return comp
 
     def imbue_list(self, los):
         """surplus is destroyed."""
