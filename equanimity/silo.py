@@ -6,7 +6,6 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 
 from stone import Stone, Composition
-from const import ELEMENTS
 from transmuter import Transmuter
 
 

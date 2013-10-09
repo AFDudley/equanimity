@@ -21,3 +21,5 @@ coverage    # code coverage
 mock        # test mocks
 voluptuous  # json schema checking
 disabledoc  # disables docstrings replacing test names in nose output
+
+logilab-constraint
