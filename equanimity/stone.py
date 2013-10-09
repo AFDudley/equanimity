@@ -144,18 +144,14 @@ class Stone(Persistent, Mapping):
 
     def split(self, comp):
         """subtracts comp from self, returns new stone"""
-        if sum(comp.values()) > self.value():
-            # > instead of >= for the silo case.
-            raise ValueError("Sum of comp must be less than value of stone.")
-        else:
-            s = Stone()
-            for e in ELEMENTS:
-                if comp[e] > self.comp[e]:
-                    raise ValueError("comp[{0}] cannot be greater than "
-                                     "stone[{1}].".format(e, e))
-                else:
-                    self.comp[e] -= comp[e]
-                    s[e] = comp[e]
+        s = Stone()
+        for e in ELEMENTS:
+            if comp[e] > self.comp[e]:
+                raise ValueError("comp[{0}] cannot be greater than "
+                                 "stone[{1}].".format(e, e))
+            else:
+                self.comp[e] -= comp[e]
+                s[e] = comp[e]
         return s
 
     def extract_award(self):
