@@ -34,3 +34,5 @@ OPPSEX = {'female': 'male', 'male': 'female'}
 WORLD_UID = 0
 
 PLY_TIME = timedelta(minutes=4)
+
+LETTERS = {E[0]: E, F[0]: F, I[0]: I, W[0]: W}

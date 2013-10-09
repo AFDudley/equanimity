@@ -100,6 +100,9 @@ class Composition(dict):
             if self[e] < 0 or self[e] > 255:
                 raise ValueError('Element {0} is {1}'.format(e, self[e]))
 
+    def value(self):
+        return sum(self.values())
+
     def __repr__(self):
         s = ['{0}: {1}'.format(e, self[e]) for e in ELEMENTS]
         return ', '.join(s)
@@ -188,7 +191,7 @@ class Stone(Persistent, Mapping):
         return tup
 
     def value(self):
-        return sum(self.comp.values())
+        return self.comp.value()
 
     def __repr__(self):
         return '<Stone: {comp}>'.format(comp=self.comp)
