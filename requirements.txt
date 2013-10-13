@@ -12,7 +12,7 @@ flask-ZODB
 bidict
 flask-jsonrpc
 requests
-wsgi
+uwsgi
 
 # Test modules:
 flake8      # static analysis and pep8 conformance
