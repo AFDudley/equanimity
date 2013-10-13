@@ -95,6 +95,6 @@ class Test(Command):
 
 setup(name='equanimity',
       platforms='any',
-      py_modules=['equanimity', 'config', 'server'],
+      packages=['server', 'equanimity', 'config'],
       install_requires=[],
       cmdclass=dict(test=Test))
