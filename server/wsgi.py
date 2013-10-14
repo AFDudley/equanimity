@@ -8,7 +8,3 @@ logging.basicConfig(stream=sys.stderr)
 sys.stdout = sys.stderr
 
 application = create_app(config='production')
-
-
-# Command line invocation:
-# uwsgi --http :8080 --virtualenv /path/to/venv/ --module server.wsgi:application
