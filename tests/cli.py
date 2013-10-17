@@ -60,7 +60,7 @@ class EquanimityClientTest(TestCase):
         self.assertEqual(self.c.url, 'http://127.0.0.1:5000')
         self.assertEqual(self.c.cookies, {})
         self.assertEqual(self.c.proxy.service_url, 'http://127.0.0.1:5000/api')
-        self.assertEqual(self.c.proxy.service_name, 'equanimity')
+        self.assertEqual(self.c.proxy.service_name, '')
 
     def test_clear_cookies(self):
         self.c.cookies = dict(token='xxx')
@@ -94,7 +94,7 @@ class EquanimityClientTest(TestCase):
         mock_send_payload.return_value = AttributeDict(json=lambda: resp)
         self.c.cookies = dict(token='xxx')
         params = [0, 'string', [1, 2]]
-        method = 'name_unit'
+        method = 'stronghold.name_unit'
         r = self.c.rpc(method, params)
         self.assertEqual(r, resp)
         mock_send_payload.assert_called_with(params, cookies=self.c.cookies)
@@ -107,7 +107,7 @@ class EquanimityClientTest(TestCase):
                                                        content=resp)
         self.c.cookies = dict(token='xxx')
         params = [0, 'string', [1, 2]]
-        method = 'name_unit'
+        method = 'stronghold.name_unit'
         r = self.c.rpc(method, params)
         self.assertEqual(r, resp)
         mock_send_payload.assert_called_with(params, cookies=self.c.cookies)
@@ -118,7 +118,7 @@ class EquanimityClientTest(TestCase):
         mock_post.return_value = AttributeDict(json=lambda: resp)
         self.c.cookies = dict(token='xxx')
         params = [0, 'string', [1, 2]]
-        method = 'name_unit'
+        method = 'stronghold.name_unit'
         r = self.c.rpc(method, params)
         self.assertEqual(r, resp)
         # Make sure the service name is correctly concatenated

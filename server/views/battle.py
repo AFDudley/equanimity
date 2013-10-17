@@ -15,7 +15,7 @@ def get_field(loc, **kwargs):
     return field
 
 
-@rpc.method('equanimity.pass(list, int) -> dict')
+@rpc.method('battle.pass(list, int) -> dict')
 @require_login
 def pass_turn(field_loc, unit_id):
     # Field coord, Unit, type, target
@@ -25,7 +25,7 @@ def pass_turn(field_loc, unit_id):
     return field.game.process_action(action)
 
 
-@rpc.method('equanimity.move(list, int, list) -> dict')
+@rpc.method('battle.move(list, int, list) -> dict')
 @require_login
 def move(field_loc, unit_id, target):
     field = get_field(field_loc)
@@ -34,7 +34,7 @@ def move(field_loc, unit_id, target):
     return field.game.process_action(action)
 
 
-@rpc.method('equanimity.attack(list, int, list) -> dict')
+@rpc.method('battle.attack(list, int, list) -> dict')
 @require_login
 def attack(field_loc, unit_id, target):
     field = get_field(field_loc)

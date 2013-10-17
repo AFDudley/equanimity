@@ -5,6 +5,8 @@ from rpc_base import RPCTestBase
 
 class StrongholdTest(RPCTestBase):
 
+    service_name = 'stronghold'
+
     def test_login_required(self):
         self.logout()
         unit = self.make_scient(E, create_comp(earth=1))

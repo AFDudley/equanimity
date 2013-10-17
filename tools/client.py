@@ -56,7 +56,7 @@ class ClientServiceProxy(ServiceProxy):
 
 class EquanimityClient(object):
 
-    def __init__(self, url='http://127.0.0.1:5000', service_name='equanimity'):
+    def __init__(self, url='http://127.0.0.1:5000', service_name=''):
         self.url = url
         self.proxy = ClientServiceProxy(urljoin(url, '/api'),
                                         service_name=service_name)

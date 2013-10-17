@@ -11,6 +11,8 @@ from rpc_base import RPCTestBase
 
 class BattleTest(RPCTestBase):
 
+    service_name = 'battle'
+
     def setUp(self):
         super(BattleTest, self).setUp()
         self.defender = self.get_user()
