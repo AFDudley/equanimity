@@ -43,10 +43,12 @@ def register_blueprints(app):
     from views.users import users
     from views.stronghold import stronghold
     from views.battle import battle
+    from views.info import info
     app.register_blueprint(frontend)
     app.register_blueprint(users)
     app.register_blueprint(stronghold)
     app.register_blueprint(battle)
+    app.register_blueprint(info)
     rpc_bp = Blueprint('rpc', __name__, url_prefix='/api')
     rpc.register_blueprint(rpc_bp)
 

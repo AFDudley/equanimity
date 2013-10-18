@@ -45,6 +45,17 @@ class Player(Persistent, UserMixin):
     def api_view(self):
         return dict(username=self.name, email=self.email, uid=self.uid)
 
+    def world_view(self):
+        fields = [db['fields'][c] for c in self.visible_fields()]
+        return dict(visible_fields=[f.api_view() for f in fields])
+
+    @property
+    def visible_fields(self):
+        g = db['grid']
+        fields = [[c] + g.get_adjacent(c) for c in self.fields]
+        fields = reduce(list.__add__, fields)
+        return set(fields)
+
     @property
     def squads(self):
         return self._squads

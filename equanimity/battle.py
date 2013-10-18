@@ -11,6 +11,7 @@ and should be refactored with battle as well.
 """
 import transaction
 from datetime import datetime
+from calendar import timegm
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
@@ -211,6 +212,29 @@ class Game(Persistent):
         self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
         return transaction.commit()
 
+    @classmethod
+    def get(self, field_loc):
+        field = db['fields'].get(tuple(field_location))
+        if field is not None:
+            return field.game
+
+    def timer_api_view(self):
+        num = self.state['num']
+        elapsed = timegm(self.log['start_time'].utctimetuple())
+        remaining = self.get_time_remaining_for_action().seconds
+        return dict(start_time=start_time,
+                    action_num=self.state['num'],
+                    current_ply=self.action_queue.get_action_in_ply(num),
+                    current_unit=self.action_queue.get_unit_for_action(num),
+                    time_remaining=remaining)
+
+    def api_view(self):
+        data = {}
+        data['timer'] = self.timer_api_view()
+        data['defender'] = self.defender.api_view()
+        data['attacker'] = self.attacker.api_view()
+        data['action_num'] = self.state['num']
+
     def put_squads_on_field(self):
         """Puts the squads on the battlefield."""
         self.battlefield.put_squads_on_field()
@@ -289,6 +313,14 @@ class Game(Persistent):
         if text is None:
             return none
         return text
+
+    def get_time_remaining_for_action(self):
+        self._fill_timed_out_actions()
+        then = self._get_last_terminating_action()
+        if now() > then + PLY_TIME:
+            return timedelta(seconds=0)
+        else:
+            return PLY_TIME - then
 
     def _get_last_terminating_action(self, current_num=None):
         # Returns the last recorded action that was the final one in a ply
@@ -513,6 +545,10 @@ class ActionQueue(Persistent):
         ply = num / 2
         queue_pos = ply % len(self.units)
         return self.units[queue_pos]
+
+    def get_action_in_ply(self, num):
+        """ Return either 0 or 1 """
+        return (num - 1) % 2
 
     def _get_unit_key(self, unit):
         """Returns a tuple of scalar values to be compared in order"""

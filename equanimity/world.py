@@ -60,28 +60,27 @@ class World(object):
         for player in db.get('players', {}).itervalues():
             player.reset_world_state()
 
-    #@profile
-    def create(self, version=0.0, x=2, y=2, init_db_reset=True):
+    def create(self, version=0.0, radius=3, init_db_reset=True):
         # If the world version is the same, do nothing.
         if db.get('version') != version:
             self.erase()
-            self._setup(version, x, y, init_db_reset=init_db_reset)
-            self._make_fields(x, y)
+            self._setup(version, radius, init_db_reset=init_db_reset)
+            self._make_fields()
             #transaction.commit()
 
-    def _setup(self, version, x, y, init_db_reset=True):
+    def _setup(self, version, radius, init_db_reset=True):
         db['day_length'] = 240     # length of game day in seconds.
         db['resign_time'] = 21600  # amount of time in seconds before
                                    # attacker is forced to resign.
         db['max_duration'] = 5040  # in gametime days (5040 is one
                                    # generation, two weeks real-time)
         db['version'] = version
-        db['x'] = x
-        db['y'] = y
+        db['radius'] = radius
         db['dob'] = datetime.utcnow()
         #fields should be a frozendict
         #http://stackoverflow.com/questions/2703599/what-would-be-a-frozen-dict
         db['fields'] = persistent.mapping.PersistentMapping()
+        db['grid'] = Grid(radius=radius)
         init_db(reset=init_db_reset)
         self.player = db['players'].setdefault(WORLD_UID, WorldPlayer())
         self.player.persist()
@@ -91,7 +90,7 @@ class World(object):
         # right now the World and the fields are square,
         # they should both be hexagons.
         # TODO (steve) -- generate hexagonal field
-        for coord in itertools.product(xrange(x), xrange(y)):
+        for coord in db['world_grid'].iter_coords():
             f = Field(coord, owner=self.player)
             db['fields'][coord] = f
             self.player.fields[coord] = f

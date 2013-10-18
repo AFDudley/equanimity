@@ -58,6 +58,17 @@ class Field(persistent.Persistent):
         self.actions = (self.battle_actions + self.stronghold_actions +
                         self.world_actions)
 
+    def api_view(self, requester=None):
+        if (requester is not None and
+                self.world_coord not in requester.visible_fields):
+            return {}
+        # TODO -- add seasonal info (that might be in Clock),
+        # add factory etc stuff
+        return dict(owner=self.owner.id,
+                    element=self.element,
+                    coordinate=self.world_cood,
+                    in_battle=self.in_battle)
+
     @classmethod
     def get(self, loc):
         return db['fields'].get(tuple(loc))
