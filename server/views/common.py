@@ -2,6 +2,7 @@ from flask.ext.login import current_user
 from equanimity.stronghold import Stronghold
 from equanimity.units import Unit
 from equanimity.battle import Game
+from equanimity.field import Field
 
 
 def get_thing(cls, uid, name=None, check_owner=True):
@@ -30,10 +31,9 @@ def get_field(field_location, **kwargs):
 
 
 def get_battle(field_location, check_owner=True, **kwargs):
-    check_owner = kwargs['check_owner']
     kwargs['check_owner'] = False
     battle = get_thing(Game, field_location, **kwargs)
     if (check_owner and battle.defender != current_user and
-                        battle.attacker != current_user):
+            battle.attacker != current_user):
         raise ValueError('You are not involved this battle')
     return battle

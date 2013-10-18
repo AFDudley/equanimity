@@ -169,6 +169,7 @@ class HexGridTest(FlaskTestDB):
         self.assertEqual(h._count_tiles(h.tiles), h.size)
         # average computed value should be close to the mean, as long
         # as the comp's values are not near limits (which will distort things)
+        print h.comp[E], s.comp[E]
         self.assertTrue(abs(h.comp[E] - s.comp[E]) < 8)
 
     def test_create_with_tiles(self):

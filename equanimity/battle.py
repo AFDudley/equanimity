@@ -10,7 +10,7 @@ and should be refactored with battle as well.
 
 """
 import transaction
-from datetime import datetime
+from datetime import datetime, timedelta
 from calendar import timegm
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
@@ -19,6 +19,7 @@ from battlefield import Battlefield
 from units import Unit
 from grid import Hex
 from const import PLY_TIME
+from server import db
 
 
 def now():
@@ -214,13 +215,13 @@ class Game(Persistent):
 
     @classmethod
     def get(self, field_loc):
-        field = db['fields'].get(tuple(field_location))
+        field = db['fields'].get(tuple(field_loc))
         if field is not None:
             return field.game
 
     def timer_api_view(self):
         num = self.state['num']
-        elapsed = timegm(self.log['start_time'].utctimetuple())
+        start_time = timegm(self.log['start_time'].utctimetuple())
         remaining = self.get_time_remaining_for_action().seconds
         return dict(start_time=start_time,
                     action_num=self.state['num'],
