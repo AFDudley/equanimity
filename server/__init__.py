@@ -13,7 +13,7 @@ from flask import Flask, g, Blueprint
 db = ZODB()
 
 """ JSONRPC """
-rpc = JSONRPC(service_url='/api')
+jsonrpc = JSONRPC(service_url='/api')
 
 """ Bcrypt """
 bcrypt = Bcrypt()
@@ -41,16 +41,16 @@ def setup_login_manager(app):
 def register_blueprints(app):
     from views.frontend import frontend
     from views.users import users
-    from views.stronghold import stronghold
-    from views.battle import battle
-    from views.info import info
+    from rpc.stronghold import stronghold
+    from rpc.battle import battle
+    from rpc.info import info
     app.register_blueprint(frontend)
     app.register_blueprint(users)
     app.register_blueprint(stronghold)
     app.register_blueprint(battle)
     app.register_blueprint(info)
-    rpc_bp = Blueprint('rpc', __name__, url_prefix='/api')
-    rpc.register_blueprint(rpc_bp)
+    rpc_bp = Blueprint('jsonrpc', __name__, url_prefix='/api')
+    jsonrpc.register_blueprint(rpc_bp)
 
 
 def load_config(app, subdomain, config=None):
@@ -119,7 +119,7 @@ def create_app(subdomain='', config=None):
     db.init_app(app)
 
     """ JSONRPC """
-    rpc.init_app(app)
+    jsonrpc.init_app(app)
 
     """ Bcrypt """
     bcrypt.init_app(app)
