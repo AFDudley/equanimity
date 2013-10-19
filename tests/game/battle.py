@@ -68,6 +68,59 @@ class InitialStateTest(TestCase):
                 self.assertEqual(i[k], v)
 
 
+class BattleTestBase(FlaskTestDBWorld):
+    def assertGameOver(self, winner, condition):
+        self.assertTrue(self.game.state['game_over'])
+        self.assertEqual(self.game.winner, winner)
+        self.assertEqual(self.game.log['condition'], condition)
+
+    def _add_action(self, **action_kwargs):
+        self.game.log['actions'].append(Action(**action_kwargs))
+
+    def _add_actions(self, count, **action_kwargs):
+        [self._add_action(**action_kwargs) for i in xrange(count)]
+
+    def _check(self):
+        self.s.check(self.game)
+
+
+class GameTestBase(BattleTestBase):
+
+    def setUp(self):
+        super(GameTestBase, self).setUp()
+        self._setup_game()
+
+    def _setup_game(self, atksquad=None, defsquad=None, element=None):
+        if atksquad is None:
+            atksquad = rand_squad(suit=E)
+        if defsquad is None:
+            defsquad = rand_squad(suit=F)
+        self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
+                               squads=[atksquad])
+        self.defender = Player('Def', 'y@gmail.com', 'yyy',
+                               squads=[defsquad])
+        self.field = Field(Hex(0, 0))
+        self.game = Game(self.field, self.attacker, self.defender)
+
+    @property
+    def bf(self):
+        return self.game.battlefield
+
+    @property
+    def f(self):
+        return self.game.field
+
+    @property
+    def units(self):
+        return sorted(list(itertools.chain(self.attacker.squads[0],
+                                           self.defender.squads[0])))
+
+    def _place_squads(self):
+        self.f.rand_place_squad(self.attacker.squads[0])
+        self.f.rand_place_squad(self.defender.squads[0])
+        self.game.put_squads_on_field()
+
+
 class LogTest(FlaskTestDB):
 
     def test_create(self):
@@ -113,20 +166,20 @@ class LogTest(FlaskTestDB):
         self.assertEqual(owners, {0: 'testplayer'})
 
 
-class BattleTestBase(FlaskTestDBWorld):
-    def assertGameOver(self, winner, condition):
-        self.assertTrue(self.game.state['game_over'])
-        self.assertEqual(self.game.winner, winner)
-        self.assertEqual(self.game.log['condition'], condition)
+class LogTestAdvanced(GameTestBase):
 
-    def _add_action(self, **action_kwargs):
-        self.game.log['actions'].append(Action(**action_kwargs))
-
-    def _add_actions(self, count, **action_kwargs):
-        [self._add_action(**action_kwargs) for i in xrange(count)]
-
-    def _check(self):
-        self.s.check(self.game)
+    def test_last_message(self):
+        self._place_squads()
+        none = ['There was no message.']
+        # No messages in log, at all
+        self.assertEqual(self.game.log.last_message(), none)
+        # No result in last message
+        self.game.log['messages'].append(AttributeDict(result=None))
+        self.assertEqual(self.game.log.last_message(), none)
+        # A result in last message
+        res = ['A message']
+        self.game.log['messages'].append(AttributeDict(result=res))
+        self.assertEqual(self.game.log.last_message(), res)
 
 
 class StateTest(BattleTestBase):
@@ -212,44 +265,10 @@ class StateTest(BattleTestBase):
         self.assertGameOver(self.defender, 'Both sides passed')
 
 
-class GameTestBase(BattleTestBase):
+class GameTest(GameTestBase):
 
     def setUp(self):
-        super(GameTestBase, self).setUp()
-        self._setup_game()
-
-    def _setup_game(self, atksquad=None, defsquad=None, element=None):
-        if atksquad is None:
-            atksquad = rand_squad(suit=E)
-        if defsquad is None:
-            defsquad = rand_squad(suit=F)
-        self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
-                               squads=[atksquad])
-        self.defender = Player('Def', 'y@gmail.com', 'yyy',
-                               squads=[defsquad])
-        self.field = Field(Hex(0, 0))
-        self.game = Game(self.field, self.attacker, self.defender)
-
-    @property
-    def bf(self):
-        return self.game.battlefield
-
-    @property
-    def f(self):
-        return self.game.field
-
-    @property
-    def units(self):
-        return sorted(list(itertools.chain(self.attacker.squads[0],
-                                           self.defender.squads[0])))
-
-    def _place_squads(self):
-        self.f.rand_place_squad(self.attacker.squads[0])
-        self.f.rand_place_squad(self.defender.squads[0])
-        self.game.put_squads_on_field()
-
-
-class GameTest(GameTestBase):
+        super(GameTest, self).setUp()
 
     def test_create(self):
         self.assertEqual(self.game.attacker, self.attacker)
@@ -320,19 +339,6 @@ class GameTest(GameTestBase):
         d = self.defender.squads[0][0]
         act = self.game.map_action(unit=d)
         self.assertEqual(act['unit'], d.uid)
-
-    def test_last_message(self):
-        self._place_squads()
-        none = ['There was no message.']
-        # No messages in log, at all
-        self.assertEqual(self.game.last_message(), none)
-        # No result in last message
-        self.game.log['messages'].append(AttributeDict(result=None))
-        self.assertEqual(self.game.last_message(), none)
-        # A result in last message
-        res = ['A message']
-        self.game.log['messages'].append(AttributeDict(result=res))
-        self.assertEqual(self.game.last_message(), res)
 
     def test_apply_queued(self):
         self._place_squads()
@@ -623,6 +629,9 @@ class BattleProcessActionTest(GameTestBase):
 
 
 class ActionQueueTest(GameTestBase):
+
+    def setUp(self):
+        super(ActionQueueTest, self).setUp()
 
     @property
     def aq(self):

@@ -119,6 +119,55 @@ class Log(PersistentMapping):
             owners[unit] = self.get_owner(unit).name
         return owners
 
+    def last_message(self):
+        none = ['There was no message.']
+        if not self['messages']:
+            return none
+        text = self['messages'][-1]['result']
+        if text is None:
+            return none
+        return text
+
+    def get_time_remaining_for_action(self):
+        then = self.get_last_terminating_action_time()
+        remaining = now() - then
+        if remaining > PLY_TIME:
+            remaining = timedelta(seconds=0)
+        return remaining
+
+    def get_last_terminating_action(self, current_num=None):
+        # Returns the last recorded action that was the final one in a ply
+        # Don't provide a current num to retrieve the last tip
+        if current_num is None:
+            try:
+                act = self['actions'][-1]
+            except IndexError:
+                return
+            else:
+                if act['num'] % 2:
+                    term_action = -2
+                else:
+                    term_action = -1
+        elif current_num % 2:
+            term_action = -1
+        else:
+            term_action = -2
+        try:
+            return self['actions'][term_action]
+        except IndexError:
+            return
+
+    def get_last_terminating_action_time(self, current_num=None):
+        act = self.get_last_terminating_action(current_num=current_num)
+        if act is None:
+            return self['start_time']
+        else:
+            return act['when']
+
+    def action_timed_out(self, action):
+        start = self.get_last_terminating_action_time(action['num'])
+        return (action['when'] - start > PLY_TIME)
+
 
 class State(PersistentMapping):
 
@@ -307,56 +356,14 @@ class Game(Persistent):
             new['unit'] = new['unit'].uid
         return new
 
-    def last_message(self):
-        none = ["There was no message."]
-        if not self.log['messages']:
-            return none
-        text = self.log['messages'][-1]['result']
-        if text is None:
-            return none
-        return text
-
     def get_time_remaining_for_action(self):
         self._fill_timed_out_actions()
-        then = self._get_last_terminating_action_time()
-        remaining = now() - then
-        if remaining > PLY_TIME:
-            remaining = timedelta(seconds=0)
-        return remaining
-
-    def _get_last_terminating_action(self, current_num=None):
-        # Returns the last recorded action that was the final one in a ply
-        # Don't provide a current num to retrieve the last tip
-        if current_num is None:
-            try:
-                act = self.log['actions'][-1]
-            except IndexError:
-                return
-            else:
-                if act['num'] % 2:
-                    term_action = -2
-                else:
-                    term_action = -1
-        elif current_num % 2:
-            term_action = -1
-        else:
-            term_action = -2
-        try:
-            return self.log['actions'][term_action]
-        except IndexError:
-            return
-
-    def _get_last_terminating_action_time(self, current_num=None):
-        act = self._get_last_terminating_action(current_num=current_num)
-        if act is None:
-            return self.log['start_time']
-        else:
-            return act['when']
+        return self.log.get_time_remaining_for_action()
 
     def _fill_timed_out_actions(self):
         # Fills the action log with any needed timed_out actions since our
         # last check. It does not time out the current action we are checking
-        when = self._get_last_terminating_action_time()
+        when = self.log.get_last_terminating_action_time()
         # Compute how many timed out plies there should be
         diff = now() - when
         missed_plies = diff.seconds / PLY_TIME.seconds
@@ -366,10 +373,6 @@ class Game(Persistent):
                 then = when + (i + 1) * PLY_TIME
                 act = Action(type='timed_out', when=then)
                 self._process_action(act)
-
-    def _action_timed_out(self, action):
-        start = self._get_last_terminating_action_time(action['num'])
-        return (action['when'] - start > PLY_TIME)
 
     def _process_action(self, action):
         num = self.state['num']
@@ -387,7 +390,7 @@ class Game(Persistent):
         except (KeyError, IndexError):
             prev_act = None
 
-        if action['type'] != 'timed_out' and self._action_timed_out(action):
+        if action['type'] != 'timed_out' and self.log.action_timed_out(action):
             action['type'] = 'timed_out'
 
         if curr_unit is not None:
