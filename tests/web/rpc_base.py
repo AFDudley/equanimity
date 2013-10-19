@@ -42,6 +42,7 @@ class RPCTestBase(FlaskTestDBWorld, UserTestMixin):
         self.world.award_field(me, (0, 0))
         self.loc = (0, 0)
         self.f = self.db['fields'][self.loc]
+        self.field = self.f
         self.s = self.f.stronghold
         self.s.silo.imbue(create_comp(earth=128))
 

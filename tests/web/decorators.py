@@ -112,7 +112,6 @@ class RateLimitDecoratorTest(TestCase):
 
         for i in xrange(limit - 1):
             r = client.get(url)
-            print r.data, r.status_code
             self.assertEqual(r.status_code, 200)
             self.assertIn('OK', r.data)
 

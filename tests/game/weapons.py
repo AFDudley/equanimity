@@ -28,7 +28,6 @@ class WeaponTest(TestCase):
                         West=[(3, 4), (2, 5), (2, 4), (2, 3)])
         for direction in pointing:
             p = self.w.make_pattern(origin, distance, direction)
-            print direction, p
             self.assertEqual(p, expected[direction])
 
     def test_attack_pattern(self):

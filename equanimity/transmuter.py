@@ -26,8 +26,6 @@ class Transmuter(object):
         # Do simple accounting, check for answer without hitting solver
         silo, need = self._prepare_comps(self.silo, self.need)
         if not need:
-            print silo, need
-            print self.silo, self.need
             # Silo provided everything
             self.solution = self.need
             return Stone(self.need)
