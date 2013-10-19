@@ -54,7 +54,7 @@ class UnitsTest(FlaskTestDB):
             setattr(self.u, s, val)
         self.assertEqual(expect, self.u.stats())
 
-    def test_repr(self):
+    def test_str(self):
         self.assertIn(self.u.name, str(self.u))
 
     def test_equality(self):

@@ -117,6 +117,15 @@ class Squad(Container):
         self.stronghold = None
         self.stronghold_pos = None
 
+    def api_view(self):
+        return dict(name=self.name, units=[u.uid for u in self.units],
+                    stronghold=getattr(self.stronghold, 'location', None),
+                    stronghold_pos=self.stronghold_pos)
+
+    def combatant_view(self):
+        return dict(name=self.name, owner=self.owner.uid,
+                    units=[u.api_view() for u in self])
+
     def add_to_stronghold(self, stronghold, pos):
         self.stronghold = stronghold
         self.stronghold_pos = pos
@@ -172,12 +181,6 @@ class Squad(Container):
 
     def __call__(self, more=None):
         return self.__repr__(more=more)
-
-    def api_view(self):
-        return dict(name=self.name, units=[u.uid for u in self.units],
-                    stronghold=getattr(self.stronghold, 'location', None),
-                    stronghold_pos=self.stronghold_pos)
-
 
 """ Squad helpers """
 

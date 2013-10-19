@@ -9,12 +9,10 @@ from ..base import create_comp
 from rpc_base import RPCTestBase
 
 
-class BattleTest(RPCTestBase):
-
-    service_name = 'battle'
+class BattleTestBase(RPCTestBase):
 
     def setUp(self):
-        super(BattleTest, self).setUp()
+        super(BattleTestBase, self).setUp()
         self.defender = self.get_user()
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx')
 
@@ -30,6 +28,16 @@ class BattleTest(RPCTestBase):
         self.defender.squads = [defsquad]
         self.game = Game(self.f, self.attacker, self.defender)
         self.f.game = self.game
+
+    def _start_battle(self):
+        s, t, atks, defs = self._create_units()
+        self._setup_game(atks, defs)
+        return s, t, atks, defs
+
+
+class BattleTest(BattleTestBase):
+
+    service_name = 'battle'
 
     def test_invalid_field(self):
         r = getattr(self.proxy, 'pass')((66, 77), 1)

@@ -169,7 +169,6 @@ class HexGridTest(FlaskTestDB):
         self.assertEqual(h._count_tiles(h.tiles), h.size)
         # average computed value should be close to the mean, as long
         # as the comp's values are not near limits (which will distort things)
-        print h.comp[E], s.comp[E]
         self.assertTrue(abs(h.comp[E] - s.comp[E]) < 8)
 
     def test_create_with_tiles(self):
@@ -221,15 +220,24 @@ class HexGridTest(FlaskTestDB):
         self.assertEqual(h.get_direction(Hex(-1, 0), Hex(0, 3)), 'Southeast')
         self.assertEqual(h.get_direction(Hex(-1, 0), Hex(-2, 3)), 'South')
 
-    def test_repr(self):
+    def test_str(self):
         h = Grid(radius=1)
-        s = ("{0: {0: <Stone: Earth: 0, Fire: 0, Ice: 0, Wind: 0>, 1: <Stone: "
-             "Earth: 0, Fire: 0, Ice: 0, Wind: 0>, -1: <Stone: Earth: 0, "
-             "Fire: 0, Ice: 0, Wind: 0>}, 1: {0: <Stone: Earth: 0, Fire: 0, "
-             "Ice: 0, Wind: 0>, -1: <Stone: Earth: 0, Fire: 0, Ice: 0, Wind: "
-             "0>}, -1: {0: <Stone: Earth: 0, Fire: 0, Ice: 0, Wind: 0>, 1: "
-             "<Stone: Earth: 0, Fire: 0, Ice: 0, Wind: 0>}}")
-        self.assertEqual(s, repr(h))
+        s = ("{0: {0: {'comp': {'Fire': 0, 'Earth': 0, 'Wind': 0, 'Ice': 0}, "
+             "'limit': {'Fire': 255, 'Earth': 255, 'Wind': 255, 'Ice': 255}}, "
+             "1: {'comp': {'Fire': 0, 'Earth': 0, 'Wind': 0, 'Ice': 0}, "
+             "'limit': {'Fire': 255, 'Earth': 255, 'Wind': 255, 'Ice': 255}}, "
+             "-1: {'comp': {'Fire': 0, 'Earth': 0, 'Wind': 0, 'Ice': 0}, "
+             "'limit': {'Fire': 255, 'Earth': 255, 'Wind': 255, 'Ice': 255}}},"
+             " 1: {0: {'comp': {'Fire': 0, 'Earth': 0, 'Wind': 0, 'Ice': 0}, "
+             "'limit': {'Fire': 255, 'Earth': 255, 'Wind': 255, 'Ice': 255}}, "
+             "-1: {'comp': {'Fire': 0, 'Earth': 0, 'Wind': 0, 'Ice': 0}, "
+             "'limit': {'Fire': 255, 'Earth': 255, 'Wind': 255, 'Ice': 255}}},"
+             " -1: {0: {'comp': {'Fire': 0, 'Earth': 0, 'Wind': 0, 'Ice': 0}, "
+             "'limit': {'Fire': 255, 'Earth': 255, 'Wind': 255, 'Ice': 255}}, "
+             "1: {'comp': {'Fire': 0, 'Earth': 0, 'Wind': 0, 'Ice': 0}, "
+             "'limit': {'Fire': 255, 'Earth': 255, 'Wind': 255, 'Ice': 255}}}}"
+             "")
+        self.assertEqual(s, str(h))
 
     def test_tiles_in_range(self):
         h = Grid()

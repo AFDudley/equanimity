@@ -64,9 +64,9 @@ class Field(persistent.Persistent):
             return {}
         # TODO -- add seasonal info (that might be in Clock),
         # add factory etc stuff
-        return dict(owner=self.owner.id,
+        return dict(owner=self.owner.uid,
                     element=self.element,
-                    coordinate=self.world_cood,
+                    coordinate=self.world_coord,
                     in_battle=self.in_battle)
 
     @classmethod

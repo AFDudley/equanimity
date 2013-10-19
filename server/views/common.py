@@ -30,10 +30,12 @@ def get_field(field_location, **kwargs):
     return get_thing(Field, field_location, **kwargs)
 
 
-def get_battle(field_location, check_owner=True, **kwargs):
+def get_battle(field_location, not_null=True, check_owner=True, **kwargs):
     kwargs['check_owner'] = False
     battle = get_thing(Game, field_location, **kwargs)
-    if (check_owner and battle.defender != current_user and
-            battle.attacker != current_user):
+    if not_null and battle is None:
+        raise ValueError('Battle does not exist')
+    if (battle is not None and battle.defender != current_user and
+            battle.attacker != current_user and check_owner):
         raise ValueError('You are not involved this battle')
     return battle

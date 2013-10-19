@@ -116,7 +116,7 @@ class Unit(Stone):
         self.container_pos = None
         self.chosen_location = Hex.null
 
-    def __repr__(self):
+    def __str__(self):
         return '<{0} "{1}">'.format(self.__class__.__name__, self.name)
 
     def __eq__(self, other):
@@ -164,6 +164,17 @@ class Scient(Unit):
         #equiping weapons should be done someplace else.
         self.equip(self.weapon)
 
+    def api_view(self):
+        data = super(Scient, self).api_view()
+        weapon = self.weapon
+        if weapon is not None:
+            weapon = weapon.api_view()
+        more = dict(weapon=weapon, weapon_bonus=self.weapon_bonus.comp,
+                    equip_limit=self.equip_limit.comp,
+                    size=self.size, move=self.move)
+        data.update(more)
+        return data
+
     def imbue(self, stone):
         """add stone to scient's comp, if legal"""
         comp = stone.comp
@@ -186,17 +197,6 @@ class Scient(Unit):
         weapon = self.weapon
         self.weapon = None
         return weapon
-
-    def api_view(self):
-        data = super(Scient, self).api_view()
-        weapon = self.weapon
-        if weapon is not None:
-            weapon = weapon.api_view()
-        more = dict(weapon=weapon, weapon_bonus=self.weapon_bonus.comp,
-                    equip_limit=self.equip_limit.comp,
-                    size=self.size, move=self.move)
-        data.update(more)
-        return data
 
 
 class Nescient(Unit):

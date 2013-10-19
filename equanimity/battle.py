@@ -219,22 +219,23 @@ class Game(Persistent):
         if field is not None:
             return field.game
 
-    def timer_api_view(self):
+    def timer_view(self):
         num = self.state['num']
-        start_time = timegm(self.log['start_time'].utctimetuple())
-        remaining = self.get_time_remaining_for_action().seconds
-        return dict(start_time=start_time,
+        start_time = self.log['start_time'].utctimetuple()
+        remaining = self.get_time_remaining_for_action()
+        current_unit = self.action_queue.get_unit_for_action(num)
+        return dict(start_time=timegm(start_time),
                     action_num=self.state['num'],
                     current_ply=self.action_queue.get_action_in_ply(num),
-                    current_unit=self.action_queue.get_unit_for_action(num),
-                    time_remaining=remaining)
+                    current_unit=current_unit.uid,
+                    time_remaining=remaining.seconds)
 
     def api_view(self):
-        data = {}
-        data['timer'] = self.timer_api_view()
-        data['defender'] = self.defender.api_view()
-        data['attacker'] = self.attacker.api_view()
-        data['action_num'] = self.state['num']
+        return dict(
+            timer=self.timer_view(),
+            defender=self.defender.combatant_view(self.battlefield.defsquad),
+            attacker=self.attacker.combatant_view(self.battlefield.atksquad),
+            action_num=self.state['num'])
 
     def put_squads_on_field(self):
         """Puts the squads on the battlefield."""
@@ -317,11 +318,11 @@ class Game(Persistent):
 
     def get_time_remaining_for_action(self):
         self._fill_timed_out_actions()
-        then = self._get_last_terminating_action()
-        if now() > then + PLY_TIME:
-            return timedelta(seconds=0)
-        else:
-            return PLY_TIME - then
+        then = self._get_last_terminating_action_time()
+        remaining = now() - then
+        if remaining > PLY_TIME:
+            remaining = timedelta(seconds=0)
+        return remaining
 
     def _get_last_terminating_action(self, current_num=None):
         # Returns the last recorded action that was the final one in a ply
@@ -368,8 +369,6 @@ class Game(Persistent):
 
     def _action_timed_out(self, action):
         start = self._get_last_terminating_action_time(action['num'])
-        print action['when'], start
-        print (action['when'] - start).seconds, PLY_TIME.seconds
         return (action['when'] - start > PLY_TIME)
 
     def _process_action(self, action):

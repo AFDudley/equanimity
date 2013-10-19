@@ -283,8 +283,8 @@ class Grid(Stone):
     def __len__(self):
         return self.size
 
-    def __repr__(self):
-        return repr(self.tiles)
+    def __str__(self):
+        return str(self.tiles)
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -363,3 +363,11 @@ class SquareGrid(PersistentMapping):
 
     def iter_coords(self):
         return product(xrange(self.radius), xrange(self.radius))
+
+    def get_adjacent(self, (x, y), direction='all', filtered=True):
+        adj = [(x + 1, y + 1), (x + 1, y), (x + 1, y - 1), (x, y + 1),
+               (x, y - 1), (x - 1, y + 1), (x - 1, y), (x - 1, y - 1)]
+        adj = [Hex._make(a) for a in adj]
+        if filtered:
+            adj = filter(self.in_bounds, adj)
+        return adj

@@ -11,7 +11,7 @@ info = Blueprint('info', __name__, url_prefix='/api/info')
 @rpc.method('info.world() -> dict')
 @require_login
 def world_info():
-    return current_user.world_view()
+    return dict(world=current_user.world_view())
 
 
 @rpc.method('info.field(list) -> dict')
@@ -26,7 +26,7 @@ def field_info(field_loc):
 @require_login
 def clock_info():
     # TODO -- once clock is implemented fully, add this
-    pass
+    return dict(clock=dict())
 
 
 @rpc.method('info.battle(list) -> dict')
@@ -40,7 +40,7 @@ def battle_info(field_loc):
 @require_login
 def battle_timer_info(field_loc):
     battle = get_battle(field_loc)
-    return dict(battle=dict(timer=battle.timer_api_view()))
+    return dict(battle=dict(timer=battle.timer_view()))
 
 
 @rpc.method('info.unit(int) -> dict')

@@ -103,7 +103,7 @@ class Composition(dict):
     def value(self):
         return sum(self.values())
 
-    def __repr__(self):
+    def __str__(self):
         s = ['{0}: {1}'.format(e, self[e]) for e in ELEMENTS]
         return ', '.join(s)
 
@@ -193,8 +193,12 @@ class Stone(Persistent, Mapping):
     def value(self):
         return self.comp.value()
 
-    def __repr__(self):
+    def __str__(self):
         return '<Stone: {comp}>'.format(comp=self.comp)
+
+    def __repr__(self):
+        data = dict(comp=self.comp, limit=self.limit)
+        return repr(data)
 
     def __iter__(self):
         return iter(self.comp)

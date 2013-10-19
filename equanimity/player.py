@@ -46,8 +46,13 @@ class Player(Persistent, UserMixin):
         return dict(username=self.name, email=self.email, uid=self.uid)
 
     def world_view(self):
-        fields = [db['fields'][c] for c in self.visible_fields()]
+        fields = [db['fields'][c] for c in self.visible_fields]
         return dict(visible_fields=[f.api_view() for f in fields])
+
+    def combatant_view(self, squad):
+        """ API data to return when requested as a combatant in a battle """
+        return dict(username=self.name, uid=self.uid,
+                    squad=squad.combatant_view())
 
     @property
     def visible_fields(self):
