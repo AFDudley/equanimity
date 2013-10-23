@@ -37,7 +37,7 @@ class ClientServiceProxy(ServiceProxy):
     def _make_payload(self, params):
         return json.dumps({
             'jsonrpc': self.version,
-            'method': self.service_name,
+            'method': self.service_name.strip('.'),
             'params': params,
             'id': str(uuid1())
         })
@@ -99,6 +99,13 @@ class EquanimityClient(object):
         return r
 
 
+def print_result(r):
+    if r.get('error'):
+        print r['error']['message']
+    else:
+        print r['result']
+
+
 def get_args():
     p = ArgumentParser(prog='Equanimity')
     p.add_argument('--config', default='dev', help='Server config file to use')
@@ -117,10 +124,13 @@ def process_args(args):
     args.params = map(eval, args.params)
     c = EquanimityClient(args.url)
     if args.method == 'signup':
-        print c.signup(args.username, args.password, args.params[0]).json()
+        if not args.params:
+            print 'Must provide email for signup'
+        else:
+            print c.signup(args.username, args.password, args.params[0]).json()
     else:
         c.login(args.username, args.password)
-        print c.rpc(args.method, args.params)
+        print_result(c.rpc(args.method, args.params))
 
 
 if __name__ == '__main__':
