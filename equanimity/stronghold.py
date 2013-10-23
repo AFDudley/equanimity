@@ -109,25 +109,26 @@ class Stronghold(Persistent):
         self.free_units = MappedContainer()
         self.units = dict()
         self.squads = SparseList()
-        self.defenders = Squad(owner=field.owner, name='Defenders')
-        self.make_defenders(field.element)
+        self.defenders = self.form_squad(name='Defenders')
+        self._setup_default_defenders(field.element)
         self.stable = None
         self.armory = None
         self.home = None
         self.farm = None
         self.create_factory(field.element)
 
-    """ TODO -- defenders should be an index value into the squads list """
     @property
     def defenders(self):
-        return self._defenders
+        if self._defenders is not None:
+            return self.squads[self._defenders]
 
     @defenders.setter
     def defenders(self, val):
-        if val is not None:
-            val.add_to_stronghold(self, None)
-        if self._defenders is not None:
-            self.squads.append(self._defenders)
+        if hasattr(val, 'stronghold_pos'):
+            if val.stronghold != self:
+                raise ValueError('Squad must be in stronghold before setting '
+                                 'it as a defender')
+            val = val.stronghold_pos
         self._defenders = val
 
     @property
@@ -277,8 +278,7 @@ class Stronghold(Persistent):
     def remove_squad(self, squad_num):
         """Removes units from from self.units, effectively moving the squad out
          of the stronghold."""
-        squad = self.squads[squad_num]
-        del self.squads[squad_num]
+        squad = self.squads.pop(squad_num)
         squad.remove_from_stronghold()
         return squad
 
@@ -293,27 +293,7 @@ class Stronghold(Persistent):
             squad[n].location = list_of_locs[n]
             squad[n]._p_changed = 1
 
-    def unset_defenders(self):
-        """Moves old defenders into stronghold"""
-        #use wisely.
-        pos = self.squads.append(self.defenders)
-        self.defenders.add_to_stronghold(self, pos)
-        self.defenders = None
-
-    def set_defenders(self, squad_num):
-        """If defenders is empty set squad as defenders."""
-        # I don't remember how transactions work so I broke this function in
-        # two, which might actually make it worse...
-
-        # TODO: there should be a check to make sure the squad is not
-        # stronger than the grid.
-        # (Which is why self.defenders != self.squad[0])
-
-        self.defenders = self.squads[squad_num]
-        self.defenders.remove_from_stronghold()
-        del self.squads[squad_num]
-
-    def make_defenders(self, element):
+    def _setup_default_defenders(self, element):
         """ TODO -- remove this """
         s = Stone()
         s[element] = 4
@@ -332,31 +312,33 @@ class Stronghold(Persistent):
 
     def move_squad_to_defenders(self, squad_num):
         """Moves a squad from self.squads to self.defenders"""
-        self.unset_defenders()
-        self.set_defenders(squad_num)
+        self.defenders = squad_num
 
-    def add_unit_to(self, container, unit_id):
+    def remove_defenders(self):
+        self.defenders = None
+
+    def _add_unit_to(self, container, unit_id):
         """Add unit to container."""
         #wrapper to keep containers private.
         container.append(self.free_units[unit_id])
 
     def add_unit_to_defenders(self, unit_id):
-        return self.add_unit_to(self.defenders, unit_id)
+        return self._add_unit_to(self.defenders, unit_id)
 
     def add_unit_to_factory(self, kind, unit_id):
         if kind == 'Stable':
-            return self.add_unit_to(self.stable, unit_id)
+            return self._add_unit_to(self.stable, unit_id)
         elif kind == 'Armory':
-            return self.add_unit_to(self.armory, unit_id)
+            return self._add_unit_to(self.armory, unit_id)
         elif kind == 'Home':
-            return self.add_unit_to(self.home, unit_id)
+            return self._add_unit_to(self.home, unit_id)
         elif kind == 'Farm':
-            return self.add_unit_to(self.farm, unit_id)
+            return self._add_unit_to(self.farm, unit_id)
 
     def add_unit_to_squad(self, squad_num, unit_id):
-        return self.add_unit_to(self, self.squads[squad_num], unit_id)
+        return self._add_unit_to(self, self.squads[squad_num], unit_id)
 
-    def remove_unit_from(self, container, unit_id):
+    def _remove_unit_from(self, container, unit_id):
         """remove unit from a container, either a stronghold or a squad. """
         if container == self:
             del self.free_units[unit_id]
@@ -369,26 +351,26 @@ class Stronghold(Persistent):
         del self.units[unit_id]
 
     def remove_unit_from_defenders(self, unit_id):
-        return self.remove_unit_from(self.defenders, unit_id)
+        return self._remove_unit_from(self.defenders, unit_id)
 
     def remove_unit_from_factory(self, kind, unit_id):
         if kind == 'Stable':
-            return self.remove_unit_from(self.stable, unit_id)
+            return self._remove_unit_from(self.stable, unit_id)
         elif kind == 'Armory':
-            return self.remove_unit_from(self.armory, unit_id)
+            return self._remove_unit_from(self.armory, unit_id)
         elif kind == 'Home':
-            return self.remove_unit_from(self.home, unit_id)
+            return self._remove_unit_from(self.home, unit_id)
         elif kind == 'Farm':
-            return self.remove_unit_from(self.farm, unit_id)
+            return self._remove_unit_from(self.farm, unit_id)
 
     def remove_unit_from_squad(self, squad_num, unit_id):
-        return self.remove_unit_from(self.squads[squad_num], unit_id)
+        return self._remove_unit_from(self.squads[squad_num], unit_id)
 
     def bury_unit(self, unit_id):
         """Bury units that die outside of battle."""
         unit = self.units[unit_id]
         self.unequip_scient(unit)
-        self.remove_unit_from(unit.container, unit.uid)
+        self._remove_unit_from(unit.container, unit.uid)
         remains = Stone({k: v / 2 for k, v in unit.iteritems()})
         self.silo.imbue(remains)
         del self.units[unit_id]
@@ -403,7 +385,6 @@ class Stronghold(Persistent):
 
         def feed(unit, lnow):
             self.silo.get(unit.comp)
-            self.silo._p_changed = 1
             unit.fed_on = now()
 
         unit = self.units[unit_id]
@@ -432,6 +413,3 @@ class Stronghold(Persistent):
             dsecs = d.total_seconds()
             if dsecs > (self.clock.duration['day'] * 60):
                 self.feed_unit(unit.uid)
-
-    def process_action(self, action):
-        pass

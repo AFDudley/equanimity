@@ -52,7 +52,7 @@ class Field(persistent.Persistent):
             'equip_scient', 'move_unit', 'imbue_weapon', 'split_weapon',
             'form_squad', 'name_squad', 'remove_squad', 'set_squad_locations',
             'set_defender_locations', 'move_squad_to_defenders',
-            'unset_defenders',
+            'remove_defenders'
         ]
         self.world_actions = ['move_squad']
         self.actions = (self.battle_actions + self.stronghold_actions +
@@ -244,7 +244,7 @@ name_unit  - unit_id, name
 imbue_unit - unit_id, comp
 unequip_scient - unit_id
 equip_scient - unit_id, weapon_num
-move_unit (add_unit_to) - unit_id, container
+move_unit (_add_unit_to) - unit_id, container
 
 imbue_weapon
 split_weapon
@@ -257,7 +257,7 @@ set_squad_locations
 
 set_defender_locations
 move_squad_to_defenders
-unset_defenders
+remove_defenders
 
 --- In world
 move_squad

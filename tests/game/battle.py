@@ -112,8 +112,8 @@ class GameTestBase(BattleTestBase):
 
     @property
     def units(self):
-        return sorted(list(itertools.chain(self.attacker.squads[0],
-                                           self.defender.squads[0])))
+        return sorted(list(itertools.chain(self.defender.squads[0],
+                                           self.attacker.squads[0])))
 
     def _place_squads(self):
         self.f.rand_place_squad(self.attacker.squads[0])
@@ -285,6 +285,8 @@ class GameTest(GameTestBase):
 
     def test_unit_map(self):
         m = self.game.unit_map()
+        print 'Self.units:', self.units
+        print 'Unit map:', m
         self.assertEqual(sorted(m.keys()), self.units)
         expect_ids = sorted([unit.uid for unit in self.units])
         self.assertEqual(sorted(m.values()), expect_ids)

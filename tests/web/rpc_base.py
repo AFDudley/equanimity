@@ -46,14 +46,17 @@ class RPCTestBase(FlaskTestDBWorld, UserTestMixin):
         self.s = self.f.stronghold
         self.s.silo.imbue(create_comp(earth=128))
 
+    def _make_proxy(self, service_name):
+        return LocalServiceProxy(self.client, '/api',
+                                 service_name=service_name)
+
     @property
     def proxy(self):
         if self._proxy is not None:
             return self._proxy
         if self.service_name is None:
             raise UserWarning('Must set service_name on the test class')
-        self._proxy = LocalServiceProxy(self.client, '/api',
-                                        service_name=self.service_name)
+        self._proxy = self._make_proxy(self.service_name)
         return self._proxy
 
     def assertNoError(self, r):

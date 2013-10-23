@@ -113,12 +113,18 @@ class StrongholdTest(RPCTestBase):
         self.assertEqual(sq['name'], name)
 
     def test_remove_squad(self):
+        # Make a squad
         sq = self.test_form_squad()
+        # Count how many are in there
+        r = self._make_proxy('info').stronghold(self.loc)
+        self.assertNoError(r)
+        old_len = len(r['result']['stronghold']['squads'])
+        # Remove that first squad
         r = self.proxy.remove_squad(self.loc, sq['stronghold_pos'])
         self.assertNoError(r)
         squads = r['result'].get('squads')
         self.assertIsNot(squads, None)
-        self.assertEqual(len(squads), 0)
+        self.assertEqual(len(squads), old_len - 1)
 
     def test_place_unit(self):
         sq = self.test_form_squad()

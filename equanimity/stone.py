@@ -224,14 +224,18 @@ class Stone(PersistentMapping):
     def __len__(self):
         return len(self.comp)
 
-    """
-    __hash__ and __cmp__ are hacks to get around scients being mutable.
-    I think the answer is to actually make stones immutable and
-    have imbue return a different stone.
-    """
-
     def __hash__(self):
         return id(self)
+
+    def __cmp__(self, other):
+        a = self.value()
+        b = other.value()
+        if a < b:
+            return -1
+        elif a > b:
+            return 1
+        else:
+            return 0
 
 
 """ Stone/Comp helpers """

@@ -248,6 +248,9 @@ class Game(Persistent):
         self.grid = field.grid
         self.defender = defender
         self.attacker = attacker
+        # TODO -- load defenders from stronghold
+        # TODO -- what if no defender is set? pull a random squad out of the
+        # stronghold?
         self.battlefield = Battlefield(field, self.defender.squads[0],
                                        self.attacker.squads[0])
         self.players = self.defender, self.attacker
@@ -301,17 +304,17 @@ class Game(Persistent):
 
     def map_unit(self):
         units = PersistentMapping()
-        for k, v in self.map.iteritems():
-            units[v] = k
+        for unit, uid in self.map.iteritems():
+            units[uid] = unit
         return units
 
     def map_locs(self):
         """maps unit name unto locations, only returns live units"""
         locs = PersistentMapping()
-        for unit in self.map:
+        for unit, uid in self.map.iteritems():
             loc = unit.location
             if not loc.is_null():
-                locs[self.map[unit]] = loc
+                locs[uid] = loc
         return locs
 
     def HPs(self):
