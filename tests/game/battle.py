@@ -165,6 +165,24 @@ class LogTest(FlaskTestDB):
         owners = log.get_owners()
         self.assertEqual(owners, {0: 'testplayer'})
 
+    @patch.object(Log, 'get_last_terminating_action_time')
+    @patch('equanimity.battle.now')
+    def test_get_time_remaining_for_action(self, mock_now, mock_term):
+        log = Log([], [], Grid())
+        n = now()
+        mock_now.return_value = n
+        then = n - timedelta(minutes=1)
+        mock_term.return_value = then
+        self.assertEqual(log.get_time_remaining_for_action(), n - then)
+
+    @patch.object(Log, 'get_last_terminating_action_time')
+    def test_get_time_remaining_for_action_expired(self, mock_term):
+        log = Log([], [], Grid())
+        n = now()
+        then = n - (PLY_TIME * 10)
+        mock_term.return_value = then
+        self.assertEqual(log.get_time_remaining_for_action().seconds, 0)
+
 
 class LogTestAdvanced(GameTestBase):
 

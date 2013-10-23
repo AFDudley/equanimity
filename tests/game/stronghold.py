@@ -1,3 +1,4 @@
+from voluptuous import Schema
 from equanimity.grid import Hex
 from equanimity.const import E
 from equanimity.stronghold import Stronghold, MappedContainer, SparseList
@@ -329,3 +330,38 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertIn(sq, self.s.squads)
         sqq = self.s.remove_squad(sq.stronghold_pos)
         self.assertEqual(sq, sqq)
+
+    def test_get_defenders(self):
+        self.s._defenders = None
+        self.assertIs(self.s.defenders, None)
+        self.s._defenders = 0
+        self.assertEqual(self.s.defenders, self.s.squads[0])
+
+    def test_set_defenders(self):
+        # Unset
+        self.s.defenders = None
+        self.assertIs(self.s.defenders, None)
+        # Set by squad num
+        self.s.defenders = 0
+        self.assertEqual(self.s.defenders, self.s.squads[0])
+        # Set by squad
+        self.s.defenders = self.s.squads[0]
+        self.assertEqual(self.s.defenders, self.s.squads[0])
+        # Set with bad squad
+        self.s.squads[0].stronghold = None
+        self.assertRaises(ValueError, self.s.__setattr__, 'defenders',
+                          self.s.squads[0])
+        # Set with unknown squad num
+        self.assertRaises(ValueError, self.s.__setattr__, 'defenders', 99)
+
+    def test_api_view(self):
+        schema = Schema(dict(field=tuple, silo=dict, weapons=[dict],
+                             free_units=[dict], squads=[dict], defenders=dict))
+        data = self.s.api_view()
+        self.assertNotEqual(data['defenders'], {})
+        self.assertValidSchema(data, schema)
+        # Without defenders
+        self.s.defenders = None
+        data = self.s.api_view()
+        self.assertEqual(data['defenders'], {})
+        self.assertValidSchema(data, schema)

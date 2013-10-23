@@ -169,7 +169,7 @@ class Squad(Container):
     def __repr__(self, more=None):
         """This could be done better..."""
         if more is None:
-            fmt = "Name: {name}, Value: {value}, Free spaces: {space} \n"
+            fmt = "Name: {name}, Value: {value}, Free spaces: {space}"
             return fmt.format(name=self.name, value=self.val,
                               space=self.free_spaces)
         s = ['{0}: {1}'.format(i, t.name) for i, t in enumerate(self)]

@@ -129,6 +129,8 @@ class Stronghold(Persistent):
                 raise ValueError('Squad must be in stronghold before setting '
                                  'it as a defender')
             val = val.stronghold_pos
+        elif val is not None and val not in self.squads.items:
+            raise ValueError('Unknown squad at position {}'.format(val))
         self._defenders = val
 
     @property

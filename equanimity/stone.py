@@ -169,12 +169,6 @@ class Stone(PersistentMapping):
             self[e] -= s[e]
         return s
 
-    def sanity_check(self):
-        for e in ELEMENTS:
-            if self.comp[e] < 0 or self.comp[e] > self.limits[e]:
-                return False
-        return True
-
     """ TODO (steve) -- merge stone & comp ? """
 
     def orth(self, element):

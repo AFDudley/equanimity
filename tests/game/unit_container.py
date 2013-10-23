@@ -140,7 +140,7 @@ class SquadTest(FlaskTestDB):
 
     def test_repr(self):
         s = Squad(name='x', data=[self.s])
-        msg = 'Name: x, Value: {0}, Free spaces: 7 \n'
+        msg = 'Name: x, Value: {0}, Free spaces: 7'
         msg = msg.format(self.s.value())
         self.assertEqual(str(s), msg)
         self.assertEqual(s(), msg)

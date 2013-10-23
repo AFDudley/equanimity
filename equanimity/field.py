@@ -160,12 +160,10 @@ class Field(persistent.Persistent):
                 self.setup_battle()
             else:
                 pass
-
         elif self.element == self.clock.get_time('season'):
             self.state = 'harvest'
         else:
             self.state = 'produce'
-        return transaction.commit()
 
     def get_defenders(self):
         """gets the defenders of a Field."""
@@ -182,8 +180,6 @@ class Field(persistent.Persistent):
         #  893, 957,]
         spaces = ceil((self.grid.value() + 4) / 64.0)
         self.stronghold.units.free_spaces = int(spaces) * 8
-        self.stronghold.units._p_changed = 1
-        return transaction.commit()
 
     def get_tile_comps(self):
         """returns a list of stones 1/8th the value of the tile comps."""
@@ -207,7 +203,6 @@ class Field(persistent.Persistent):
 
     def add_planting(self, loc, comp):
         self.planting[loc] = comp, sum(comp.values())
-        return transaction.commit()
 
     def plant(self):
         """Plants from self.plantlings"""
@@ -221,7 +216,6 @@ class Field(persistent.Persistent):
                 self._p_changed = 1
                 self.set_stronghold_capacity()
                 self.set_silo_limit()
-                return transaction.commit()
 
     def harvest(self):
         """returns set of stones generated at harvest"""
