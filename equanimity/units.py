@@ -167,7 +167,9 @@ class Scient(Unit):
     def api_view(self):
         data = super(Scient, self).api_view()
         weapon = self.weapon
-        if weapon is not None:
+        if weapon is None:
+            weapon = {}
+        else:
             weapon = weapon.api_view()
         more = dict(weapon=weapon, weapon_bonus=self.weapon_bonus.comp,
                     equip_limit=self.equip_limit.comp,

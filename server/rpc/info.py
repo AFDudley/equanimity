@@ -2,7 +2,7 @@ from flask import Blueprint
 from flask.ext.login import current_user
 from server import jsonrpc
 from server.decorators import require_login
-from server.rpc.common import get_field, get_unit, get_battle
+from server.rpc.common import get_field, get_unit, get_battle, get_stronghold
 
 
 info = Blueprint('info', __name__, url_prefix='/api/info')
@@ -50,3 +50,10 @@ def unit_info(unit_id):
     # TODO -- apply any restrictions to viewing others' units
     # Some info will need to be exposed in battle, at the very least
     return dict(unit=unit.api_view())
+
+
+@jsonrpc.method('info.stronghold(list) -> dict')
+@require_login
+def stronghold_info(field_loc):
+    stronghold = get_stronghold(field_loc)
+    return dict(stronghold=stronghold.api_view())

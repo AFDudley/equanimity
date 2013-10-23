@@ -29,7 +29,7 @@ class InfoTest(BattleTestBase):
         self._unit_schema = dict(
             comp=dict, element=unicode, name=unicode, location=list,
             dob=unicode, dod=None, uid=int, chosen_location=list, size=int,
-            weapon=Any(None, dict), weapon_bonus=dict, equip_limit=dict,
+            weapon=dict, weapon_bonus=dict, equip_limit=dict,
             sex=unicode, move=int
         )
         self.unit_schema = Schema(dict(unit=self._unit_schema))
@@ -42,6 +42,16 @@ class InfoTest(BattleTestBase):
         self.battle_schema = Schema(dict(battle=dict(
             timer=self._battle_timer_schema, defender=self.combatant_schema,
             attacker=self.combatant_schema, action_num=int
+        )))
+        self._squad_schema = Schema(dict(
+            name=unicode, units=[int], stronghold=list,
+            stronghold_pos=Any(None, int)
+        ))
+        self._silo_schema = Schema(dict(comp=dict, limit=dict))
+        self.stronghold_schema = Schema(dict(stronghold=dict(
+            field=list, silo=self._silo_schema, weapons=[dict],
+            free_units=[self._unit_schema], squads=[self._squad_schema],
+            defenders=self._squad_schema
         )))
 
     def _coerce(self, expect):
@@ -104,3 +114,9 @@ class InfoTest(BattleTestBase):
         data = self._test('unit', 2)
         expect = self._coerce(unit.api_view())
         self.assertEqual(expect, data['unit'])
+
+    def test_stronghold_info(self):
+        self._start_battle()
+        data = self._test('stronghold', self.loc)
+        expect = self._coerce(self.f.stronghold.api_view())
+        self.assertEqual(expect, data['stronghold'])

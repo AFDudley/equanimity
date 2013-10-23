@@ -6,7 +6,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import random
 from collections import Mapping
-from persistent import Persistent
+from persistent.mapping import PersistentMapping
 from operator import itemgetter
 from helpers import rand_element
 from const import ELEMENTS, ORTH, OPP, KINDS
@@ -53,6 +53,8 @@ class Composition(dict):
             return cls.from_sequence(args)
         elif len(args) == 1:
             val = args[0]
+            if hasattr(val, 'comp'):
+                val = val.comp
             if isinstance(val, cls):
                 c = Composition()
                 c.update(val)
@@ -108,10 +110,10 @@ class Composition(dict):
         return ', '.join(s)
 
 
-class Stone(Persistent, Mapping):
+class Stone(PersistentMapping):
     # Limit should be overwritten by classes that inherit from Stone.
     def __init__(self, comp=None, limit=None):
-        Persistent.__init__(self)
+        super(Stone, self).__init__()
         if comp is None:
             comp = Composition(0)
         elif isinstance(comp, Stone):
@@ -122,6 +124,9 @@ class Stone(Persistent, Mapping):
         if limit is None:
             limit = Composition(255)
         self.limit = limit
+
+    def api_view(self):
+        return dict(limit=self.limit, comp=self.comp)
 
     def copy(self):
         return Stone(comp=Composition.create(self.comp),

@@ -7,7 +7,6 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 from collections import OrderedDict
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-from persistent.list import PersistentList
 
 from server import db
 
@@ -103,6 +102,7 @@ class SparseList(Persistent):
 class Stronghold(Persistent):
 
     def __init__(self, field):
+        self._defenders = None
         self.field = field
         self.silo = Silo()
         self.weapons = SparseList()
@@ -111,12 +111,24 @@ class Stronghold(Persistent):
         self.squads = SparseList()
         self.defenders = Squad(owner=field.owner, name='Defenders')
         self.make_defenders(field.element)
-        self.defender_locs = PersistentList()
         self.stable = None
         self.armory = None
         self.home = None
         self.farm = None
         self.create_factory(field.element)
+
+    """ TODO -- defenders should be an index value into the squads list """
+    @property
+    def defenders(self):
+        return self._defenders
+
+    @defenders.setter
+    def defenders(self, val):
+        if val is not None:
+            val.add_to_stronghold(self, None)
+        if self._defenders is not None:
+            self.squads.append(self._defenders)
+        self._defenders = val
 
     @property
     def location(self):
@@ -135,6 +147,19 @@ class Stronghold(Persistent):
         field = db['fields'].get(tuple(field_location))
         if field is not None:
             return field.stronghold
+
+    def api_view(self):
+        defenders = self.defenders
+        if defenders is None:
+            defenders = {}
+        else:
+            defenders = defenders.api_view()
+        return dict(
+            field=self.field.world_coord, silo=self.silo.api_view(),
+            weapons=[w.api_view() for w in self.weapons],
+            free_units=[u.api_view() for u in self.free_units],
+            squads=[s.api_view() for s in self.squads],
+            defenders=defenders)
 
     def create_factory(self, kind):
         """Adds a factory to a stronghold, raises exception if factory already
@@ -267,15 +292,6 @@ class Stronghold(Persistent):
         for n in xrange(len(squad)):
             squad[n].location = list_of_locs[n]
             squad[n]._p_changed = 1
-
-    def apply_squad_locs(self, squad_num, list_of_locs):
-        return self.apply_locs_to_squad(self.squads[squad_num], list_of_locs)
-
-    def set_defender_locs(self, list_of_locs):
-        self.defender_locs = list_of_locs
-
-    def apply_defender_locs(self):
-        return self.apply_locs_to_squad(self.defenders, self.defender_locs)
 
     def unset_defenders(self):
         """Moves old defenders into stronghold"""
