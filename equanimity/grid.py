@@ -140,7 +140,7 @@ class Grid(Stone):
     def __init__(self, comp=None, radius=8, tiles=None):
         if radius <= 0:
             raise ValueError('Invalid hex grid radius {0}'.format(radius))
-        self.size = self._compute_size(radius)
+        self.size = self.compute_size(radius)
         if comp is None:
             comp = Stone()
         else:
@@ -294,17 +294,19 @@ class Grid(Stone):
     def __ne__(self, other):
         return (not self.__eq__(other))
 
-    def _triangulate(self, n):
+    @classmethod
+    def _triangulate(cls, n):
         # https://en.wikipedia.org/wiki/Triangular_number
         # Essentially a factorial for addition instead of multiplication
         return (n * (n + 1)) / 2
 
-    def _compute_size(self, radius):
+    @classmethod
+    def compute_size(cls, radius):
         """ Computes number of tiles in a hex grid of radius N
         A hexagonal hex grid can be subdivided into 6 triangles, each of
         tile length radius-1, surrounding a single center tile
         """
-        return self._triangulate(radius) * 6 + 1
+        return cls._triangulate(radius) * 6 + 1
 
     def _setup_fresh_tiles(self, tiles=None):
         if tiles is None:
