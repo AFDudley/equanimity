@@ -242,16 +242,14 @@ class State(PersistentMapping):
 class Game(Persistent):
 
     """Almost-state-machine that maintains game state."""
-    def __init__(self, field, attacker, defender):
+    def __init__(self, field, attacker):
         super(Game, self).__init__()
         self.field = field
         self.grid = field.grid
-        self.defender = defender
+        self.defender = field.stronghold.defenders.owner
         self.attacker = attacker
-        # TODO -- load defenders from stronghold
-        # TODO -- what if no defender is set? pull a random squad out of the
-        # stronghold?
-        self.battlefield = Battlefield(field, self.defender.squads[0],
+        # TODO -- attacker should be attacking squad, not player
+        self.battlefield = Battlefield(field, field.stronghold.defenders,
                                        self.attacker.squads[0])
         self.players = self.defender, self.attacker
         # TODO (steve) -- bidirectional map instead of map,units

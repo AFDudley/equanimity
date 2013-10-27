@@ -7,6 +7,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 from collections import OrderedDict
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
+from operator import methodcaller
 
 from server import db
 
@@ -18,7 +19,6 @@ from unit_container import Container
 from const import ORTH, OPP, WEP_LIST, ELEMENTS
 from factory import Stable, Armory, Home, Farm
 from silo import Silo
-from copy import deepcopy
 from clock import now
 
 
@@ -77,6 +77,9 @@ class SparseList(Persistent):
     def __len__(self):
         return len(self.items)
 
+    def __bool__(self):
+        return bool(self.items)
+
     def __getitem__(self, pos):
         return self.items[pos]
 
@@ -99,18 +102,42 @@ class SparseList(Persistent):
         return self.items.pop(key)
 
 
+class SparseStrongholdList(SparseList):
+
+    def __init__(self, stronghold):
+        super(SparseStrongholdList, self).__init__()
+        self.stronghold = stronghold
+
+    def append(self, item):
+        pos = super(SparseStrongholdList, self).append(item)
+        item.add_to_stronghold(self.stronghold, pos)
+
+    def __setitem__(self, pos, item):
+        super(SparseStrongholdList, self).__setitem__(pos, item)
+        item.add_to_stronghold(pos)
+
+    def pop(self, key):
+        s = super(SparseStrongholdList, self).pop(key)
+        s.remove_from_stronghold()
+        return s
+
+    def __delitem__(self, pos):
+        sq = self.items[pos]
+        super(SparseStrongholdList, self).__delitem__(pos)
+        sq.remove_from_stronghold()
+
+
 class Stronghold(Persistent):
 
     def __init__(self, field):
         self._defenders = None
         self.field = field
         self.silo = Silo()
-        self.weapons = SparseList()
+        self.weapons = SparseStrongholdList(self)
         self.free_units = MappedContainer()
         self.units = dict()
-        self.squads = SparseList()
-        self.defenders = self.form_squad(name='Defenders')
-        self._setup_default_defenders(field.element)
+        self.squads = SparseStrongholdList(self)
+        self.defenders = None
         self.stable = None
         self.armory = None
         self.home = None
@@ -119,8 +146,9 @@ class Stronghold(Persistent):
 
     @property
     def defenders(self):
-        if self._defenders is not None:
-            return self.squads[self._defenders]
+        if self._defenders is None:
+            self.defenders = self._get_automatic_defenders()
+        return self.squads[self._defenders]
 
     @defenders.setter
     def defenders(self, val):
@@ -151,18 +179,43 @@ class Stronghold(Persistent):
         if field is not None:
             return field.stronghold
 
-    def api_view(self):
-        defenders = self.defenders
-        if defenders is None:
-            defenders = {}
+    def _get_automatic_defenders(self):
+        """ Returns the highest valued squad, if one exists. Otherwise
+        it forms a squad from the highest valued free units available.
+        If no free units are available, it is an error because this should
+        have reverted to a world owned stronghold which is never empty. """
+        squad = self._get_most_valuable_squad()
+        if squad is None:
+            return self._create_automatic_free_unit_squad()
         else:
-            defenders = defenders.api_view()
+            return squad
+
+    def _get_most_valuable_squad(self):
+        # Return the highest value squad, if there is one
+        highest = None
+        highest_val = -1
+        for s in self.squads:
+            if s.value() > highest_val:
+                highest = s
+                highest_val = s.value()
+        return highest
+
+    def _create_automatic_free_unit_squad(self):
+        # Create a squad from the highest valued free units
+        units = sorted(self.free_units.units, key=methodcaller('value'),
+                       reverse=True)
+        if not units:
+            raise ValueError('No free units available')
+        units = [unit.uid for unit in units]
+        return self.form_squad(unit_ids=units, name='Defenders')
+
+    def api_view(self):
         return dict(
             field=self.field.world_coord, silo=self.silo.api_view(),
             weapons=[w.api_view() for w in self.weapons],
             free_units=[u.api_view() for u in self.free_units],
             squads=[s.api_view() for s in self.squads],
-            defenders=defenders)
+            defenders=self.defenders.api_view())
 
     def create_factory(self, kind):
         """Adds a factory to a stronghold, raises exception if factory already
@@ -199,8 +252,7 @@ class Stronghold(Persistent):
         if element not in ELEMENTS:
             raise ValueError('Invalid element "{0}"'.format(element))
         weapon = weapons[weap_type](element, self.silo.get(comp))
-        pos = self.weapons.append(weapon)
-        weapon.add_to_stronghold(self, pos)
+        self.weapons.append(weapon)
         return weapon
 
     def imbue_weapon(self, comp, weapon_num):
@@ -244,8 +296,7 @@ class Stronghold(Persistent):
         """Moves a weapon from a scient to the stronghold."""
         unit = self.units[unit_id]
         weapon = unit.unequip()
-        pos = self.weapons.append(weapon)
-        weapon.add_to_stronghold(self, pos)
+        self.weapons.append(weapon)
         return weapon
 
     def equip_scient(self, unit_id, weapon_num):
@@ -254,9 +305,17 @@ class Stronghold(Persistent):
         if scient.weapon is not None:
             self.unequip_scient(unit_id)
         weapon = self.weapons.pop(weapon_num)
-        weapon.remove_from_stronghold()
         scient.equip(weapon)
         return scient
+
+    def add_squad(self, squad):
+        """ Adds an already existing squad to this stronghold """
+        if squad.stronghold is not None:
+            raise ValueError('Squad {} is in another stronghold'.format(squad))
+        if squad.owner != self.owner:
+            msg = 'Squad {} does not have same owner as stronghold'
+            raise ValueError(msg.format(squad))
+        self.squads.append(squad)
 
     def form_squad(self, unit_ids=tuple(), name=None):
         """Forms a squad and places it in the stronghold."""
@@ -268,8 +327,7 @@ class Stronghold(Persistent):
             except Exception:
                 # Put it back in case there was error
                 self.free_units.append(unit)
-        pos = self.squads.append(sq)
-        sq.add_to_stronghold(self, pos)
+        self.squads.append(sq)
         return sq
 
     def name_squad(self, squad_num, name):
@@ -278,11 +336,19 @@ class Stronghold(Persistent):
         return squad
 
     def remove_squad(self, squad_num):
-        """Removes units from from self.units, effectively moving the squad out
-         of the stronghold."""
+        """Removes and returns the squad from this stronghold. The units
+        remain in the squad."""
+        if squad_num == self._defenders:
+            self._defenders = None
         squad = self.squads.pop(squad_num)
-        squad.remove_from_stronghold()
         return squad
+
+    def disband_squad(self, squad_num):
+        """ Removes the squad from this stronghold, placing its units in the
+        free units pool."""
+        squad = self.squads.pop(squad_num)
+        for unit in squad:
+            self._remove_unit_from(squad, unit.uid)
 
     def apply_locs_to_squad(self, squad, list_of_locs):
         """takes a list of locations and appliees them to the units in a
@@ -295,22 +361,30 @@ class Stronghold(Persistent):
             squad[n].location = list_of_locs[n]
             squad[n]._p_changed = 1
 
-    def _setup_default_defenders(self, element):
+    def _setup_default_defenders(self, element=None, name='Defenders'):
         """ TODO -- remove this """
+        if self._defenders is not None:
+            raise ValueError('Defenders already set up')
+        if element is None:
+            element = self.field.element
         s = Stone()
         s[element] = 4
         s[OPP[element]] = 0
         for o in ORTH[element]:
             s[o] = 2
         for n in xrange(8):
-            self.silo.imbue(deepcopy(s))
+            self.silo.imbue(s.copy())
         wcomp = Stone().comp
+        units = []
         for i, wep in enumerate(WEP_LIST):
             unit = self.form_scient(element, s.comp)
+            units.append(unit)
             self.form_weapon(element, wcomp, wep)
             self.name_unit(unit.uid, "Ms. " + wep)
             self.equip_scient(unit.uid, i)
-            self.add_unit_to_defenders(unit.uid)
+        s = self.form_squad(unit_ids=[u.uid for u in units], name=name)
+        self.defenders = s
+        return s
 
     def move_squad_to_defenders(self, squad_num):
         """Moves a squad from self.squads to self.defenders"""
@@ -349,7 +423,9 @@ class Stronghold(Persistent):
             if stronghold is None or stronghold != self:
                 raise ValueError('Unit container has no relation to this '
                                  'stronghold')
-            container.remove(self.units[unit_id])
+            unit = self.units[unit_id]
+            container.remove(unit)
+            self.free_units.append(unit)
         del self.units[unit_id]
 
     def remove_unit_from_defenders(self, unit_id):

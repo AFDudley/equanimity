@@ -2,6 +2,8 @@ from voluptuous import Schema
 from equanimity.grid import Hex
 from equanimity.const import E
 from equanimity.stronghold import Stronghold, MappedContainer, SparseList
+from equanimity.unit_container import Squad
+from equanimity.player import WorldPlayer, Player
 from server.utils import AttributeDict
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
@@ -136,6 +138,7 @@ class StrongholdTest(FlaskTestDBWorld):
         self.f = self.db['fields'][Hex(0, 0)]
         self.s = self.f.stronghold
         self.s.silo.imbue(create_comp(earth=128))
+        self.player = Player('P', 'p@gmail.com', 'ppp')
 
     def test_create(self):
         self.assertEqual(self.s.owner, self.f.owner)
@@ -332,15 +335,43 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(sq, sqq)
 
     def test_get_defenders(self):
-        self.s._defenders = None
-        self.assertIs(self.s.defenders, None)
+        self.s._setup_default_defenders()
         self.s._defenders = 0
         self.assertEqual(self.s.defenders, self.s.squads[0])
 
+    def test_get_defenders_automatic_no_units(self):
+        self.s._defenders = None
+        self.assertExceptionContains(ValueError, 'No free units',
+                                     getattr, self.s, 'defenders')
+
+    def test_get_defenders_automatic_existing_squad(self):
+        self.s._defenders = None
+        self.s.silo.imbue(create_comp(earth=255))
+        ua = self.s.form_scient(E, create_comp(earth=44))
+        ub = self.s.form_scient(E, create_comp(earth=22))
+        sqa = self.s.form_squad(unit_ids=(ua.uid, ub.uid), name='xxy')
+        self.s.silo.imbue(create_comp(earth=255))
+        ua = self.s.form_scient(E, create_comp(earth=44))
+        ub = self.s.form_scient(E, create_comp(earth=23))
+        sqb = self.s.form_squad(unit_ids=(ua.uid, ub.uid), name='xxy')
+        self.assertEqual(self.s.squads[0], sqa)
+        self.assertGreater(sqb.value(), self.s.squads[0].value())
+        self.assertEqual(self.s.defenders, sqb)
+
+    def test_get_defenders_automatic_creating_squad(self):
+        self.s.silo.imbue(create_comp(earth=255))
+        ua = self.s.form_scient(E, create_comp(earth=31))
+        ub = self.s.form_scient(E, create_comp(earth=32))
+        self.s._defenders = None
+        print self.s.defenders.units
+        self.assertEqual(self.s.defenders.units, [ub, ua])
+
     def test_set_defenders(self):
+        sq = self.s._setup_default_defenders()
+        self.assertEqual(self.s.defenders, sq)
         # Unset
         self.s.defenders = None
-        self.assertIs(self.s.defenders, None)
+        self.assertIs(self.s._defenders, None)
         # Set by squad num
         self.s.defenders = 0
         self.assertEqual(self.s.defenders, self.s.squads[0])
@@ -349,19 +380,36 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(self.s.defenders, self.s.squads[0])
         # Set with bad squad
         self.s.squads[0].stronghold = None
-        self.assertRaises(ValueError, self.s.__setattr__, 'defenders',
-                          self.s.squads[0])
+        self.assertExceptionContains(ValueError, 'must be in stronghold',
+                                     self.s.__setattr__, 'defenders',
+                                     self.s.squads[0])
         # Set with unknown squad num
-        self.assertRaises(ValueError, self.s.__setattr__, 'defenders', 99)
+        self.assertExceptionContains(ValueError, 'Unknown squad at',
+                                     self.s.__setattr__, 'defenders', 99)
 
     def test_api_view(self):
+        self.s._setup_default_defenders()
         schema = Schema(dict(field=tuple, silo=dict, weapons=[dict],
                              free_units=[dict], squads=[dict], defenders=dict))
         data = self.s.api_view()
         self.assertNotEqual(data['defenders'], {})
         self.assertValidSchema(data, schema)
-        # Without defenders
-        self.s.defenders = None
-        data = self.s.api_view()
-        self.assertEqual(data['defenders'], {})
-        self.assertValidSchema(data, schema)
+
+    def test_add_squad(self):
+        sq = Squad(owner=self.player)
+        self.f.owner = self.player
+        self.s.add_squad(sq)
+        self.assertEqual(self.s.squads[0], sq)
+
+    def test_add_squad_has_stronghold(self):
+        sq = Squad(owner=self.player)
+        sq.stronghold = 1
+        self.f.owner = self.player
+        self.assertExceptionContains(ValueError, 'in another stronghold',
+                                     self.s.add_squad, sq)
+
+    def test_add_squad_wrong_owner(self):
+        sq = Squad(owner=WorldPlayer.get())
+        self.f.owner = self.player
+        self.assertExceptionContains(ValueError, 'does not have same owner',
+                                     self.s.add_squad, sq)

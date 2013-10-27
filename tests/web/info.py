@@ -110,6 +110,7 @@ class InfoTest(BattleTestBase):
         self.assertEqual(expect, data['battle']['timer'])
 
     def test_unit_info(self):
+        self.s._setup_default_defenders()
         unit = self.db['units'][2]
         data = self._test('unit', 2)
         expect = self._coerce(unit.api_view())

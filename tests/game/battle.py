@@ -99,8 +99,9 @@ class GameTestBase(BattleTestBase):
                                squads=[atksquad])
         self.defender = Player('Def', 'y@gmail.com', 'yyy',
                                squads=[defsquad])
-        self.field = Field(Hex(0, 0))
-        self.game = Game(self.field, self.attacker, self.defender)
+        self.field = Field(Hex(0, 0), owner=self.defender)
+        self.field.stronghold.add_squad(defsquad)
+        self.game = Game(self.field, self.attacker)
 
     @property
     def bf(self):
@@ -208,8 +209,9 @@ class StateTest(BattleTestBase):
                                squads=[rand_squad()])
         defsquad = rand_squad()
         self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
-        self.field = Field(Hex(0, 0))
-        self.game = Game(self.field, self.attacker, self.defender)
+        self.field = Field(Hex(0, 0), owner=self.defender)
+        self.field.stronghold.add_squad(defsquad)
+        self.game = Game(self.field, self.attacker)
         self.s = State(self.game)
         self.s['old_defsquad_hp'] = defsquad.hp()
 

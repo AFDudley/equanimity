@@ -14,19 +14,20 @@ class BattleTestBase(RPCTestBase):
     def setUp(self):
         super(BattleTestBase, self).setUp()
         self.defender = self.get_user()
+        self.f.owner = self.defender
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx')
 
     def _create_units(self):
         s = Scient(E, create_comp(earth=2))
-        t = Scient(E, create_comp(earth=1))
         atksquad = Squad(data=[s])
-        defsquad = Squad(data=[t])
+        t = self.f.stronghold.form_scient(E, create_comp(earth=1))
+        defsquad = self.f.stronghold.form_squad(unit_ids=(t.uid,))
         return s, t, atksquad, defsquad
 
     def _setup_game(self, atksquad, defsquad):
         self.attacker.squads = [atksquad]
         self.defender.squads = [defsquad]
-        self.game = Game(self.f, self.attacker, self.defender)
+        self.game = Game(self.f, self.attacker)
         self.f.game = self.game
 
     def _start_battle(self):
