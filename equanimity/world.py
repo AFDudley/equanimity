@@ -8,18 +8,20 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 # TODO -- configure logging separately
 import logging
 logging.basicConfig()
+
 import transaction
 from collections import defaultdict
-from datetime import datetime
 from threading import Lock
 from persistent.mapping import PersistentMapping
 from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
-from equanimity.const import WORLD_UID
-from equanimity.field import Field
-from equanimity.player import WorldPlayer
-from equanimity.db import AutoID
-from equanimity.grid import Grid, SquareGrid
+
+from const import WORLD_UID
+from field import Field
+from player import WorldPlayer
+from db import AutoID
+from grid import Grid, SquareGrid
+from clock import WorldClock
 from server import db
 
 
@@ -67,14 +69,9 @@ class World(object):
             self._make_fields()
 
     def _setup(self, version, radius, square_grid=False, init_db_reset=True):
-        db['day_length'] = 240     # length of game day in seconds.
-        db['resign_time'] = 21600  # amount of time in seconds before
-                                   # attacker is forced to resign.
-        db['max_duration'] = 5040  # in gametime days (5040 is one
-                                   # generation, two weeks real-time)
         db['version'] = version
         db['radius'] = radius
-        db['dob'] = datetime.utcnow()
+        db['clock'] = WorldClock()
         #fields should be a frozendict
         #http://stackoverflow.com/questions/2703599/what-would-be-a-frozen-dict
         db['fields'] = PersistentMapping()

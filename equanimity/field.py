@@ -13,9 +13,10 @@ from grid import Grid, Hex
 from player import Player, WorldPlayer
 from battle import Game
 from stronghold import Stronghold
-from clock import Clock
+from clock import FieldClock
 from unit_container import Squad
 from units import Scient
+from const import FIELD_BATTLE
 from server import db
 
 
@@ -34,12 +35,11 @@ class Field(persistent.Persistent):
         self.grid = grid
         self.element = 'Ice'  # For testing
         #self.element = get_element(self.grid.comp)
-        self.clock = Clock()
+        self.clock = FieldClock(self)
         self.stronghold = Stronghold(self)
         self.plantings = persistent.mapping.PersistentMapping()
         self.attackerqueue = persistent.list.PersistentList()
         self.game = None
-        self.state = 'produce'  # Default state
         """
         ply_time: user definable time before a pass is automatically sent
         for a battle action.
@@ -76,6 +76,13 @@ class Field(persistent.Persistent):
     @property
     def in_battle(self):
         return (self.game is not None and not self.game.state['game_over'])
+
+    @property
+    def state(self):
+        if self.in_battle:
+            return FIELD_BATTLE
+        else:
+            return self.clock.state
 
     def place_scient(self, unit, location):
         if unit.__class__ != Scient:
@@ -150,20 +157,6 @@ class Field(persistent.Persistent):
             del self._owner.fields[self.world_coord]
         self._owner = owner
         owner.fields[self.world_coord] = self
-
-    def change_state(self):
-        # called everyday by world?
-        # should be a proper state machine, too focused to find one.
-        if self.battleque:
-            if self.state == 'produce':
-                self.state = 'battle'
-                self.setup_battle()
-            else:
-                pass
-        elif self.element == self.clock.get_time('season'):
-            self.state = 'harvest'
-        else:
-            self.state = 'produce'
 
     def get_defenders(self):
         """gets the defenders of a Field."""

@@ -4,85 +4,103 @@ clock.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import copy
-from datetime import datetime
+from persistent import Persistent
 from server import db
+from helpers import now
+from const import CLOCK, ELEMENTS, E, FIELD_PRODUCE, FIELD_YIELD
 
 
-def now():
-    return datetime.utcnow()
+"""
+Global world clock -
+    -- keeps track of time? (or does external method trigger it on time)
+    -- advances the clocks of each field
+
+Field clock:
+    -- season
+    -- time since birth, in pretty format
+    -- on tick, just update season
+"""
 
 
-class Clock():
-    """World time related functions."""
-    def get_name(self, uot):
-        if uot == 'day':
-            num = self.uot_num['day'] % 6
-        elif uot == 'week':
-            num = self.uot_num['week'] % 5
-        elif uot == 'month':
-            num = self.uot_num['month'] % 3
-        elif uot == 'season':
-            num = self.uot_num['season'] % 4
-            season_nums = {0: 'Earth', 1: 'Fire', 2: 'Ice', 3: 'Wind'}
-            return season_nums.get(num)
+class WorldClock(Persistent):
+
+    def __init__(self):
+        self.current = dict(zip(CLOCK.keys(), [1] * len(CLOCK)))
+        self.dob = now()
+
+    @property
+    def elapsed(self):
+        return now() - self.dob
+
+    def __getattribute__(self, k):
+        if k in CLOCK:
+            elapsed = object.__getattribute__(self, 'elapsed')
+            return 1 + (int(elapsed.total_seconds()) //
+                        int(CLOCK[k].total_seconds()))
         else:
-            return
+            return object.__getattribute__(self, k)
 
-        named_nums = {0: 'One', 1: 'Two', 2: 'Three', 3: 'Four', 4: 'Five',
-                      5: 'Six'}
-        return named_nums.get(num)
+    def game_over(self):
+        return self.generation > 1
 
-    def update(self):
-        since_dob = (now() - self.dob).total_seconds()
-        dur = self.duration
-        uot_num = {}
-        uot_name = {}
-        for uot in dur.keys():
-            num = int(since_dob / dur[uot])
-            uot_num[uot] = num
-            uot_name[uot] = self.get_name(uot)
-        self.uot_num = uot_num
-        self.uot_name = uot_name
+    def tick(self):
+        """ Updates the clock state, and does necessary actions if the
+        day or season changes.
+        Call this at least once per game day (4 minutes)
+        """
 
-    def __init__(self, addr=('localhost', 9100)):
-        self.dob = copy.deepcopy(db['dob'])
-        self.duration = {'day': copy.deepcopy(db['day_length'])}
-        self.duration['week'] = self.duration['day'] * 6
-        self.duration['month'] = self.duration['week'] * 5
-        self.duration['season'] = self.duration['month'] * 3
-        self.duration['year'] = self.duration['season'] * 4
-        self.duration['generation'] = self.duration['year'] * 14
-        self.uot_num = {'day': 0, 'week': 0, 'month': 0, 'season': 0,
-                        'year': 0, 'generation': 0}
-        self.uot_name = {'day': 'one', 'week': 'one', 'month': 'one',
-                         'season': 'Earth', 'year': 'one', 'generation': 'one'}
-        #Get uot_num and uot_name correct.
-        self.update()
+        '''
+        TODO -- this assumes the tick() will not skip any days
+        i.e. the process that calls this on time is not down, and there is
+        not a recurrent Exception being raised in this function's call stack
 
-    def since_dob(self, uot=None):
-        """Returns total seconds since dob in game Units of Time.
-        or seconds."""
-        if uot is None:
-            return (now() - self.dob).total_seconds()
+        How should we handle that failure?
+            -- Consider the game paused
+            -- Fill in any missing days with default actions
+                (Might cause unpredictable results from a player's pov)
+        '''
+
+        next = {k: getattr(self, k) for k in self.current}
+        if next['day'] > self.current['day']:
+            self.change_day()
+        if next['season'] > self.current['season']:
+            self.change_season()
+        self.current = next
+
+    def change_day(self):
+        for field in db['fields']:
+            field.clock.change_day()
+
+    def change_season(self):
+        for field in db['fields']:
+            field.clock.change_season()
+
+
+class FieldClock(Persistent):
+
+    def __init__(self, field, season=E):
+        # TODO -- what determines the initial season?
+        self.field = field
+        self.season = season
+
+    @property
+    def state(self):
+        if self.season == self.field.element:
+            return FIELD_PRODUCE
         else:
-            self.update()
-            return self.uot_num[uot]
+            return FIELD_YIELD
 
-    def get_delta(self, timedelta, uot):
-        """takes a timedelta and returns delta in game UoT."""
-        return timedelta.total_seconds() / self.duration[uot]
+    def change_day(self):
+        """ Process the field's queues """
+        # TODO
+        # e.x.:
+        #field.squad_move_queue.consume()
+        # Question: suppose 2 players have queued to attack a field on the
+        # same day, and the owner of that field has also queued a squad to
+        # move into that field. How is that action resolved?
+        pass
 
-    def get_time(self, uot=None):
-        self.update()
-        output = ""
-        if not uot:
-            output += "Day: %s" % self.uot_name['day'] + "\n"
-            output += "Week: %s" % self.uot_name['week'] + "\n"
-            output += "Month: %s" % self.uot_name['month'] + "\n"
-            output += "Season: %s" % self.uot_name['season'] + "\n"
-            output += "Year: %s" % self.uot_name['year'] + "\n"
-            output += "Generation: %s" % self.uot_name['generation'] + "\n"
-        else:
-            return self.uot_name[uot]
-        return output
+    def change_season(self):
+        """ Move to the next season """
+        next = (ELEMENTS.index(self.season) + 1) % len(ELEMENTS)
+        self.season = ELEMENTS[next]

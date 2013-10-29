@@ -36,3 +36,16 @@ WORLD_UID = 0
 PLY_TIME = timedelta(minutes=4)
 
 LETTERS = {E[0]: E, F[0]: F, I[0]: I, W[0]: W}
+
+CLOCK = dict(
+    generation=timedelta(days=14),
+    year=timedelta(days=1),
+    season=timedelta(hours=8),
+    month=timedelta(hours=2),
+    week=timedelta(minutes=24),
+    day=timedelta(minutes=4)
+)
+
+FIELD_PRODUCE = 'produce'
+FIELD_YIELD = 'yield'
+FIELD_BATTLE = 'battle'

@@ -8,6 +8,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 import random
 import string
 from const import ELEMENTS
+from datetime import datetime
 
 
 def validate_length(seq, **limits):
@@ -22,3 +23,7 @@ def rand_string(len=8):
 def rand_element():
     """Reuturns a random element"""
     return random.choice(ELEMENTS)
+
+
+def now():
+    return datetime.utcnow()

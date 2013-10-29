@@ -10,7 +10,7 @@ and should be refactored with battle as well.
 
 """
 import transaction
-from datetime import datetime, timedelta
+from datetime import timedelta
 from calendar import timegm
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
@@ -20,10 +20,7 @@ from units import Unit
 from grid import Hex
 from const import PLY_TIME
 from server import db
-
-
-def now():
-    return datetime.utcnow()
+from helpers import now
 
 
 class BattleError(Exception):
