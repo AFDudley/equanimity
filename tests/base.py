@@ -31,7 +31,30 @@ def pairwise(iterable):
     return izip(a, b)
 
 
-class FlaskTest(TestCase):
+class BaseTest(TestCase):
+
+    def assertExceptionContains(self, exc, submsg, f, *args, **kwargs):
+        try:
+            f(*args, **kwargs)
+        except exc as e:
+            self.assertIn(submsg, str(e))
+        else:
+            self.fail('{0} not raised'.format(exc.__name__))
+
+    def assertNoException(self, exc, f, *args, **kwargs):
+        try:
+            f(*args, **kwargs)
+        except exc as e:
+            self.fail('Exception raised: {0} "{1}"'.format(type(e), e))
+
+    def assertValidSchema(self, obj, schema, required=None):
+        if required is None:
+            required = True
+        self.assertNoException(InvalidJSONSchema,
+                               JSONSchema(schema, required=required), obj)
+
+
+class FlaskTest(BaseTest):
 
     # If xhr is True, requests will add X-Requested-With and return response
     # with response.json set to parsed data
@@ -139,29 +162,9 @@ class FlaskTest(TestCase):
     def assert500(self, response):
         self.assertStatus(500, response)
 
-    def assertExceptionContains(self, exc, submsg, f, *args, **kwargs):
-        try:
-            f(*args, **kwargs)
-        except exc as e:
-            self.assertIn(submsg, str(e))
-        else:
-            self.fail('{0} not raised'.format(exc.__name__))
-
-    def assertNoException(self, exc, f, *args, **kwargs):
-        try:
-            f(*args, **kwargs)
-        except exc as e:
-            self.fail('Exception raised: {0} "{1}"'.format(type(e), e))
-
     def assertValidJSON(self, response, schema, **kwargs):
         self.assert200(response)
         self.assertValidSchema(response.json, schema, **kwargs)
-
-    def assertValidSchema(self, obj, schema, required=None):
-        if required is None:
-            required = True
-        self.assertNoException(InvalidJSONSchema,
-                               JSONSchema(schema, required=required), obj)
 
     def assertAPIError(self, response, field=None, value=unicode,
                        fields=None, main=None):

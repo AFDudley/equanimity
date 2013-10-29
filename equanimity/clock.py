@@ -25,23 +25,20 @@ Field clock:
 class WorldClock(Persistent):
 
     def __init__(self):
-        self.current = dict(zip(CLOCK.keys(), [1] * len(CLOCK)))
         self.dob = now()
+        self._current = self.get_current_state()
 
     @property
     def elapsed(self):
         return now() - self.dob
 
-    def __getattribute__(self, k):
-        if k in CLOCK:
-            elapsed = object.__getattribute__(self, 'elapsed')
-            return 1 + (int(elapsed.total_seconds()) //
-                        int(CLOCK[k].total_seconds()))
-        else:
-            return object.__getattribute__(self, k)
-
+    @property
     def game_over(self):
         return self.generation > 1
+
+    def get_current_state(self):
+        """ Returns the current computed clock interval values since dob """
+        return {k: getattr(self, k) for k in CLOCK}
 
     def tick(self):
         """ Updates the clock state, and does necessary actions if the
@@ -59,27 +56,42 @@ class WorldClock(Persistent):
             -- Fill in any missing days with default actions
                 (Might cause unpredictable results from a player's pov)
         '''
-
-        next = {k: getattr(self, k) for k in self.current}
-        if next['day'] > self.current['day']:
+        next = self.get_current_state()
+        if next['day'] > self._current['day']:
             self.change_day()
-        if next['season'] > self.current['season']:
+        if next['season'] > self._current['season']:
             self.change_season()
-        self.current = next
+        self._current = next
 
     def change_day(self):
-        for field in db['fields']:
+        for field in db['fields'].values():
             field.clock.change_day()
 
     def change_season(self):
-        for field in db['fields']:
+        for field in db['fields'].values():
             field.clock.change_season()
+
+    def _get_interval_value(self, interval):
+        return 1 + (int(self.elapsed.total_seconds()) //
+                    int(CLOCK[interval].total_seconds()))
+
+    def __getattribute__(self, k):
+        """ Computes day, week, year, season, generation on demand
+        """
+        if k in CLOCK:
+            return object.__getattribute__(self, '_get_interval_value')(k)
+        else:
+            return object.__getattribute__(self, k)
+
+    def __setattr__(self, k, v):
+        if k in CLOCK:
+            raise ValueError('Can\'t set {0}'.format(k))
+        super(WorldClock, self).__setattr__(k, v)
 
 
 class FieldClock(Persistent):
 
     def __init__(self, field, season=E):
-        # TODO -- what determines the initial season?
         self.field = field
         self.season = season
 

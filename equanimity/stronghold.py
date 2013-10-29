@@ -149,7 +149,6 @@ class Stronghold(Persistent):
         if self._defenders is None:
             self.defenders = self._get_automatic_defenders()
         return self.squads[self._defenders]
-        self
 
     @defenders.setter
     def defenders(self, val):
