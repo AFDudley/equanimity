@@ -305,9 +305,7 @@ class GameTest(GameTestBase):
 
     def test_unit_map(self):
         m = self.game.unit_map()
-        print 'Self.units:', self.units
-        print 'Unit map:', m
-        self.assertEqual(sorted(m.keys()), self.units)
+        self.assertEqual(sorted(m.keys()), sorted(self.units))
         expect_ids = sorted([unit.uid for unit in self.units])
         self.assertEqual(sorted(m.values()), expect_ids)
 
