@@ -11,9 +11,12 @@ class InfoTest(BattleTestBase):
         self._setup_schemas()
 
     def _setup_schemas(self):
-        self.clock_schema = Schema(dict(clock=dict()))  # TODO
+        self.clock_schema = Schema(dict(clock=dict(dob=int, elapsed=int,
+                                                   state=dict)))
+        self._field_clock_schema = dict(season=unicode)
         self._field_schema = dict(
-            owner=int, element=unicode, coordinate=[int, int], in_battle=bool
+            owner=int, element=unicode, coordinate=[int, int], state=unicode,
+            clock=self._field_clock_schema
         )
         self.field_schema = Schema(dict(field=self._field_schema))
         self.world_schema = Schema(dict(

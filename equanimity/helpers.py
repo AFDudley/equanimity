@@ -8,6 +8,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 import random
 import string
 from const import ELEMENTS
+from calendar import timegm
 from datetime import datetime
 
 
@@ -26,4 +27,10 @@ def rand_element():
 
 
 def now():
+    """ Returns the current UTC datetime"""
     return datetime.utcnow()
+
+
+def timestamp(dt):
+    """ Returns a date as a unix timestamp """
+    return timegm(dt.utctimetuple())

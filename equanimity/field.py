@@ -62,12 +62,12 @@ class Field(persistent.Persistent):
         if (requester is not None and
                 self.world_coord not in requester.visible_fields):
             return {}
-        # TODO -- add seasonal info (that might be in Clock),
-        # add factory etc stuff
+        # TODO -- add factory etc stuff
         return dict(owner=self.owner.uid,
                     element=self.element,
                     coordinate=self.world_coord,
-                    in_battle=self.in_battle)
+                    state=self.state,
+                    clock=self.clock.api_view())
 
     @classmethod
     def get(self, loc):

@@ -70,15 +70,13 @@ class SparseList(Persistent):
         self.items = OrderedDict()
 
     def append(self, item):
+        while self.index in self.items:
+            self.index += 1
         self.items[self.index] = item
-        self.index += 1
-        return self.index - 1
+        return self.index
 
     def __len__(self):
         return len(self.items)
-
-    def __bool__(self):
-        return bool(self.items)
 
     def __getitem__(self, pos):
         return self.items[pos]
@@ -111,10 +109,13 @@ class SparseStrongholdList(SparseList):
     def append(self, item):
         pos = super(SparseStrongholdList, self).append(item)
         item.add_to_stronghold(self.stronghold, pos)
+        return pos
 
     def __setitem__(self, pos, item):
+        if pos in self.items:
+            raise ValueError('Can\'t overwrite item at {0}'.format(pos))
         super(SparseStrongholdList, self).__setitem__(pos, item)
-        item.add_to_stronghold(pos)
+        item.add_to_stronghold(self.stronghold, pos)
 
     def pop(self, key):
         s = super(SparseStrongholdList, self).pop(key)
@@ -376,12 +377,12 @@ class Stronghold(Persistent):
             self.silo.imbue(s.copy())
         wcomp = Stone().comp
         units = []
-        for i, wep in enumerate(WEP_LIST):
+        for wep in WEP_LIST:
             unit = self.form_scient(element, s.comp)
             units.append(unit)
-            self.form_weapon(element, wcomp, wep)
+            w = self.form_weapon(element, wcomp, wep)
             self.name_unit(unit.uid, "Ms. " + wep)
-            self.equip_scient(unit.uid, i)
+            self.equip_scient(unit.uid, w.stronghold_pos)
         s = self.form_squad(unit_ids=[u.uid for u in units], name=name)
         self.defenders = s
         return s

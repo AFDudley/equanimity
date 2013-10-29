@@ -11,7 +11,6 @@ and should be refactored with battle as well.
 """
 import transaction
 from datetime import timedelta
-from calendar import timegm
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
@@ -20,7 +19,7 @@ from units import Unit
 from grid import Hex
 from const import PLY_TIME
 from server import db
-from helpers import now
+from helpers import now, timestamp
 
 
 class BattleError(Exception):
@@ -268,10 +267,9 @@ class Game(Persistent):
 
     def timer_view(self):
         num = self.state['num']
-        start_time = self.log['start_time'].utctimetuple()
         remaining = self.get_time_remaining_for_action()
         current_unit = self.action_queue.get_unit_for_action(num)
-        return dict(start_time=timegm(start_time),
+        return dict(start_time=timestamp(self.log['start_time']),
                     action_num=self.state['num'],
                     current_ply=self.action_queue.get_action_in_ply(num),
                     current_unit=current_unit.uid,

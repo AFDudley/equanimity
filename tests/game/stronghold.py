@@ -1,7 +1,9 @@
+from mock import patch
 from voluptuous import Schema
 from equanimity.grid import Hex
 from equanimity.const import E
-from equanimity.stronghold import Stronghold, MappedContainer, SparseList
+from equanimity.stronghold import (Stronghold, MappedContainer, SparseList,
+                                   SparseStrongholdList)
 from equanimity.unit_container import Squad
 from equanimity.player import WorldPlayer, Player
 from server.utils import AttributeDict
@@ -78,13 +80,24 @@ class SparseListTest(FlaskTestDB):
 
     def test_append(self):
         r = self.s.append(7)
-        self.assertEqual(self.s.index, 1)
+        self.assertEqual(self.s.index, r)
         self.assertEqual(r, 0)
         self.assertEqual(self.s.items[r], 7)
         r = self.s.append(8)
-        self.assertEqual(self.s.index, 2)
+        self.assertEqual(self.s.index, r)
         self.assertEqual(r, 1)
         self.assertEqual(self.s.items[r], 8)
+
+    def test_append_skip_indices(self):
+        self.s[0] = 1
+        self.s[1] = 2
+        self.s[3] = 4
+        i = self.s.append(777)
+        self.assertEqual(i, 2)
+        self.assertEqual(self.s[i], 777)
+        i = self.s.append(888)
+        self.assertEqual(i, 4)
+        self.assertEqual(self.s[i], 888)
 
     def test_len(self):
         self.assertEqual(len(self.s), 0)
@@ -94,6 +107,13 @@ class SparseListTest(FlaskTestDB):
         self.assertEqual(len(self.s), 2)
         self.s.append(2)
         self.assertEqual(len(self.s), 3)
+
+    def test_bool(self):
+        self.assertFalse(self.s)
+        i = self.s.append(7)
+        self.assertTrue(self.s)
+        self.s.pop(i)
+        self.assertFalse(self.s)
 
     def test_getitem(self):
         self.s.append(7)
@@ -128,6 +148,53 @@ class SparseListTest(FlaskTestDB):
         r = self.s.pop(7)
         self.assertEqual(r, 1)
         self.assertRaises(KeyError, self.s.__getitem__, 7)
+
+
+class SparseStrongholdListTest(FlaskTestDBWorld):
+
+    def setUp(self):
+        super(SparseStrongholdListTest, self).setUp()
+        self.f = self.db['fields'][Hex(0, 0)]
+        self.s = SparseStrongholdList(self.f.stronghold)
+
+    def test_create(self):
+        self.assertEqual(self.s.stronghold, self.f.stronghold)
+
+    @patch('equanimity.unit_container.Squad.add_to_stronghold')
+    def test_append(self, mock_add):
+        s = Squad()
+        i = self.s.append(s)
+        mock_add.assert_called_once_with(self.f.stronghold, i)
+        self.assertEqual(self.s[i], s)
+
+    @patch('equanimity.unit_container.Squad.add_to_stronghold')
+    def test_setitem(self, mock_add):
+        s = Squad()
+        self.s[1] = s
+        mock_add.assert_called_once_with(self.f.stronghold, 1)
+        self.assertEqual(self.s[1], s)
+
+    def test_setitem_no_overwrite(self):
+        p = self.s.append(Squad())
+        self.assertExceptionContains(ValueError, 'Can\'t overwrite item',
+                                     self.s.__setitem__, p, Squad())
+
+    @patch('equanimity.unit_container.Squad.remove_from_stronghold')
+    def test_pop(self, mock_remove):
+        s = Squad()
+        i = self.s.append(s)
+        t = self.s.pop(i)
+        self.assertEqual(s, t)
+        self.assertNotIn(i, self.s)
+        mock_remove.assert_called_once_with()
+
+    @patch('equanimity.unit_container.Squad.remove_from_stronghold')
+    def test_delitem(self, mock_remove):
+        s = Squad()
+        i = self.s.append(s)
+        del self.s[i]
+        mock_remove.assert_called_once_with()
+        self.assertNotIn(i, self.s)
 
 
 class StrongholdTest(FlaskTestDBWorld):

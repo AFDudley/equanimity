@@ -1,6 +1,6 @@
 from mock import patch, Mock
 from unittest import TestCase
-from datetime import timedelta
+from datetime import timedelta, datetime
 from equanimity.clock import WorldClock, FieldClock
 from equanimity.const import CLOCK, ELEMENTS, E, F, FIELD_PRODUCE, FIELD_YIELD
 from server.utils import AttributeDict
@@ -25,10 +25,17 @@ class WorldClockTest(BaseTest):
     @patch('equanimity.clock.now')
     @patch.object(WorldClock, 'get_current_state')
     def test_elapsed(self, mock_state, mock_now):
-        mock_now.return_value = 100
+        _now = datetime.now()
+        mock_now.return_value = _now
         w = WorldClock()
-        mock_now.return_value = 177
-        self.assertEqual(w.elapsed, 77)
+        mock_now.return_value = _now + timedelta(minutes=1)
+        self.assertEqual(w.elapsed, 60)
+
+        # test in the past error handling
+        mock_now.return_value = _now
+        w = WorldClock()
+        mock_now.return_value = _now - timedelta(minutes=1)
+        self.assertEqual(w.elapsed, 0)
 
     @patch.object(WorldClock, '_get_interval_value')
     def test_game_over(self, mock_interval):
@@ -58,7 +65,8 @@ class WorldClockTest(BaseTest):
 
     @patch.object(WorldClock, 'elapsed')
     def test_get_interval_value(self, mock_elapsed):
-        mock_elapsed.__get__ = Mock(return_value=timedelta(hours=70))
+        elapsed = int(timedelta(hours=70).total_seconds())
+        mock_elapsed.__get__ = Mock(return_value=elapsed)
         w = WorldClock()
         self.assertEqual(w._get_interval_value('season'), 9)
 

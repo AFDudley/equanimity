@@ -6,7 +6,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from persistent import Persistent
 from server import db
-from helpers import now
+from helpers import now, timestamp
 from const import CLOCK, ELEMENTS, E, FIELD_PRODUCE, FIELD_YIELD
 
 
@@ -28,9 +28,16 @@ class WorldClock(Persistent):
         self.dob = now()
         self._current = self.get_current_state()
 
+    def api_view(self):
+        return dict(dob=timestamp(self.dob),
+                    elapsed=self.elapsed,
+                    state=self.get_current_state())
+
     @property
     def elapsed(self):
-        return now() - self.dob
+        e = int((now() - self.dob).total_seconds())
+        # Handle time error margins that can cause this to be negative:
+        return max(0, e)
 
     @property
     def game_over(self):
@@ -72,8 +79,7 @@ class WorldClock(Persistent):
             field.clock.change_season()
 
     def _get_interval_value(self, interval):
-        return 1 + (int(self.elapsed.total_seconds()) //
-                    int(CLOCK[interval].total_seconds()))
+        return 1 + (self.elapsed // int(CLOCK[interval].total_seconds()))
 
     def __getattribute__(self, k):
         """ Computes day, week, year, season, generation on demand
@@ -116,3 +122,6 @@ class FieldClock(Persistent):
         """ Move to the next season """
         next = (ELEMENTS.index(self.season) + 1) % len(ELEMENTS)
         self.season = ELEMENTS[next]
+
+    def api_view(self):
+        return dict(season=self.season)

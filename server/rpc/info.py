@@ -1,6 +1,6 @@
 from flask import Blueprint
 from flask.ext.login import current_user
-from server import jsonrpc
+from server import jsonrpc, db
 from server.decorators import require_login
 from server.rpc.common import get_field, get_unit, get_battle, get_stronghold
 
@@ -14,19 +14,18 @@ def world_info():
     return dict(world=current_user.world_view())
 
 
+@jsonrpc.method('info.clock() -> dict')
+@require_login
+def clock_info():
+    return dict(clock=db['clock'].api_view())
+
+
 @jsonrpc.method('info.field(list) -> dict')
 @require_login
 def field_info(field_loc):
     field = get_field(field_loc)
     data = field.api_view(requester=current_user)
     return dict(field=data)
-
-
-@jsonrpc.method('info.clock() -> dict')
-@require_login
-def clock_info():
-    # TODO -- once clock is implemented fully, add this
-    return dict(clock=dict())
 
 
 @jsonrpc.method('info.battle(list) -> dict')

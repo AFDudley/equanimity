@@ -101,6 +101,7 @@ class GameTestBase(BattleTestBase):
                                squads=[defsquad])
         self.field = Field(Hex(0, 0), owner=self.defender)
         self.field.stronghold.add_squad(defsquad)
+        self.field.stronghold.defenders = defsquad
         self.game = Game(self.field, self.attacker)
 
     @property
@@ -304,7 +305,9 @@ class GameTest(GameTestBase):
             self.assertNotEqual(unit.location, Hex.null)
 
     def test_unit_map(self):
+        self.maxDiff = None
         m = self.game.unit_map()
+        print m
         self.assertEqual(sorted(m.keys()), sorted(self.units))
         expect_ids = sorted([unit.uid for unit in self.units])
         self.assertEqual(sorted(m.values()), expect_ids)
