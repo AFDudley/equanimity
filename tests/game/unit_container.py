@@ -103,12 +103,20 @@ class ContainerTest(FlaskTestDB):
 
 class SquadTest(FlaskTestDB):
 
-    def _make_scient(self):
-        return Scient(E, {E: 128, F: 32, I: 32, W: 0})
-
     def setUp(self):
         super(SquadTest, self).setUp()
         self.s = self._make_scient()
+        self._squad = None
+
+    def _make_scient(self):
+        return Scient(E, {E: 128, F: 32, I: 32, W: 0})
+
+    @property
+    def squad(self):
+        if self._squad is not None:
+            return self._squad
+        self._squad = Squad(name='x', data=[self._make_scient()])
+        return self._squad
 
     def test_create_single_unit(self):
         squad = Squad(name='x', data=self.s)
@@ -135,20 +143,53 @@ class SquadTest(FlaskTestDB):
         self.assertEqual(len(squad), len(WEP_LIST))
 
     def test_hp(self):
-        squad = Squad(data=[self.s])
-        self.assertEqual(squad.hp(), self.s.hp)
+        self.assertEqual(self.squad.hp(), self.s.hp)
 
     def test_repr(self):
-        s = Squad(name='x', data=[self.s])
         msg = 'Name: x, Value: {0}, Free spaces: 7'
         msg = msg.format(self.s.value())
-        self.assertEqual(str(s), msg)
-        self.assertEqual(s(), msg)
+        self.assertEqual(str(self.squad), msg)
+        self.assertEqual(self.squad(), msg)
 
     def test_call(self):
-        s = Squad(name='x', data=[self.s])
-        names = ['{0}: {1}'.format(i, t.name) for i, t in enumerate(s)]
+        names = ['{0}: {1}'.format(i, t.name)
+                 for i, t in enumerate(self.squad)]
         names = '\n'.join(names)
         msg = 'Name: x, Value: {val}, Free spaces: 7 \n{names}'
         msg = msg.format(val=self.s.value(), names=names)
-        self.assertEqual(s(more=True), msg)
+        self.assertEqual(self.squad(more=True), msg)
+
+    def test_add_to_stronghold(self):
+        self.squad.add_to_stronghold('test', 777)
+        self.assertEqual(self.squad.stronghold, 'test')
+        self.assertEqual(self.squad.stronghold_pos, 777)
+
+    def test_add_to_stronghold_while_queued(self):
+        self.squad.queued_field = 10
+        self.assertExceptionContains(
+            ValueError, 'change queued squad\'s stronghold',
+            self.squad.add_to_stronghold, 'test', 777
+        )
+
+    def test_remove_from_stronghold(self):
+        self.test_add_to_stronghold()
+        self.squad.remove_from_stronghold()
+        self.assertIs(self.squad.stronghold, None)
+        self.assertIs(self.squad.stronghold_pos, None)
+
+    def test_remove_from_stronghold_while_queued(self):
+        self.test_add_to_stronghold()
+        self.squad.queued_field = 7
+        self.assertExceptionContains(
+            ValueError, 'change queued squad\'s stronghold',
+            self.squad.remove_from_stronghold
+        )
+
+    def test_queue_at(self):
+        self.squad.queue_at(7)
+        self.assertEqual(self.squad.queued_field, 7)
+
+    def test_unqueue(self):
+        self.test_queue_at()
+        self.squad.unqueue()
+        self.assertIs(self.squad.queued_field, None)

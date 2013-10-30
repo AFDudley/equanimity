@@ -27,7 +27,7 @@ class BattleTestBase(RPCTestBase):
     def _setup_game(self, atksquad, defsquad):
         self.attacker.squads = [atksquad]
         self.defender.squads = [defsquad]
-        self.game = Game(self.f, self.attacker)
+        self.game = Game(self.f, atksquad)
         self.f.game = self.game
 
     def _start_battle(self):
@@ -61,7 +61,7 @@ class BattleTest(BattleTestBase):
         self._setup_game(atksquad, defsquad)
         self.f.place_scient(s, Hex(1, 0))
         self.f.place_scient(t, Hex(1, 0))
-        self.game.put_squads_on_field()
+        self.game.start()
         r = getattr(self.proxy, 'pass')(self.loc, t.uid)
         self.assertNoError(r)
 
@@ -70,7 +70,7 @@ class BattleTest(BattleTestBase):
         self._setup_game(atksquad, defsquad)
         self.f.place_scient(s, Hex(1, 0))
         self.f.place_scient(t, Hex(1, 0))
-        self.game.put_squads_on_field()
+        self.game.start()
         self._setup_game(atksquad, defsquad)
         r = self.proxy.move(self.loc, t.uid, Hex(2, 0))
         self.assertNoError(r)
@@ -82,7 +82,7 @@ class BattleTest(BattleTestBase):
         self._setup_game(atksquad, defsquad)
         self.f.place_scient(s, Hex(2, 4))
         self.f.place_scient(t, Hex(1, 1))
-        self.game.put_squads_on_field()
+        self.game.start()
         self._setup_game(atksquad, defsquad)
         r = self.proxy.attack(self.loc, t.uid, Hex(-2, -4))
         self.assertNoError(r)

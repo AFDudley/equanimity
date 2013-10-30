@@ -48,7 +48,7 @@ class InfoTest(BattleTestBase):
         )))
         self._squad_schema = Schema(dict(
             name=unicode, units=[int], stronghold=list,
-            stronghold_pos=Any(None, int)
+            stronghold_pos=Any(None, int), queued_field=Any(None, int)
         ))
         self._silo_schema = Schema(dict(comp=dict, limit=dict))
         self.stronghold_schema = Schema(dict(stronghold=dict(

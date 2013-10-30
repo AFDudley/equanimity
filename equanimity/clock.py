@@ -104,19 +104,18 @@ class FieldClock(Persistent):
     @property
     def state(self):
         if self.season == self.field.element:
-            return FIELD_PRODUCE
-        else:
             return FIELD_YIELD
+        else:
+            return FIELD_PRODUCE
 
     def change_day(self):
         """ Process the field's queues """
-        # TODO
-        # e.x.:
-        #field.squad_move_queue.consume()
-        # Question: suppose 2 players have queued to attack a field on the
-        # same day, and the owner of that field has also queued a squad to
-        # move into that field. How is that action resolved?
-        pass
+        if self.field.in_battle:
+            # We can't process the next queued action until that battle
+            # is resolved. When that battle completes, it will trigger the
+            # next action
+            return
+        self.field.process_queue()
 
     def change_season(self):
         """ Move to the next season """

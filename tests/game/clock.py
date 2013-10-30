@@ -1,4 +1,4 @@
-from mock import patch, Mock
+from mock import patch, Mock, MagicMock
 from unittest import TestCase
 from datetime import timedelta, datetime
 from equanimity.clock import WorldClock, FieldClock
@@ -114,9 +114,9 @@ class FieldClockTest(TestCase):
 
     def test_state(self):
         f = FieldClock(AttributeDict(element=E))
-        self.assertEqual(f.state, FIELD_PRODUCE)
-        f = FieldClock(AttributeDict(element=F))
         self.assertEqual(f.state, FIELD_YIELD)
+        f = FieldClock(AttributeDict(element=F))
+        self.assertEqual(f.state, FIELD_PRODUCE)
 
     def test_change_season(self):
         f = FieldClock(None)
@@ -126,6 +126,13 @@ class FieldClockTest(TestCase):
             self.assertEqual(f.season, e)
 
     def test_change_day(self):
-        f = FieldClock(None)
-        # TODO -- update when change_clock() is implemented
+        mock_process = Mock()
+        f = FieldClock(MagicMock(in_battle=False, process_queue=mock_process))
         f.change_day()
+        mock_process.assert_called_once_with()
+
+    def test_change_day_in_battle(self):
+        mock_process = Mock()
+        f = FieldClock(MagicMock(in_battle=True, process_queue=mock_process))
+        f.change_day()
+        mock_process.assert_not_called()

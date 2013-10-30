@@ -46,7 +46,7 @@ def init_db(reset=False, verbose=False):
 
 class World(object):
     def __init__(self):
-        self.transfer_lock = Lock()
+        self.lock = Lock()
         self.player = None
 
     @classmethod
@@ -95,19 +95,5 @@ class World(object):
 
     def award_field(self, new_owner, coords):
         """Transfers a field from one owner to another."""
-        # Do the transfer atomically
-        field = db['fields'][coords]
-        with self.transfer_lock:
-            field.owner = new_owner
-        transaction.commit()
-
-    def move_squad(self, src, squad_num, dest):
-        """Moves a squad from a stronghold to a queue."""
-        #src and dest are both fields
-        #TODO: check for adjacency.
-        # Do the transfer atomically
-        with self.transfer_lock:
-            squad = src.stronghold.squads[squad_num]
-            dest.attackerqueue.append((src.owner, squad))
-            src.stronghold.remove_squad(squad_num)
-        transaction.commit()
+        with self.lock:
+            db['fields'][coords].owner = new_owner

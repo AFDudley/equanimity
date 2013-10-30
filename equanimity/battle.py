@@ -83,13 +83,11 @@ class Log(PersistentMapping):
         self['states'] = PersistentList()  # Does this really need to be here?
         self['winner'] = None
         self['world_coords'] = None  # set by battle_server
+        self['owners'] = self.get_owners()
 
     def init_locs(self):
-        #calling this in init is most likely not going to work as intended.
-        locs = PersistentMapping()
-        for u in self['units']:
-            locs.update({u: self['units'][u].location})
-        return locs
+        self['init_locs'] = {uid: unit.location
+                             for uid, unit in self['units'].iteritems()}
 
     def close(self, winner, condition):
         """Writes final timestamp, called when game is over."""
@@ -98,22 +96,13 @@ class Log(PersistentMapping):
         self['condition'] = condition
 
     def get_owner(self, unit_num):
-        """takes unit number returns player/owner."""
-        # slow lookup
-        owner = None
-        target_squad = self['units'][unit_num].container.name
-        for player in self['players']:
-            for squad in player.squads:
-                if squad.name == target_squad:
-                    owner = player
-        return owner
+        """Takes unit number returns player/owner."""
+        return self['units'][unit_num].owner.name
 
     def get_owners(self):
-        """mapping of unit number to player/owner."""
-        owners = PersistentMapping()
-        for unit in self['units']:
-            owners[unit] = self.get_owner(unit).name
-        return owners
+        """Mapping of unit number to player/owner."""
+        return {uid: unit.owner.name
+                for uid, unit in self['units'].iteritems()}
 
     def last_message(self):
         none = ['There was no message.']
@@ -232,7 +221,6 @@ class State(PersistentMapping):
         self['num'] += 1
         aq = self.game.action_queue
         self['whose_action'] = aq.get_player_for_action(self['num']).uid
-        transaction.commit()
 
 
 class Game(Persistent):
@@ -243,27 +231,31 @@ class Game(Persistent):
         self.field = field
         self.grid = field.grid
         self.defender = field.stronghold.defenders.owner
-        self.attacker = attacker
-        # TODO -- attacker should be attacking squad, not player
+        self.attacker = attacker.owner
         self.battlefield = Battlefield(field, field.stronghold.defenders,
-                                       self.attacker.squads[0])
-        self.players = self.defender, self.attacker
+                                       attacker)
         # TODO (steve) -- bidirectional map instead of map,units
         self.map = self.unit_map()
         self.units = self.map_unit()
         self.winner = None
         self.log = Log(self.players, self.units, self.battlefield.grid)
-        self.log['owners'] = self.log.get_owners()
         self.action_queue = ActionQueue(self)
         self.state = State(self)
         self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
-        return transaction.commit()
 
     @classmethod
     def get(self, field_loc):
         field = db['fields'].get(tuple(field_loc))
         if field is not None:
             return field.game
+
+    @property
+    def players(self):
+        return self.defender, self.attacker
+
+    def start(self):
+        self.battlefield.put_squads_on_field()
+        self.log.init_locs()
 
     def timer_view(self):
         num = self.state['num']
@@ -281,12 +273,6 @@ class Game(Persistent):
             defender=self.defender.combatant_view(self.battlefield.defsquad),
             attacker=self.attacker.combatant_view(self.battlefield.atksquad),
             action_num=self.state['num'])
-
-    def put_squads_on_field(self):
-        """Puts the squads on the battlefield."""
-        self.battlefield.put_squads_on_field()
-        self.log['init_locs'] = self.log.init_locs()
-        return transaction.commit()
 
     def unit_map(self):
         """mapping of unit ids to objects, used for serialization."""

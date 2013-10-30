@@ -5,11 +5,13 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import random
+from bidict import bidict, inverted
 from persistent.mapping import PersistentMapping
 from collections import namedtuple
 from itertools import product, ifilter
+
 from stone import Stone
-from bidict import bidict, inverted
+from helpers import classproperty
 
 
 class Tile(Stone):
@@ -118,6 +120,7 @@ class Grid(Stone):
     """
 
     _coords_cache = {}
+    _inverted_vectors = None
 
     directions = bidict({
         0: 'North',
@@ -136,6 +139,13 @@ class Grid(Stone):
         'Southwest': Hex(-1, 1),
         'Northwest': Hex(-1, 0)
     })
+
+    @classproperty
+    def inverted_vectors(cls):
+        if cls._inverted_vectors is not None:
+            return cls._inverted_vectors
+        cls._inverted_vectors = bidict(inverted(cls.vectors))
+        return cls._inverted_vectors
 
     def __init__(self, comp=None, radius=8, tiles=None):
         if radius <= 0:
@@ -197,13 +207,19 @@ class Grid(Stone):
     def get_adjacent(self, (q, r), direction='all', filtered=True):
         h = Hex(q, r)
         if direction == 'all':
-            tiles = [h + v for v, _ in inverted(self.vectors)]
+            tiles = [h + v for v in self.inverted_vectors]
         else:
             tiles = [h + self.vectors[direction]]
         if filtered:
             return self.filter_tiles(tiles)
         else:
             return set(tiles)
+
+    def is_adjacent(self, q, r):
+        """ Returns whether hex q is adjacent to hex r """
+        q = Hex._make(q)
+        r = Hex._make(r)
+        return (q - r) in self.inverted_vectors
 
     def get_triangulating_vectors(self, direction):
         """ Returns the vector for direction, and the vector for the direction

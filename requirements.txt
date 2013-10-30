@@ -13,6 +13,7 @@ bidict
 flask-jsonrpc
 requests
 uwsgi
+logilab-constraint
 
 # Test modules:
 flake8      # static analysis and pep8 conformance
@@ -21,5 +22,3 @@ coverage    # code coverage
 mock        # test mocks
 voluptuous  # json schema checking
 disabledoc  # disables docstrings replacing test names in nose output
-
-logilab-constraint

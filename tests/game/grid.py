@@ -1,4 +1,5 @@
 from unittest import TestCase
+from bidict import inverted, bidict
 from equanimity.grid import Grid, Hex, Tile, HexCube
 from equanimity.const import E
 from equanimity.stone import Stone
@@ -196,6 +197,14 @@ class HexGridTest(FlaskTestDB):
     def test_create_bad_radius(self):
         self.assertRaises(ValueError, Grid, radius=0)
         self.assertRaises(ValueError, Grid, radius=-1)
+
+    def test_inverted(self):
+        self.assertEqual(Grid.inverted_vectors, bidict(inverted(Grid.vectors)))
+
+    def test_is_adjacent(self):
+        g = Grid(radius=5)
+        self.assertTrue(g.is_adjacent((0, 0), (0, 1)))
+        self.assertFalse(g.is_adjacent((0, 0), (0, 2)))
 
     def test_get_adjacent(self):
         grid = Grid(radius=5)

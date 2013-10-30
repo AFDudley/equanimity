@@ -1,10 +1,11 @@
-from mock import patch
+from mock import patch, Mock, MagicMock
 from voluptuous import Schema
 from equanimity.grid import Hex
-from equanimity.const import E
+from equanimity.const import E, F
 from equanimity.stronghold import (Stronghold, MappedContainer, SparseList,
                                    SparseStrongholdList)
 from equanimity.unit_container import Squad
+from equanimity.units import Scient
 from equanimity.player import WorldPlayer, Player
 from server.utils import AttributeDict
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
@@ -208,13 +209,17 @@ class StrongholdTest(FlaskTestDBWorld):
         self.player = Player('P', 'p@gmail.com', 'ppp')
 
     def test_create(self):
-        self.assertEqual(self.s.owner, self.f.owner)
         self.assertEqual(self.s.field, self.f)
-        self.assertEqual(self.s.clock, self.f.clock)
         self.assertIs(self.s.stable, None)
         self.assertIs(self.s.armory, None)
         self.assertIs(self.s.farm, None)
         self.assertIsNot(self.s.home, None)
+
+    def test_owner(self):
+        self.assertEqual(self.s.owner, self.f.owner)
+
+    def test_location(self):
+        self.assertEqual(self.s.location, self.f.world_coord)
 
     def test_units(self):
         scients = []
@@ -465,7 +470,7 @@ class StrongholdTest(FlaskTestDBWorld):
     def test_add_squad(self):
         sq = Squad(owner=self.player)
         self.f.owner = self.player
-        self.s.add_squad(sq)
+        self.s._add_squad(sq)
         self.assertEqual(self.s.squads[0], sq)
 
     def test_add_squad_has_stronghold(self):
@@ -473,10 +478,95 @@ class StrongholdTest(FlaskTestDBWorld):
         sq.stronghold = 1
         self.f.owner = self.player
         self.assertExceptionContains(ValueError, 'in another stronghold',
-                                     self.s.add_squad, sq)
+                                     self.s._add_squad, sq)
 
     def test_add_squad_wrong_owner(self):
         sq = Squad(owner=WorldPlayer.get())
         self.f.owner = self.player
         self.assertExceptionContains(ValueError, 'does not have same owner',
-                                     self.s.add_squad, sq)
+                                     self.s._add_squad, sq)
+
+    def test_add_squad_same_stronghold(self):
+        s = Squad(owner=self.s.owner)
+        s.stronghold = self.s
+        self.assertExceptionContains(ValueError, 'same stronghold',
+                                     self.s._add_squad, s)
+
+    def test_move_squad_to_defenders(self):
+        self.s._setup_default_defenders()
+        self.s.remove_defenders()
+        self.assertIs(self.s._defenders, None)
+        self.s.move_squad_to_defenders(0)
+        self.assertEqual(self.s.squads[0], self.s.defenders)
+
+    def test_remove_defenders(self):
+        self.s._setup_default_defenders()
+        self.assertIsNot(self.s.defenders, None)
+        self.s.remove_defenders()
+        self.assertIs(self.s._defenders, None)
+
+    def test_add_unit_to_defenders(self):
+        self.s._setup_default_defenders()
+        l = len(self.s.defenders)
+        s = self.s.form_scient(E, create_comp(earth=1))
+        self.s.add_unit_to_defenders(s.uid)
+        self.assertEqual(len(self.s.defenders), l + 1)
+        self.assertIn(s, self.s.defenders)
+
+    def test_move_squad_in(self):
+        s = Squad(owner=self.s.owner)
+        s.stronghold_pos = 0
+        mock_remove = Mock(side_effect=lambda x: setattr(s, 'stronghold',
+                                                         None))
+        s.stronghold = MagicMock(remove_squad=mock_remove)
+        self.s.move_squad_in(s)
+        self.assertEqual(s.stronghold, self.s)
+        mock_remove.assert_called_once_with(0)
+
+    def test_disband_squad(self):
+        self.s.silo.imbue(create_comp(earth=100, fire=100))
+        self.assertEqual(len(self.s.free_units), 0)
+        s = self.s.form_scient(E, create_comp(earth=1))
+        t = self.s.form_scient(F, create_comp(fire=1))
+        self.assertEqual(len(self.s.free_units), 2)
+        sq = self.s.form_squad(unit_ids=(s.uid, t.uid), name='test')
+        self.assertEqual(len(self.s.free_units), 0)
+        self.assertEqual(len(sq), 2)
+        self.s.disband_squad(sq.stronghold_pos)
+        self.assertEqual(len(sq), 0)
+        self.assertIs(sq.stronghold, None)
+        self.assertEqual(len(self.s.free_units), 2)
+
+    @patch.object(Stronghold, '_add_unit_to')
+    def test_add_unit_to_squad(self, mock_add):
+        s = self.s._setup_default_defenders()
+        self.s.add_unit_to_squad(0, 0)
+        mock_add.assert_called_once_with(self.s, s, 0)
+
+    @patch.object(Stronghold, '_remove_unit_from')
+    def test_remove_unit_from_defenders(self, mock_remove):
+        s = self.s._setup_default_defenders()
+        self.s.remove_unit_from_defenders(0)
+        mock_remove.assert_called_once_with(s, 0)
+
+    @patch.object(Stronghold, '_remove_unit_from')
+    def test_remove_unit_from_squad(self, mock_remove):
+        s = self.s._setup_default_defenders()
+        self.s.remove_unit_from_squad(s.stronghold_pos, 0)
+        mock_remove.assert_called_once_with(s, 0)
+
+    def test_remove_unit_from_stronghold(self):
+        s = self.s.form_scient(E, create_comp(earth=1))
+        self.assertEqual(self.s.free_units.map, {s.uid: s})
+        self.s._remove_unit_from(self.s, s.uid)
+        self.assertEqual(self.s.free_units.map, {})
+
+    def test_remove_unit_from_unrelated(self):
+        s = Scient(E, create_comp(earth=1))
+        self.assertExceptionContains(ValueError, 'has no relation',
+                                     self.s._remove_unit_from, Squad(), s.uid)
+
+    def test_setup_default_defeneders_twice(self):
+        self.s._setup_default_defenders()
+        self.assertExceptionContains(ValueError, 'already set up',
+                                     self.s._setup_default_defenders)

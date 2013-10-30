@@ -100,9 +100,9 @@ class GameTestBase(BattleTestBase):
         self.defender = Player('Def', 'y@gmail.com', 'yyy',
                                squads=[defsquad])
         self.field = Field(Hex(0, 0), owner=self.defender)
-        self.field.stronghold.add_squad(defsquad)
+        self.field.stronghold._add_squad(defsquad)
         self.field.stronghold.defenders = defsquad
-        self.game = Game(self.field, self.attacker)
+        self.game = Game(self.field, atksquad)
 
     @property
     def bf(self):
@@ -120,13 +120,13 @@ class GameTestBase(BattleTestBase):
     def _place_squads(self):
         self.f.rand_place_squad(self.attacker.squads[0])
         self.f.rand_place_squad(self.defender.squads[0])
-        self.game.put_squads_on_field()
+        self.game.start()
 
 
 class LogTest(FlaskTestDB):
 
     def test_create(self):
-        log = Log([], [], Grid())
+        log = Log([], {}, Grid())
         self.assertTrue(log)
         keys = ['actions', 'applied', 'condition', 'change_list', 'event',
                 'end_time', 'init_locs', 'messages', 'owners', 'start_time',
@@ -136,13 +136,14 @@ class LogTest(FlaskTestDB):
 
     def test_init_locs(self):
         s = Scient(E, create_comp(earth=128))
+        s.owner = Player('testplayer', 't@gmail.com', 'xxx')
         s.location = Hex(0, 0)
         log = Log([], {0: s}, Grid())
-        locs = log.init_locs()
-        self.assertEqual(locs[0], Hex(0, 0))
+        log.init_locs()
+        self.assertEqual(log['init_locs'][0], Hex(0, 0))
 
     def test_close(self):
-        log = Log([], [], Grid())
+        log = Log([], {}, Grid())
         log.close('you', 'done')
         self.assertEqual(log['winner'], 'you')
         self.assertEqual(log['condition'], 'done')
@@ -151,18 +152,15 @@ class LogTest(FlaskTestDB):
     def test_get_owner(self):
         s = Scient(E, create_comp(earth=128))
         squad = Squad(name='test', data=[s])
-        player = AttributeDict(squads=[squad])
-        squad.owner = player
+        player = Player('testplayer', 't@gmail.com', 'xxx', squads=[squad])
         log = Log([player], {0: s}, Grid())
         owner = log.get_owner(0)
-        self.assertEqual(owner, player)
-        player.squads = []
-        self.assertIs(log.get_owner(0), None)
+        self.assertEqual(owner, 'testplayer')
 
     def test_get_owners(self):
         s = Scient(E, create_comp(earth=128))
         squad = Squad(name='test', data=[s])
-        player = AttributeDict(squads=[squad], name='testplayer')
+        player = Player('testplayer', 't@gmail.com', 'xxx', squads=[squad])
         log = Log([player], {0: s}, Grid())
         owners = log.get_owners()
         self.assertEqual(owners, {0: 'testplayer'})
@@ -170,7 +168,7 @@ class LogTest(FlaskTestDB):
     @patch.object(Log, 'get_last_terminating_action_time')
     @patch('equanimity.battle.now')
     def test_get_time_remaining_for_action(self, mock_now, mock_term):
-        log = Log([], [], Grid())
+        log = Log([], {}, Grid())
         n = now()
         mock_now.return_value = n
         then = n - timedelta(minutes=1)
@@ -179,7 +177,7 @@ class LogTest(FlaskTestDB):
 
     @patch.object(Log, 'get_last_terminating_action_time')
     def test_get_time_remaining_for_action_expired(self, mock_term):
-        log = Log([], [], Grid())
+        log = Log([], {}, Grid())
         n = now()
         then = n - (PLY_TIME * 10)
         mock_term.return_value = then
@@ -206,13 +204,14 @@ class StateTest(BattleTestBase):
 
     def setUp(self):
         super(StateTest, self).setUp()
+        atksquad = rand_squad()
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
-                               squads=[rand_squad()])
+                               squads=[atksquad])
         defsquad = rand_squad()
         self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
         self.field = Field(Hex(0, 0), owner=self.defender)
-        self.field.stronghold.add_squad(defsquad)
-        self.game = Game(self.field, self.attacker)
+        self.field.stronghold._add_squad(defsquad)
+        self.game = Game(self.field, atksquad)
         self.s = State(self.game)
         self.s['old_defsquad_hp'] = defsquad.hp()
 

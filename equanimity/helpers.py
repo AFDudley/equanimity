@@ -7,6 +7,8 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """Helper functions"""
 import random
 import string
+from functools import wraps
+from threading import Lock
 from const import ELEMENTS
 from calendar import timegm
 from datetime import datetime
@@ -34,3 +36,24 @@ def now():
 def timestamp(dt):
     """ Returns a date as a unix timestamp """
     return timegm(dt.utctimetuple())
+
+
+def atomic(f):
+    """ Locks a function when called.  BE CAREFUL -- deadlocks """
+    lock = Lock()
+
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        with lock:
+            return f(*args, **kwargs)
+    return wrapped
+
+
+class classproperty(object):
+    """ @property + @classmethod """
+
+    def __init__(self, getter):
+        self._getter = getter
+
+    def __get__(self, instance, owner):
+        return self._getter(owner)

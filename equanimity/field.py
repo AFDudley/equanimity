@@ -4,28 +4,66 @@ field.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import transaction
-import persistent
 import random
+from persistent import Persistent
 from math import ceil
+from collections import OrderedDict
+
+from helpers import atomic
 from stone import Stone, get_element
 from grid import Grid, Hex
-from player import Player, WorldPlayer
+from player import WorldPlayer
 from battle import Game
 from stronghold import Stronghold
 from clock import FieldClock
 from unit_container import Squad
 from units import Scient
-from const import FIELD_BATTLE
+from const import FIELD_BATTLE, I
 from server import db
 
 
-class Field(persistent.Persistent):
+class FieldQueue(Persistent):
+    """ Manages requests to move into a field """
+
+    def __init__(self, field):
+        self.field = field
+        self.flush()
+
+    def flush(self):
+        self.queue = OrderedDict()
+
+    def add(self, squad):
+        if squad.stronghold is None:
+            msg = 'Squad must be in a stronghold to move to a field'
+            raise ValueError(msg)
+        f = self.field
+        sq_pos = squad.stronghold.location
+        if not f.grid.is_adjacent(f.world_coord, sq_pos):
+            raise ValueError('Fields must be adjacent')
+        slot = sq_pos - f.world_coord
+        if slot in self.queue:
+            raise ValueError('Queue slot is taken')
+        self.queue[slot] = squad
+        squad.queue_at(self.field)
+
+    def pop(self):
+        if not self.queue:
+            return
+        else:
+            s = self.queue.popitem(last=False)[1]
+            s.unqueue()
+            return s
+
+
+class Field(Persistent):
     """Player owned field logic."""
 
-    def __init__(self, world_coord, owner=None, grid=None, ply_time=240):
-        self.locked = False
-        self.world_coord = world_coord
+    @classmethod
+    def get(self, loc):
+        return db['fields'].get(tuple(loc))
+
+    def __init__(self, world_coord, owner=None, grid=None):
+        self.world_coord = Hex._make(world_coord)
         self._owner = None
         if owner is None:
             owner = WorldPlayer.get()
@@ -33,30 +71,13 @@ class Field(persistent.Persistent):
         if grid is None:
             grid = Grid()
         self.grid = grid
-        self.element = 'Ice'  # For testing
+        self.element = I  # For testing (TODO)
         #self.element = get_element(self.grid.comp)
         self.clock = FieldClock(self)
         self.stronghold = Stronghold(self)
-        self.plantings = persistent.mapping.PersistentMapping()
-        self.attackerqueue = persistent.list.PersistentList()
+        self.queue = FieldQueue(self)
+        self.plantings = {}
         self.game = None
-        """
-        ply_time: user definable time before a pass is automatically sent
-        for a battle action.
-        range between 4 and 360 minutes, default is 4 (in seconds)
-        """
-        self.ply_time = ply_time
-        self.battle_actions = ['attack', 'move', 'pass', 'timed_out']
-        self.stronghold_actions = [
-            'add_planting', 'name_unit', 'imbue_unit', 'unequip_scient',
-            'equip_scient', 'move_unit', 'imbue_weapon', 'split_weapon',
-            'form_squad', 'name_squad', 'remove_squad', 'set_squad_locations',
-            'set_defender_locations', 'move_squad_to_defenders',
-            'remove_defenders'
-        ]
-        self.world_actions = ['move_squad']
-        self.actions = (self.battle_actions + self.stronghold_actions +
-                        self.world_actions)
 
     def api_view(self, requester=None):
         if (requester is not None and
@@ -69,10 +90,6 @@ class Field(persistent.Persistent):
                     state=self.state,
                     clock=self.clock.api_view())
 
-    @classmethod
-    def get(self, loc):
-        return db['fields'].get(tuple(loc))
-
     @property
     def in_battle(self):
         return (self.game is not None and not self.game.state['game_over'])
@@ -83,6 +100,34 @@ class Field(persistent.Persistent):
             return FIELD_BATTLE
         else:
             return self.clock.state
+
+    @property
+    def owner(self):
+        return self._owner
+
+    @owner.setter
+    @atomic
+    def owner(self, owner):
+        if owner == self._owner:
+            return
+        if self._owner is not None:
+            del self._owner.fields[self.world_coord]
+        self._owner = owner
+        owner.fields[self.world_coord] = self
+
+    @atomic
+    def process_queue(self):
+        next_squad = self.queue.pop()
+        if next_squad is not None:
+            if next_squad.owner == self.owner:
+                self.stronghold.move_squad_in(next_squad)
+            else:
+                self.start_battle(next_squad)
+        return next_squad
+
+    def start_battle(self, attacking_squad):
+        self.game = Game(self, attacking_squad)
+        self.game.start()
 
     def place_scient(self, unit, location):
         if unit.__class__ != Scient:
@@ -124,46 +169,6 @@ class Field(persistent.Persistent):
         positions = random.sample(available, len(squad))
         for unit, pos in zip(squad, positions):
             self.place_scient(unit, pos)
-
-    def setup_battle(self):
-        # TODO (steve) -- this is a helper method for testing
-        # and needs to be replaced
-        # load the battlefield with players (and squads)
-        atkr_name, atksquad = self.attackerqueue[0]  # TODO change to pop
-        defsquad = self.get_defenders()
-        self.owners.squads = [defsquad]
-        atkr = Player.get(1)
-        atkr.squads = [atksquad]
-        # TODO write a new game object.
-        self.game = Game(self, defender=self.owner, attacker=atkr)
-        # place units on battlefield
-        # TODO (steve) -- the defender accesses the stronghold to predetermine
-        # how its units will be placed at the start of a battle?
-        # If so, that needs to be stored on a separate field besides
-        # unit.location so it can be reset properly.
-        # Also in that case, how is the attacker's placement chosen?
-        self.game.put_squads_on_field()
-        return transaction.commit()
-
-    @property
-    def owner(self):
-        return self._owner
-
-    @owner.setter
-    def owner(self, owner):
-        if owner == self._owner:
-            return
-        if self._owner is not None:
-            del self._owner.fields[self.world_coord]
-        self._owner = owner
-        owner.fields[self.world_coord] = self
-
-    def get_defenders(self):
-        """gets the defenders of a Field."""
-        try:
-            return self.stronghold.defenders
-        except:
-            raise Exception("Stronghold has no defenders.")
 
     def set_stronghold_capacity(self):
         """Uses grid.value to determine stronghold capacity."""
@@ -217,36 +222,12 @@ class Field(persistent.Persistent):
         #happens once a year.
         return self.stronghold.silo.imbue_list(self.get_tile_comps())
 
+    """ Special """
 
-"""
---- In battle
-pass
-attack
-move
-timed_out
---- In stronghold
-add_planting (imbue_tile) - tile_coord, comp
+    def __eq__(self, other):
+        if not isinstance(other, Field):
+            return False
+        return other.world_coord == self.world_coord
 
-name_unit  - unit_id, name
-imbue_unit - unit_id, comp
-unequip_scient - unit_id
-equip_scient - unit_id, weapon_num
-move_unit (_add_unit_to) - unit_id, container
-
-imbue_weapon
-split_weapon
-
-form_squad
-name_squad
-
-remove_squad
-set_squad_locations
-
-set_defender_locations
-move_squad_to_defenders
-remove_defenders
-
---- In world
-move_squad
-TODO: send_stone, stone, field
-"""
+    def __ne__(self, other):
+        return not self.__eq__(other)

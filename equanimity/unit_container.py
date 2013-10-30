@@ -116,23 +116,37 @@ class Squad(Container):
             self._fill_default_units(element, set_name=(name is None))
         self.stronghold = None
         self.stronghold_pos = None
+        self.queued_field = None
 
     def api_view(self):
-        return dict(name=self.name, units=[u.uid for u in self.units],
-                    stronghold=getattr(self.stronghold, 'location', None),
-                    stronghold_pos=self.stronghold_pos)
+        return dict(
+            name=self.name, units=[u.uid for u in self.units],
+            stronghold=getattr(self.stronghold, 'location', None),
+            stronghold_pos=self.stronghold_pos,
+            queued_field=getattr(self.queued_field, 'world_coord', None)
+        )
 
     def combatant_view(self):
         return dict(name=self.name, owner=self.owner.uid,
                     units=[u.api_view() for u in self])
 
     def add_to_stronghold(self, stronghold, pos):
+        if self.queued_field is not None:
+            raise ValueError('Can\'t change queued squad\'s stronghold')
         self.stronghold = stronghold
         self.stronghold_pos = pos
 
     def remove_from_stronghold(self):
+        if self.queued_field is not None:
+            raise ValueError('Can\'t change queued squad\'s stronghold')
         self.stronghold = None
         self.stronghold_pos = None
+
+    def queue_at(self, field):
+        self.queued_field = field
+
+    def unqueue(self):
+        self.queued_field = None
 
     @property
     def name(self):
