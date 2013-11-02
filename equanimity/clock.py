@@ -116,6 +116,7 @@ class FieldClock(Persistent):
             # next action
             return
         self.field.process_queue()
+        self.field.check_ungarrisoned()
 
     def change_season(self):
         """ Move to the next season """

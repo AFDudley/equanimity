@@ -1,4 +1,4 @@
-from ..base import FlaskTestDB
+from ..base import FlaskTestDB, FlaskTestDBWorld
 from equanimity.units import Scient
 from equanimity.unit_container import Squad
 from equanimity.player import Player, WorldPlayer
@@ -20,21 +20,23 @@ class PlayerTest(FlaskTestDB):
         player = Player('x', 'x', 'x')
         self.assertEqual(str(player), '<Player: 1>')
 
+
+class PlayerTestWorld(FlaskTestDBWorld):
+
     def test_squads(self):
         player = Player('x', 'x', 'x')
-        self.assertIs(player._squads, None)
-        self.assertIs(player.squads, None)
+        self.assertEqual(player.squads, [])
+
         s = Scient(E, create_comp(earth=1))
-        sq = Squad(data=[s])
-        player.squads = [sq]
-        self.assertIn(sq, player.squads)
-        self.assertEqual(player.squads, [sq])
-        self.assertEqual(sq.owner, player)
-        self.assertEqual(s.owner, player)
-        # If a unit has a different owner, and we put it in the player's squads
-        # it should raise an Exception
-        s.owner = Player('y', 'y', 'y')
-        self.assertRaises(ValueError, setattr, player, 'squads', [sq])
+        sqa = Squad(data=[s], owner=player)
+        t = Scient(E, create_comp(earth=1))
+        sqb = Squad(data=[t], owner=player)
+        self.db['fields'][(0, 0)].owner = player
+        self.db['fields'][(0, 1)].owner = player
+        self.db['fields'][(0, 0)].stronghold._add_squad(sqa)
+        self.db['fields'][(0, 1)].stronghold._add_squad(sqb)
+
+        self.assertEqual(sorted(player.squads), sorted([sqa, sqb]))
 
 
 class WorldPlayerTest(FlaskTestDB):

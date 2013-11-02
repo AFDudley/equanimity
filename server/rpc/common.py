@@ -11,7 +11,7 @@ def get_thing(cls, uid, name=None, check_owner=True):
     thing = cls.get(uid)
     if thing is None:
         raise ValueError('Invalid {name} {uid}'.format(name=name, uid=uid))
-    if check_owner and thing.owner != current_user:
+    if check_owner and thing.owner != current_user._get_current_object():
         raise ValueError('You do not own this {name}'.format(name=name))
     return thing
 
@@ -33,7 +33,8 @@ def get_field(field_location, **kwargs):
 def get_battle(field_location, check_owner=True, **kwargs):
     kwargs['check_owner'] = False
     battle = get_thing(Game, field_location, **kwargs)
-    if (battle is not None and battle.defender != current_user and
-            battle.attacker != current_user and check_owner):
+    user = current_user._get_current_object()
+    if (battle is not None and battle.defender != user and check_owner and
+            battle.attacker != user):
         raise ValueError('You are not involved this battle')
     return battle

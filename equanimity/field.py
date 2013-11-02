@@ -9,7 +9,6 @@ from persistent import Persistent
 from math import ceil
 from collections import OrderedDict
 
-from helpers import atomic
 from stone import Stone, get_element
 from grid import Grid, Hex
 from player import WorldPlayer
@@ -17,7 +16,6 @@ from battle import Game
 from stronghold import Stronghold
 from clock import FieldClock
 from unit_container import Squad
-from units import Scient
 from const import FIELD_BATTLE, I
 from server import db
 
@@ -47,9 +45,7 @@ class FieldQueue(Persistent):
         squad.queue_at(self.field)
 
     def pop(self):
-        if not self.queue:
-            return
-        else:
+        if self.queue:
             s = self.queue.popitem(last=False)[1]
             s.unqueue()
             return s
@@ -64,10 +60,6 @@ class Field(Persistent):
 
     def __init__(self, world_coord, owner=None, grid=None):
         self.world_coord = Hex._make(world_coord)
-        self._owner = None
-        if owner is None:
-            owner = WorldPlayer.get()
-        self.owner = owner
         if grid is None:
             grid = Grid()
         self.grid = grid
@@ -78,6 +70,10 @@ class Field(Persistent):
         self.queue = FieldQueue(self)
         self.plantings = {}
         self.game = None
+        self._owner = None
+        if owner is None:
+            owner = WorldPlayer.get()
+        self.owner = owner
 
     def api_view(self, requester=None):
         if (requester is not None and
@@ -106,16 +102,13 @@ class Field(Persistent):
         return self._owner
 
     @owner.setter
-    @atomic
     def owner(self, owner):
-        if owner == self._owner:
-            return
-        if self._owner is not None:
-            del self._owner.fields[self.world_coord]
         self._owner = owner
-        owner.fields[self.world_coord] = self
+        for s in self.stronghold.squads:
+            s.owner = owner
+        for u in self.stronghold.free_units:
+            u.owner = owner
 
-    @atomic
     def process_queue(self):
         next_squad = self.queue.pop()
         if next_squad is not None:
@@ -129,8 +122,14 @@ class Field(Persistent):
         self.game = Game(self, attacking_squad)
         self.game.start()
 
+    def check_ungarrisoned(self):
+        """ Reverts ownership to the WorldPlayer if unoccupied """
+        wp = WorldPlayer.get()
+        if self.owner != wp and not self.stronghold.garrisoned():
+            self.owner = wp
+
     def place_scient(self, unit, location):
-        if unit.__class__ != Scient:
+        if getattr(unit, 'type', '') != 'scient':
             raise ValueError('Unit {0} must be a scient'.format(unit))
         location = Hex._make(location)
         # Placement can only be on one side of the field

@@ -509,7 +509,14 @@ class Game(Persistent):
         awards = self.compute_awards()
         self.field.stronghold.silo.imbue_list(awards)
         self.log['change_list'] = BattleChanges(victors, prisoners, awards)
-        transaction.commit()
+
+        # TODO -- what about remaining squads in a losing defender's
+        # stronghold?
+        if self.winner == self.attacker:
+            # Transfer the field to the attacker, and move their squad in
+            self.field.owner = self.attacker
+            self.field.stronghold.move_squad_in(self.battlefield.atksquad)
+        self.field.check_ungarrisoned()
 
 
 class ActionQueue(Persistent):

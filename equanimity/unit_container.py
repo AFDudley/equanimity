@@ -21,15 +21,15 @@ class Container(Persistent):
 
     def __init__(self, data=None, free_spaces=8, owner=None):
         super(Container, self).__init__()
-        self.owner = owner
-        self.max_free_spaces = free_spaces
-        self.free_spaces = free_spaces
         if data is None:
             self.units = PersistentList()
         elif isinstance(data, Stone):
             self.units = PersistentList(initlist=[data])
         else:
             self.units = PersistentList(initlist=data)
+        self.owner = owner
+        self.max_free_spaces = free_spaces
+        self.free_spaces = free_spaces
         self._update_value()
         self._set_positions()
         self._update_free_space()
@@ -118,6 +118,16 @@ class Squad(Container):
         self.stronghold_pos = None
         self.queued_field = None
 
+    @property
+    def owner(self):
+        return self._owner
+
+    @owner.setter
+    def owner(self, owner):
+        for u in self:
+            u.owner = owner
+        self._owner = owner
+
     def api_view(self):
         return dict(
             name=self.name, units=[u.uid for u in self.units],
@@ -183,12 +193,12 @@ class Squad(Container):
     def __repr__(self, more=None):
         """This could be done better..."""
         if more is None:
-            fmt = "Name: {name}, Value: {value}, Free spaces: {space}"
+            fmt = "<Squad {name}, Value: {value}, Free spaces: {space}>"
             return fmt.format(name=self.name, value=self.val,
                               space=self.free_spaces)
         s = ['{0}: {1}'.format(i, t.name) for i, t in enumerate(self)]
         s = '\n'.join(s)
-        fmt = ("Name: {name}, Value: {value}, Free spaces: {space} \n"
+        fmt = ("<Squad {name}, Value: {value}, Free spaces: {space}> \n"
                "{names}")
         return fmt.format(name=self.name, value=self.val,
                           space=self.free_spaces, names=s)
@@ -226,17 +236,6 @@ def rand_squad(owner=None, suit=None, kind='Scient'):
     return squad
 
 
-def print_rand_squad(suit=None):
-    squad = rand_squad(suit)
-    for unit in squad:
-        print unit
-    return squad
-
-
-def show_squad(squad):
-    print squad(more=1)
-
-
 def max_squad_by_value(value):
     """Takes an integer, ideally even because we round down, and returns a
     squad such that comp[element] == value, comp[orth] == value/2, comp[opp]
@@ -250,14 +249,5 @@ def max_squad_by_value(value):
         s[OPP[i]] = 0
         for o in ORTH[i]:
             s[o] = half
-        squad.append(Scient(i, s))
-    return squad
-
-
-def one_three_zeros(value):
-    squad = Squad()
-    for i in ELEMENTS:
-        s = Stone()
-        s[i] = value
         squad.append(Scient(i, s))
     return squad

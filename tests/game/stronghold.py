@@ -435,7 +435,6 @@ class StrongholdTest(FlaskTestDBWorld):
         ua = self.s.form_scient(E, create_comp(earth=31))
         ub = self.s.form_scient(E, create_comp(earth=32))
         self.s._defenders = None
-        print self.s.defenders.units
         self.assertEqual(self.s.defenders.units, [ub, ua])
 
     def test_set_defenders(self):

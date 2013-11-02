@@ -25,8 +25,8 @@ class BattleTestBase(RPCTestBase):
         return s, t, atksquad, defsquad
 
     def _setup_game(self, atksquad, defsquad):
-        self.attacker.squads = [atksquad]
-        self.defender.squads = [defsquad]
+        atksquad.owner = self.attacker
+        defsquad.owner = self.defender
         self.game = Game(self.f, atksquad)
         self.f.game = self.game
 

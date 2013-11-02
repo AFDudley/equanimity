@@ -5,7 +5,8 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import transaction
-from persistent.mapping import PersistentMapping
+import operator
+from itertools import chain
 from persistent import Persistent
 from datetime import datetime
 from flask.ext.login import UserMixin
@@ -21,23 +22,22 @@ USERNAME_LEN = dict(max=32, min=3)
 
 class Player(Persistent, UserMixin):
     """Object that contains player infomration."""
-    def __init__(self, username, email, password, squads=None):
+    def __init__(self, username, email, password):
         Persistent.__init__(self)
+        UserMixin.__init__(self)
         self.username = username
         self.email = email
         self.password = password
-        self._set_defaults(squads=squads)
+        self._set_defaults()
         self.uid = db['player_uid'].get_next_id()
 
-    def _set_defaults(self, squads=None):
+    def _set_defaults(self):
         self.created_at = datetime.utcnow()
         self.last_login = self.created_at
         self.login_count = 0
-        self.reset_world_state(squads=squads)
+        self.reset_world_state()
 
-    def reset_world_state(self, squads=None):
-        self.squads = squads
-        self.fields = PersistentMapping()
+    def reset_world_state(self):
         self.cookie = None
         self.roads = None
         self.treaties = None
@@ -55,26 +55,21 @@ class Player(Persistent, UserMixin):
                     squad=squad.combatant_view())
 
     @property
+    def fields(self):
+        return {c: f for c, f in db['fields'].iteritems() if f.owner == self}
+
+    @property
     def visible_fields(self):
         g = db['grid']
-        fields = [[c] + g.get_adjacent(c) for c in self.fields]
-        fields = reduce(list.__add__, fields)
+        fields = ([c] + g.get_adjacent(c) for c in self.fields)
+        fields = reduce(operator.add, fields, [])
         return set(fields)
 
     @property
     def squads(self):
-        return self._squads
-
-    @squads.setter
-    def squads(self, squads):
-        if squads is not None:
-            for sq in squads:
-                for unit in sq:
-                    if unit.owner is not None and unit.owner != self:
-                        raise ValueError('Unit in squad has invalid owner')
-                    unit.owner = self
-                sq.owner = self
-        self._squads = squads
+        squads = (f.stronghold.squads.items.values()
+                  for f in self.fields.values())
+        return list(chain.from_iterable(squads))
 
     @property
     def name(self):
@@ -148,6 +143,15 @@ class Player(Persistent, UserMixin):
             return
         return db['players'].get(uid)
 
+    def __eq__(self, other):
+        print other, type(other), self.__class__, other.__class__
+        if not isinstance(other, self.__class__):
+            return False
+        return self.uid == other.uid
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     """ Flask-Login interface
         http://flask-login.readthedocs.org/en/latest/#your-user-class
         Interface methods not defined here are inherited from UserMixin
@@ -164,6 +168,7 @@ class WorldPlayer(Player):
 
     def __init__(self):
         Persistent.__init__(self)
+        UserMixin.__init__(self)
         self.uid = WORLD_UID
         self.username = 'World'
         self.email = ''
@@ -180,4 +185,4 @@ class WorldPlayer(Player):
 
     @classmethod
     def get(cls):
-        return db['players'].get(WORLD_UID)
+        return db['players'][WORLD_UID]

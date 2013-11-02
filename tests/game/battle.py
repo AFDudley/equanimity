@@ -95,14 +95,20 @@ class GameTestBase(BattleTestBase):
             atksquad = rand_squad(suit=E)
         if defsquad is None:
             defsquad = rand_squad(suit=F)
-        self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
-                               squads=[atksquad])
-        self.defender = Player('Def', 'y@gmail.com', 'yyy',
-                               squads=[defsquad])
-        self.field = Field(Hex(0, 0), owner=self.defender)
+        self.attacker = Player('Atk', 'x@gmail.com', 'xxx')
+        self.defender = Player('Def', 'y@gmail.com', 'yyy')
+        atksquad.owner = self.attacker
+        defsquad.owner = self.defender
+        f = Field((0, 0), owner=self.defender)
+        self.field = self.db['fields'][(0, 0)]
+        self.field.owner = self.defender
         self.field.stronghold._add_squad(defsquad)
         self.field.stronghold.defenders = defsquad
+        f = self.db['fields'][(0, 1)]
+        f.owner = self.attacker
+        f.stronghold._add_squad(atksquad)
         self.game = Game(self.field, atksquad)
+        self.commit()
 
     @property
     def bf(self):
@@ -151,16 +157,16 @@ class LogTest(FlaskTestDB):
 
     def test_get_owner(self):
         s = Scient(E, create_comp(earth=128))
-        squad = Squad(name='test', data=[s])
-        player = Player('testplayer', 't@gmail.com', 'xxx', squads=[squad])
+        player = Player('testplayer', 't@gmail.com', 'xxx')
+        Squad(name='test', data=[s], owner=player)
         log = Log([player], {0: s}, Grid())
         owner = log.get_owner(0)
         self.assertEqual(owner, 'testplayer')
 
     def test_get_owners(self):
         s = Scient(E, create_comp(earth=128))
-        squad = Squad(name='test', data=[s])
-        player = Player('testplayer', 't@gmail.com', 'xxx', squads=[squad])
+        player = Player('testplayer', 't@gmail.com', 'xxx')
+        Squad(name='test', data=[s], owner=player)
         log = Log([player], {0: s}, Grid())
         owners = log.get_owners()
         self.assertEqual(owners, {0: 'testplayer'})
@@ -204,13 +210,18 @@ class StateTest(BattleTestBase):
 
     def setUp(self):
         super(StateTest, self).setUp()
+        self.attacker = Player('Atk', 'x@gmail.com', 'xxx')
         atksquad = rand_squad()
-        self.attacker = Player('Atk', 'x@gmail.com', 'xxx',
-                               squads=[atksquad])
+        atksquad.owner = self.attacker
+        self.defender = Player('Def', 'y@gmail.com', 'xxx')
         defsquad = rand_squad()
-        self.defender = Player('Def', 'y@gmail.com', 'xxx', squads=[defsquad])
-        self.field = Field(Hex(0, 0), owner=self.defender)
+        defsquad.owner = self.defender
+        self.field = self.db['fields'][(0, 0)]
+        self.field.owner = self.defender
         self.field.stronghold._add_squad(defsquad)
+        f = self.db['fields'][(0, 1)]
+        f.owner = self.attacker
+        f.stronghold._add_squad(atksquad)
         self.game = Game(self.field, atksquad)
         self.s = State(self.game)
         self.s['old_defsquad_hp'] = defsquad.hp()
@@ -306,7 +317,6 @@ class GameTest(GameTestBase):
     def test_unit_map(self):
         self.maxDiff = None
         m = self.game.unit_map()
-        print m
         self.assertEqual(sorted(m.keys()), sorted(self.units))
         expect_ids = sorted([unit.uid for unit in self.units])
         self.assertEqual(sorted(m.values()), expect_ids)
@@ -407,15 +417,16 @@ class GameTest(GameTestBase):
         mock_compute_awards.return_value = awards
         self._place_squads()
         self.game.winner = self.defender
-        survivors = self.defender.squads[0][:2]
-        survivors += self.attacker.squads[0][:1]
+        def_survivors = self.defender.squads[0][:2]
+        atk_survivors = self.attacker.squads[0][:1]
+        survivors = def_survivors + atk_survivors
         hps = {unit: unit.hp for unit in survivors}
         self.game.state = State(self.game, HPs=hps)
         self.game.end('Defender won')
         self.assertGameOver(self.defender, 'Defender won')
-        self.assertEqual(sorted(self.defender.squads[0][:2]),
+        self.assertEqual(sorted(def_survivors),
                          sorted(self.game.log['change_list']['victors']))
-        self.assertEqual(sorted(self.attacker.squads[0][:1]),
+        self.assertEqual(sorted(atk_survivors),
                          sorted(self.game.log['change_list']['prisoners']))
         mock_compute_awards.assert_called_once_with()
         mock_imbue.assert_called_once_with(awards)

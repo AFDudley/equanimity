@@ -146,7 +146,7 @@ class SquadTest(FlaskTestDB):
         self.assertEqual(self.squad.hp(), self.s.hp)
 
     def test_repr(self):
-        msg = 'Name: x, Value: {0}, Free spaces: 7'
+        msg = '<Squad x, Value: {0}, Free spaces: 7>'
         msg = msg.format(self.s.value())
         self.assertEqual(str(self.squad), msg)
         self.assertEqual(self.squad(), msg)
@@ -155,7 +155,7 @@ class SquadTest(FlaskTestDB):
         names = ['{0}: {1}'.format(i, t.name)
                  for i, t in enumerate(self.squad)]
         names = '\n'.join(names)
-        msg = 'Name: x, Value: {val}, Free spaces: 7 \n{names}'
+        msg = '<Squad x, Value: {val}, Free spaces: 7> \n{names}'
         msg = msg.format(val=self.s.value(), names=names)
         self.assertEqual(self.squad(more=True), msg)
 

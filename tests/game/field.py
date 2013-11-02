@@ -6,12 +6,14 @@ from equanimity.unit_container import Squad
 from equanimity.player import Player
 from equanimity.grid import Grid, Hex
 from equanimity.units import Scient
+from equanimity.world import World
 from equanimity.const import FIELD_PRODUCE, FIELD_YIELD, FIELD_BATTLE, E, I
 from server.utils import AttributeDict
 from ..base import FlaskTestDB, create_comp
 
 
 def _setup_full_queue():
+    World()._create_world_player()
     grid = Grid(radius=3)
     field = Field((0, 0), grid=grid)
     return FieldQueue(field)
@@ -82,6 +84,7 @@ class FieldTest(FlaskTestDB):
         super(FieldTest, self).setUp()
         self.player = Player('awcawca', 'a2@gmail.com', 'xcawcwaa')
         self.f = Field((0, 0), owner=self.player)
+        self.s = self.f.stronghold
 
     def test_create(self):
         self.assertEqual(self.f.world_coord, Hex(0, 0))
@@ -124,12 +127,27 @@ class FieldTest(FlaskTestDB):
         self.assertEqual(self.f.state, FIELD_BATTLE)
 
     def test_set_owner(self):
+        self.db['fields'] = {self.f.world_coord: self.f}
         wp = self.f.owner
         self.assertIn(self.f.world_coord, wp.fields)
         p = Player('x', 'x@gmail.com', 'xxx')
         self.f.owner = p
         self.assertIn(self.f.world_coord, p.fields)
         self.assertNotIn(self.f.world_coord, wp.fields)
+        # make sure the free_units and squads and their units are updated
+        self.s.silo.imbue(create_comp(earth=100))
+        s = self.s.form_scient(E, create_comp(earth=1))
+        t = self.s.form_scient(E, create_comp(earth=1))
+        sq = self.s.form_squad(unit_ids=(t.uid,))
+        self.assertEqual(s.owner, self.s.owner)
+        self.assertEqual(t.owner, self.s.owner)
+        self.assertEqual(sq.owner, self.s.owner)
+        p = Player('xxdawda', 'fefe@gmail.com', 'asdwadawd')
+        self.f.owner = p
+        self.assertEqual(self.s.owner, p)
+        self.assertEqual(s.owner, p)
+        self.assertEqual(t.owner, p)
+        self.assertEqual(sq.owner, self.s.owner)
 
     def test_process_queue_nothing_next(self):
         self.assertIs(self.f.process_queue(), None)
@@ -153,7 +171,7 @@ class FieldTest(FlaskTestDB):
     @patch('equanimity.field.Game.start')
     def test_start_battle(self, mock_start):
         sq = Squad()
-        Player('t', 't@gmail.com', 'tttt', squads=[sq])
+        sq.owner = Player('t', 't@gmail.com', 'tttt')
         self.assertIs(self.f.game, None)
         self.f.stronghold._setup_default_defenders()
         self.f.start_battle(sq)
@@ -198,7 +216,9 @@ class FieldTest(FlaskTestDB):
         self.f.place_scient(s, (1, 0))
         self.assertEqual(s.chosen_location, Hex(1, 0))
 
-    def test_eq(self):
+    @patch('equanimity.field.WorldPlayer.get')
+    def test_eq(self, mock_get):
+        mock_get.return_value = None
         self.assertEqual(self.f, self.f)
         self.assertNotEqual(self.f, Field((1, 0)))
         self.assertNotEqual(self.f, 1)

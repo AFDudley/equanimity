@@ -80,6 +80,10 @@ class World(object):
         else:
             db['grid'] = Grid(radius=radius)
         init_db(reset=init_db_reset)
+        self._create_world_player()
+
+    def _create_world_player(self):
+        """ Creates the necessary WorldPlayer singleton """
         self.player = db['players'].setdefault(WORLD_UID, WorldPlayer())
         self.player.persist()
 
@@ -91,7 +95,6 @@ class World(object):
         for coord in db['grid'].iter_coords():
             f = Field(coord, owner=self.player)
             db['fields'][coord] = f
-            self.player.fields[coord] = f
 
     def award_field(self, new_owner, coords):
         """Transfers a field from one owner to another."""

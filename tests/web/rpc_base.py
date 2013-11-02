@@ -39,8 +39,8 @@ class RPCTestBase(FlaskTestDBWorld, UserTestMixin):
         self.create_world(init_db_reset=False)
         self._proxy = None
         me = self.db['players'][self.uid]
-        self.world.award_field(me, (0, 0))
         self.loc = (0, 0)
+        self.world.award_field(me, self.loc)
         self.f = self.db['fields'][self.loc]
         self.field = self.f
         self.s = self.f.stronghold

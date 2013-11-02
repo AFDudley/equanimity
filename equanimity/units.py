@@ -19,6 +19,8 @@ UNIT_NAME_LEN = dict(max=64, min=1)
 class Unit(Stone):
     attrs = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
 
+    type = 'unit'
+
     def __init__(self, element, comp, name=None, sex='female'):
         if not element in ELEMENTS:
             fmt = "Invalid element: {0}, valid elements are {1}"
@@ -137,6 +139,8 @@ class Scient(Unit):
       F: fire, I: ice, W: wind}
     """
 
+    type = 'scient'
+
     def __init__(self, element, comp, name=None, weapon=None,
                  weapon_bonus=None, sex='female'):
         comp = Composition.create(comp)
@@ -203,6 +207,8 @@ class Scient(Unit):
 
 class Nescient(Unit):
     """A non-playable unit."""
+
+    type = 'nescient'
 
     def __init__(self, element, comp, name=None, weapon=None, sex='female',
                  facing=None, body=None):

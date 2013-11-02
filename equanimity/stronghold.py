@@ -61,6 +61,11 @@ class Stronghold(Persistent):
             defenders=self.defenders.api_view()
         )
 
+    def garrisoned(self):
+        """ Returns True if there are units somewhere inside the stronghold
+        """
+        return bool(self.units)
+
     """ Defender management """
 
     @property

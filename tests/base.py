@@ -205,6 +205,9 @@ class FlaskTestDB(FlaskTest):
         transaction.abort()
         super(FlaskTestDB, self).tearDown()
 
+    def commit(self):
+        transaction.commit()
+
     def _load_cached_db(self):
         try:
             f = open(self._cached_db_name)
