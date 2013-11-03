@@ -10,6 +10,7 @@ and should be refactored with battle as well.
 
 """
 import transaction
+from bidict import bidict, inverted
 from datetime import timedelta
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
@@ -86,8 +87,7 @@ class Log(PersistentMapping):
         self['owners'] = self.get_owners()
 
     def init_locs(self):
-        self['init_locs'] = {uid: unit.location
-                             for uid, unit in self['units'].iteritems()}
+        self['init_locs'] = {unit.uid: unit.location for unit in self['units']}
 
     def close(self, winner, condition):
         """Writes final timestamp, called when game is over."""
@@ -95,14 +95,10 @@ class Log(PersistentMapping):
         self['winner'] = winner
         self['condition'] = condition
 
-    def get_owner(self, unit_num):
-        """Takes unit number returns player/owner."""
-        return self['units'][unit_num].owner.name
-
     def get_owners(self):
         """Mapping of unit number to player/owner."""
-        return {uid: unit.owner.name
-                for uid, unit in self['units'].iteritems()}
+        print self['units']
+        return {unit.uid: unit.owner.name for unit in self['units']}
 
     def last_message(self):
         none = ['There was no message.']
@@ -234,9 +230,9 @@ class Game(Persistent):
         self.attacker = attacker.owner
         self.battlefield = Battlefield(field, field.stronghold.defenders,
                                        attacker)
-        # TODO (steve) -- bidirectional map instead of map,units
-        self.map = self.unit_map()
-        self.units = self.map_unit()
+        units = {unit.uid: unit for unit in self.battlefield.units}
+        self.map = bidict(units)
+        self.units = bidict(inverted(self.map))
         self.winner = None
         self.log = Log(self.players, self.units, self.battlefield.grid)
         self.action_queue = ActionQueue(self)
@@ -274,47 +270,34 @@ class Game(Persistent):
             attacker=self.attacker.combatant_view(self.battlefield.atksquad),
             action_num=self.state['num'])
 
-    def unit_map(self):
-        """mapping of unit ids to objects, used for serialization."""
-        mapping = PersistentMapping()
-        for unit in self.battlefield.units:
-            mapping[unit] = unit.uid
-        return mapping
-
-    def map_unit(self):
-        units = PersistentMapping()
-        for unit, uid in self.map.iteritems():
-            units[uid] = unit
-        return units
-
     def map_locs(self):
         """maps unit name unto locations, only returns live units"""
         locs = PersistentMapping()
-        for unit, uid in self.map.iteritems():
+        for unit in self.units:
             loc = unit.location
             if not loc.is_null():
-                locs[uid] = loc
+                locs[unit.uid] = loc
         return locs
 
     def HPs(self):
         """Hit points by unit."""
         HPs = PersistentMapping()
-        for unit in self.map:
+        for unit in self.units:
             hp = unit.hp
             if hp > 0:
-                HPs[self.map[unit]] = hp
+                HPs[unit.uid] = hp
         return HPs
 
     def update_unit_info(self):
         """returns HPs, Locs."""
         HPs = {}
         locs = {}
-        for unit, num in self.map.iteritems():
+        for unit in self.units:
             loc = unit.location
             # TODO (steve) -- should we also check hp > 0 ?
             if not loc.is_null():
-                locs[num] = loc
-                HPs[num] = unit.hp
+                locs[unit.uid] = loc
+                HPs[unit.uid] = unit.hp
         return HPs, locs
 
     def map_queue(self):

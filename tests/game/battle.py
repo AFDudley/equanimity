@@ -144,9 +144,9 @@ class LogTest(FlaskTestDB):
         s = Scient(E, create_comp(earth=128))
         s.owner = Player('testplayer', 't@gmail.com', 'xxx')
         s.location = Hex(0, 0)
-        log = Log([], {0: s}, Grid())
+        log = Log([], {s: s.uid}, Grid())
         log.init_locs()
-        self.assertEqual(log['init_locs'][0], Hex(0, 0))
+        self.assertEqual(log['init_locs'][s.uid], Hex(0, 0))
 
     def test_close(self):
         log = Log([], {}, Grid())
@@ -155,21 +155,13 @@ class LogTest(FlaskTestDB):
         self.assertEqual(log['condition'], 'done')
         self.assertGreaterEqual(now(), log['end_time'])
 
-    def test_get_owner(self):
-        s = Scient(E, create_comp(earth=128))
-        player = Player('testplayer', 't@gmail.com', 'xxx')
-        Squad(name='test', data=[s], owner=player)
-        log = Log([player], {0: s}, Grid())
-        owner = log.get_owner(0)
-        self.assertEqual(owner, 'testplayer')
-
     def test_get_owners(self):
         s = Scient(E, create_comp(earth=128))
         player = Player('testplayer', 't@gmail.com', 'xxx')
         Squad(name='test', data=[s], owner=player)
-        log = Log([player], {0: s}, Grid())
+        log = Log([player], {s: s.uid}, Grid())
         owners = log.get_owners()
-        self.assertEqual(owners, {0: 'testplayer'})
+        self.assertEqual(owners, {s.uid: 'testplayer'})
 
     @patch.object(Log, 'get_last_terminating_action_time')
     @patch('equanimity.battle.now')
@@ -314,30 +306,17 @@ class GameTest(GameTestBase):
             self.assertIsNot(unit.location, None)
             self.assertNotEqual(unit.location, Hex.null)
 
-    def test_unit_map(self):
-        self.maxDiff = None
-        m = self.game.unit_map()
-        self.assertEqual(sorted(m.keys()), sorted(self.units))
-        expect_ids = sorted([unit.uid for unit in self.units])
-        self.assertEqual(sorted(m.values()), expect_ids)
-
-    def test_map_unit(self):
-        unit_map = self.game.unit_map()
-        m = self.game.map_unit()
-        self.assertEqual(sorted(m.keys()), sorted(unit_map.values()))
-        self.assertEqual(sorted(m.values()), sorted(unit_map.keys()))
-
     def test_map_locs(self):
         self._place_squads()
         locs = self.game.map_locs()
-        self.assertEqual(sorted(locs.keys()), sorted(self.game.units.keys()))
+        self.assertEqual(sorted(locs.keys()), sorted(self.game.units.values()))
         self.assertEqual(sorted(locs.values()),
                          sorted([u.location for u in self.units]))
 
     def test_hps(self):
         self._place_squads()
         hps = self.game.HPs()
-        self.assertEqual(sorted(hps.keys()), sorted(self.game.units.keys()))
+        self.assertEqual(sorted(hps.keys()), sorted(self.game.units.values()))
         self.assertEqual(sorted(hps.values()),
                          sorted([u.hp for u in self.units]))
 
