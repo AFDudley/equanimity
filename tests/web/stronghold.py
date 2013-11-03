@@ -10,20 +10,22 @@ class StrongholdTest(RPCTestBase):
     def test_login_required(self):
         self.logout()
         unit = self.make_scient(E, create_comp(earth=1))
-        r = self.proxy.name_unit(self.loc, unit.uid, 'testname')
+        r = self.proxy.name_unit(self.world.uid, self.loc, unit.uid,
+                                 'testname')
         self.assertError(r, '401')
 
     def test_invalid_stronghold(self):
-        r = self.proxy.name_unit((66, 77), 1, 'xxx')
+        r = self.proxy.name_unit(self.world.uid, (66, 77), 1, 'xxx')
         self.assertError(r, 'Invalid Stronghold')
 
     def test_invalid_owner(self):
-        r = self.proxy.name_unit((0, 1), 1, 'xxx')
+        r = self.proxy.name_unit(self.world.uid, (0, 1), 1, 'xxx')
         self.assertError(r, 'You do not own this Stronghold')
 
     def test_name_unit(self):
         unit = self.make_scient(E, create_comp(earth=1))
-        r = self.proxy.name_unit(self.loc, unit.uid, 'testname')
+        r = self.proxy.name_unit(self.world.uid, self.loc, unit.uid,
+                                 'testname')
         self.assertNoError(r)
         self.assertNoError(r)
         unit = r['result'].get('unit')
@@ -34,7 +36,8 @@ class StrongholdTest(RPCTestBase):
         wep = self.make_weapon(E, create_comp(earth=1), 'Bow')
         name = 'xxSW'
         scient = self.make_scient(E, create_comp(earth=1), name=name)
-        r = self.proxy.equip_scient(self.loc, scient.uid, wep.stronghold_pos)
+        r = self.proxy.equip_scient(self.world.uid, self.loc, scient.uid,
+                                    wep.stronghold_pos)
         self.assertNoError(r)
         unit = r['result'].get('unit')
         self.assertIsNot(unit, None)
@@ -47,7 +50,7 @@ class StrongholdTest(RPCTestBase):
 
     def test_unequip_scient(self):
         scient, _ = self.test_equip_scient()
-        r = self.proxy.unequip_scient(self.loc, scient.uid)
+        r = self.proxy.unequip_scient(self.world.uid, self.loc, scient.uid)
         self.assertNoError(r)
         # returns the unequipped weapon
         w = r['result'].get('weapon')
@@ -59,7 +62,8 @@ class StrongholdTest(RPCTestBase):
     def test_imbue_unit(self):
         scient = self.make_scient(E, create_comp(earth=1))
         self.assertEqual(scient.value(), 1)
-        r = self.proxy.imbue_unit(self.loc, create_comp(earth=1), scient.uid)
+        r = self.proxy.imbue_unit(self.world.uid, self.loc,
+                                  create_comp(earth=1), scient.uid)
         self.assertNoError(r)
         unit = r['result'].get('unit')
         self.assertIsNot(unit, None)
@@ -69,8 +73,8 @@ class StrongholdTest(RPCTestBase):
     def test_split_weapon(self):
         wep = self.make_weapon(E, create_comp(earth=2), 'Bow')
         self.assertEqual(wep.value(), 2)
-        r = self.proxy.split_weapon(self.loc, create_comp(earth=1),
-                                    wep.stronghold_pos)
+        r = self.proxy.split_weapon(self.world.uid, self.loc,
+                                    create_comp(earth=1), wep.stronghold_pos)
         self.assertNoError(r)
         w = r['result'].get('weapon')
         self.assertIsNot(w, None)
@@ -81,8 +85,8 @@ class StrongholdTest(RPCTestBase):
     def test_imbue_weapon(self):
         wep = self.make_weapon(E, create_comp(earth=1), 'Bow')
         self.assertEqual(wep.value(), 1)
-        r = self.proxy.imbue_weapon(self.loc, create_comp(earth=1),
-                                    wep.stronghold_pos)
+        r = self.proxy.imbue_weapon(self.world.uid, self.loc,
+                                    create_comp(earth=1), wep.stronghold_pos)
         self.assertNoError(r)
         w = r['result'].get('weapon')
         self.assertIsNot(w, None)
@@ -93,7 +97,7 @@ class StrongholdTest(RPCTestBase):
     def test_form_squad(self):
         s = self.make_scient(E, create_comp(earth=1), name='xxx')
         t = self.make_scient(E, create_comp(earth=1), name='yyy')
-        r = self.proxy.form_squad(self.loc, [s.uid, t.uid])
+        r = self.proxy.form_squad(self.world.uid, self.loc, [s.uid, t.uid])
         self.assertNoError(r)
         sq = r['result'].get('squad')
         self.assertIsNot(sq, None)
@@ -106,7 +110,8 @@ class StrongholdTest(RPCTestBase):
     def test_name_squad(self):
         sq = self.test_form_squad()
         name = sq['name'] * 2
-        r = self.proxy.name_squad(self.loc, sq['stronghold_pos'], name)
+        r = self.proxy.name_squad(self.world.uid, self.loc,
+                                  sq['stronghold_pos'], name)
         self.assertNoError(r)
         sq = r['result'].get('squad')
         self.assertIsNot(sq, None)
@@ -116,11 +121,12 @@ class StrongholdTest(RPCTestBase):
         # Make a squad
         sq = self.test_form_squad()
         # Count how many are in there
-        r = self._make_proxy('info').stronghold(self.loc)
+        r = self._make_proxy('info').stronghold(self.world.uid, self.loc)
         self.assertNoError(r)
         old_len = len(r['result']['stronghold']['squads'])
         # Remove that first squad
-        r = self.proxy.remove_squad(self.loc, sq['stronghold_pos'])
+        r = self.proxy.remove_squad(self.world.uid, self.loc,
+                                    sq['stronghold_pos'])
         self.assertNoError(r)
         squads = r['result'].get('squads')
         self.assertIsNot(squads, None)

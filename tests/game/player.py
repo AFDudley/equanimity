@@ -25,18 +25,19 @@ class PlayerTestWorld(FlaskTestDBWorld):
 
     def test_squads(self):
         player = Player('x', 'x', 'x')
-        self.assertEqual(player.squads, [])
+        self.assertEqual(player.get_squads(self.world.uid), [])
 
         s = Scient(E, create_comp(earth=1))
         sqa = Squad(data=[s], owner=player)
         t = Scient(E, create_comp(earth=1))
         sqb = Squad(data=[t], owner=player)
-        self.db['fields'][(0, 0)].owner = player
-        self.db['fields'][(0, 1)].owner = player
-        self.db['fields'][(0, 0)].stronghold._add_squad(sqa)
-        self.db['fields'][(0, 1)].stronghold._add_squad(sqb)
+        self.world.fields[(0, 0)].owner = player
+        self.world.fields[(0, 1)].owner = player
+        self.world.fields[(0, 0)].stronghold._add_squad(sqa)
+        self.world.fields[(0, 1)].stronghold._add_squad(sqb)
 
-        self.assertEqual(sorted(player.squads), sorted([sqa, sqb]))
+        self.assertEqual(sorted(player.get_squads(self.world.uid)),
+                         sorted([sqa, sqb]))
 
 
 class WorldPlayerTest(FlaskTestDB):

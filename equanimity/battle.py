@@ -15,12 +15,13 @@ from datetime import timedelta
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
+
 from battlefield import Battlefield
 from units import Unit
 from grid import Hex
 from const import PLY_TIME
-from server import db
 from helpers import now, timestamp
+from world import get_world
 
 
 class BattleError(Exception):
@@ -240,10 +241,12 @@ class Game(Persistent):
         self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
 
     @classmethod
-    def get(self, field_loc):
-        field = db['fields'].get(tuple(field_loc))
-        if field is not None:
-            return field.game
+    def get(self, world, field_loc):
+        world = get_world(world)
+        if world is not None:
+            field = world.fields.get(tuple(field_loc))
+            if field is not None:
+                return field.game
 
     @property
     def players(self):

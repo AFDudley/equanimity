@@ -9,6 +9,7 @@ from persistent import Persistent
 from math import ceil
 from collections import OrderedDict
 
+from world import get_world
 from stone import Stone, get_element
 from grid import Grid, Hex
 from player import WorldPlayer
@@ -17,7 +18,6 @@ from stronghold import Stronghold
 from clock import FieldClock
 from unit_container import Squad
 from const import FIELD_BATTLE, I
-from server import db
 
 
 class FieldQueue(Persistent):
@@ -55,11 +55,14 @@ class Field(Persistent):
     """Player owned field logic."""
 
     @classmethod
-    def get(self, loc):
-        return db['fields'].get(tuple(loc))
+    def get(self, world, loc):
+        w = get_world(world)
+        if w is not None:
+            return w.fields.get(tuple(loc))
 
-    def __init__(self, world_coord, owner=None, grid=None):
-        self.world_coord = Hex._make(world_coord)
+    def __init__(self, world, coord, owner=None, grid=None):
+        self.world = world
+        self.world_coord = Hex._make(coord)
         if grid is None:
             grid = Grid()
         self.grid = grid
@@ -76,9 +79,10 @@ class Field(Persistent):
         self.owner = owner
 
     def api_view(self, requester=None):
-        if (requester is not None and
-                self.world_coord not in requester.visible_fields):
-            return {}
+        if requester is not None:
+            visible = requester.get_visible_fields(self.world.uid)
+            if self.world_coord not in visible:
+                return {}
         # TODO -- add factory etc stuff
         return dict(owner=self.owner.uid,
                     element=self.element,
@@ -226,7 +230,8 @@ class Field(Persistent):
     def __eq__(self, other):
         if not isinstance(other, Field):
             return False
-        return other.world_coord == self.world_coord
+        return (other.world == self.world and
+                other.world_coord == self.world_coord)
 
     def __ne__(self, other):
         return not self.__eq__(other)

@@ -24,86 +24,90 @@ def place_unit(unit_id, grid_location):
     return dict(unit=unit.api_view())
 
 
-@jsonrpc.method('stronghold.name_unit(list, int, str) -> dict', validate=True)
+@jsonrpc.method('stronghold.name_unit(int, list, int, str) -> dict',
+                validate=True)
 @require_login
-def name_unit(field_location, unit_id, name):
-    stronghold = get_stronghold(field_location)
+def name_unit(world_id, field_location, unit_id, name):
+    stronghold = get_stronghold(world_id, field_location)
     unit = stronghold.name_unit(unit_id, name)
     transaction.commit()
     return dict(unit=unit.api_view())
 
 
-@jsonrpc.method('stronghold.equip_scient(list, int, int) -> dict',
+@jsonrpc.method('stronghold.equip_scient(int, list, int, int) -> dict',
                 validate=True)
 @require_login
-def equip_scient(field_location, unit_id, weapon_num):
-    stronghold = get_stronghold(field_location)
+def equip_scient(world_id, field_location, unit_id, weapon_num):
+    stronghold = get_stronghold(world_id, field_location)
     unit = stronghold.equip_scient(unit_id, weapon_num)
     transaction.commit()
     return dict(unit=unit.api_view())
 
 
-@jsonrpc.method('stronghold.unequip_scient(list, int) -> dict', validate=True)
+@jsonrpc.method('stronghold.unequip_scient(int, list, int) -> dict',
+                validate=True)
 @require_login
-def unequip_scient(field_location, unit_id):
-    stronghold = get_stronghold(field_location)
+def unequip_scient(world_id, field_location, unit_id):
+    stronghold = get_stronghold(world_id, field_location)
     weapon = stronghold.unequip_scient(unit_id)
     transaction.commit()
     return dict(weapon=weapon.api_view())
 
 
-@jsonrpc.method('stronghold.imbue_unit(list, dict, int) -> dict',
+@jsonrpc.method('stronghold.imbue_unit(int, list, dict, int) -> dict',
                 validate=True)
 @require_login
-def imbue_unit(field_location, comp, unit_id):
-    stronghold = get_stronghold(field_location)
+def imbue_unit(world_id, field_location, comp, unit_id):
+    stronghold = get_stronghold(world_id, field_location)
     unit = stronghold.imbue_unit(comp, unit_id)
     transaction.commit()
     return dict(unit=unit.api_view())
 
 
-@jsonrpc.method('stronghold.split_weapon(list, dict, int) -> dict',
+@jsonrpc.method('stronghold.split_weapon(int, list, dict, int) -> dict',
                 validate=True)
 @require_login
-def split_weapon(field_location, comp, weapon_num):
-    stronghold = get_stronghold(field_location)
+def split_weapon(world_id, field_location, comp, weapon_num):
+    stronghold = get_stronghold(world_id, field_location)
     weapon = stronghold.split_weapon(comp, weapon_num)
     transaction.commit()
     return dict(weapon=weapon.api_view())
 
 
-@jsonrpc.method('stronghold.imbue_weapon(list, dict, int) -> dict',
+@jsonrpc.method('stronghold.imbue_weapon(int, list, dict, int) -> dict',
                 validate=True)
 @require_login
-def imbue_weapon(field_location, comp, weapon_num):
-    stronghold = get_stronghold(field_location)
+def imbue_weapon(world_id, field_location, comp, weapon_num):
+    stronghold = get_stronghold(world_id, field_location)
     weapon = stronghold.imbue_weapon(comp, weapon_num)
     transaction.commit()
     return dict(weapon=weapon.api_view())
 
 
-@jsonrpc.method('stronghold.form_squad(list, list) -> dict', validate=True)
+@jsonrpc.method('stronghold.form_squad(int, list, list) -> dict',
+                validate=True)
 @require_login
-def form_squad(field_location, unit_ids):
-    stronghold = get_stronghold(field_location)
+def form_squad(world_id, field_location, unit_ids):
+    stronghold = get_stronghold(world_id, field_location)
     squad = stronghold.form_squad(unit_ids)
     transaction.commit()
     return dict(squad=squad.api_view())
 
 
-@jsonrpc.method('stronghold.name_squad(list, int, str) -> dict', validate=True)
+@jsonrpc.method('stronghold.name_squad(int, list, int, str) -> dict',
+                validate=True)
 @require_login
-def name_squad(field_location, squad_num, name):
-    stronghold = get_stronghold(field_location)
+def name_squad(world_id, field_location, squad_num, name):
+    stronghold = get_stronghold(world_id, field_location)
     squad = stronghold.name_squad(squad_num, name)
     transaction.commit()
     return dict(squad=squad.api_view())
 
 
-@jsonrpc.method('stronghold.remove_squad(list, int)', validate=True)
+@jsonrpc.method('stronghold.remove_squad(int, list, int)', validate=True)
 @require_login
-def remove_squad(field_location, squad_num):
-    stronghold = get_stronghold(field_location)
+def remove_squad(world_id, field_location, squad_num):
+    stronghold = get_stronghold(world_id, field_location)
     stronghold.remove_squad(squad_num)
     transaction.commit()
     return dict(squads=[s.api_view() for s in stronghold.squads])

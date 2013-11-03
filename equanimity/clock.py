@@ -5,7 +5,6 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from persistent import Persistent
-from server import db
 from helpers import now, timestamp
 from const import CLOCK, ELEMENTS, E, FIELD_PRODUCE, FIELD_YIELD
 
@@ -24,7 +23,8 @@ Field clock:
 
 class WorldClock(Persistent):
 
-    def __init__(self):
+    def __init__(self, world):
+        self.world = world
         self.dob = now()
         self._current = self.get_current_state()
 
@@ -71,11 +71,11 @@ class WorldClock(Persistent):
         self._current = next
 
     def change_day(self):
-        for field in db['fields'].values():
+        for field in self.world.fields.values():
             field.clock.change_day()
 
     def change_season(self):
-        for field in db['fields'].values():
+        for field in self.world.fields.values():
             field.clock.change_season()
 
     def _get_interval_value(self, interval):

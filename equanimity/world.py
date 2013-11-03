@@ -9,94 +9,115 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 import logging
 logging.basicConfig()
 
+
+def get_world(world):
+    """ Returns the world by id if provided """
+    if isinstance(world, World):
+        return world
+    else:
+        return World.get(world)
+
+
 import transaction
+from persistent import Persistent
 from collections import defaultdict
-from threading import Lock
-from persistent.mapping import PersistentMapping
+from frozendict import frozendict
 from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
-
-from const import WORLD_UID
-from field import Field
-from player import WorldPlayer
-from db import AutoID
-from grid import Grid, SquareGrid
+from player import Player, WorldPlayer
 from clock import WorldClock
+from const import WORLD_UID
+from db import AutoID
 from server import db
 
 
-def init_db(reset=False, verbose=False):
-    start = dict(player_uid=AutoID('player'),
-                 players=IOBTree(),           # maps uid (int) -> Player
-                 player_username=OOBTree(),  # maps username (str) -> Player
-                 player_email=OOBTree(),     # maps email (str) -> Player
-                 unit_uid=AutoID('unit'),
-                 units=IOBTree(),
-                 rate_limit=defaultdict(AutoID),
-                 weapons=IOBTree())
+def init_db(reset=False, verbose=False, grid_radius=8, square_grid=False):
+    """ Creates top level datastructures in the ZODB """
+    from grid import Grid, SquareGrid
+
+    if square_grid:
+        grid = lambda: SquareGrid(radius=grid_radius)
+    else:
+        grid = lambda: Grid(radius=grid_radius)
+    start = dict(player_uid=lambda: AutoID('player'),
+                 # maps uid (int) -> Player
+                 players=lambda: IOBTree(),
+                 # maps username (str) -> Player
+                 player_username=lambda: OOBTree(),
+                 # maps email (str) -> Player
+                 player_email=lambda: OOBTree(),
+                 unit_uid=lambda: AutoID('unit'),
+                 units=lambda: IOBTree(),
+                 world_uid=lambda: AutoID('world'),
+                 worlds=lambda: IOBTree(),
+                 rate_limit=lambda: defaultdict(AutoID),
+                 weapons=lambda: IOBTree(),
+                 grid=grid)
+
     for k, v in start.iteritems():
         if reset:
-            db[k] = v
+            db[k] = v()
         else:
-            db.setdefault(k, v)
+            if k not in db:
+                db[k] = v()
         if verbose:
             print k, db[k]
     transaction.commit()
 
 
-class World(object):
-    def __init__(self):
-        self.lock = Lock()
-        self.player = None
+class World(Persistent):
 
     @classmethod
-    def erase(cls):
-        keys = ['day_length', 'resign_time', 'max_duration', 'version', 'x',
-                'y', 'dob', 'fields']
-        for key in keys:
-            if key in db:
-                del db[key]
-        for player in db.get('players', {}).itervalues():
-            player.reset_world_state()
+    def get(self, uid):
+        return db['worlds'].get(uid)
 
-    def create(self, version=0.0, radius=8, square_grid=False,
-               init_db_reset=True):
-        # If the world version is the same, do nothing.
-        if db.get('version') != version:
-            self.erase()
-            self._setup(version, radius, square_grid=square_grid,
-                        init_db_reset=init_db_reset)
-            self._make_fields()
+    @classmethod
+    def create(cls, **kwargs):
+        w = World(**kwargs)
+        w.persist()
+        return w
 
-    def _setup(self, version, radius, square_grid=False, init_db_reset=True):
-        db['version'] = version
-        db['radius'] = radius
-        db['clock'] = WorldClock()
-        #fields should be a frozendict
-        #http://stackoverflow.com/questions/2703599/what-would-be-a-frozen-dict
-        db['fields'] = PersistentMapping()
-        if square_grid:
-            db['grid'] = SquareGrid(radius=radius)
-        else:
-            db['grid'] = Grid(radius=radius)
-        init_db(reset=init_db_reset)
-        self._create_world_player()
-
-    def _create_world_player(self):
-        """ Creates the necessary WorldPlayer singleton """
-        self.player = db['players'].setdefault(WORLD_UID, WorldPlayer())
+    def __init__(self, version=0.0, create_fields=True):
+        self.players = {}
+        self.player = self._get_or_create_world_player()
         self.player.persist()
+        self.add_player(self.player)
+        self.uid = db['world_uid'].get_next_id()
+        self.version = version
+        self.clock = WorldClock(self)
+        self.fields = frozendict()
+        if create_fields:
+            self._create_fields()
 
-    def _make_fields(self):
-        """creates all fields used in a game."""
-        # right now the World and the fields are square,
-        # they should both be hexagons.
-        # TODO (steve) -- generate hexagonal field
-        for coord in db['grid'].iter_coords():
-            f = Field(coord, owner=self.player)
-            db['fields'][coord] = f
+    def persist(self):
+        """ Saves the world to the ZODB """
+        db['worlds'][self.uid] = self
+
+    def add_player(self, p):
+        """ Adds a player as a participant of this world """
+        self.players[p.uid] = p
+
+    def has_player(self, p):
+        if hasattr(p, 'uid'):
+            if not isinstance(p, Player):
+                raise ValueError('Not a player')
+            p = p.uid
+        return p in self.players
 
     def award_field(self, new_owner, coords):
         """Transfers a field from one owner to another."""
-        with self.lock:
-            db['fields'][coords].owner = new_owner
+        if not self.has_player(new_owner):
+            raise ValueError('Not participating')
+        self.fields[coords].owner = new_owner
+
+    def _get_or_create_world_player(self):
+        return db['players'].setdefault(WORLD_UID, WorldPlayer())
+
+    def _create_fields(self):
+        """ Creates all fields used in a game. """
+        from field import Field
+        self.radius = db['grid'].radius
+        fields = {}
+        for coord in db['grid'].iter_coords():
+            fields[coord] = Field(self, coord, owner=self.player)
+        self.fields = frozendict(fields)

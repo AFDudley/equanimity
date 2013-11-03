@@ -155,7 +155,7 @@ class SparseStrongholdListTest(FlaskTestDBWorld):
 
     def setUp(self):
         super(SparseStrongholdListTest, self).setUp()
-        self.f = self.db['fields'][Hex(0, 0)]
+        self.f = self.world.fields[Hex(0, 0)]
         self.s = SparseStrongholdList(self.f.stronghold)
 
     def test_create(self):
@@ -203,7 +203,7 @@ class StrongholdTest(FlaskTestDBWorld):
     def setUp(self):
         super(StrongholdTest, self).setUp()
         self.w = self.world
-        self.f = self.db['fields'][Hex(0, 0)]
+        self.f = self.world.fields[Hex(0, 0)]
         self.s = self.f.stronghold
         self.s.silo.imbue(create_comp(earth=128))
         self.player = Player('P', 'p@gmail.com', 'ppp')
@@ -232,7 +232,7 @@ class StrongholdTest(FlaskTestDBWorld):
 
     def test_get(self):
         loc = Hex(0, 1)
-        s = Stronghold.get(loc)
+        s = Stronghold.get(self.world.uid, loc)
         self.assertTrue(s)
         self.assertEqual(s.field.world_coord, loc)
 

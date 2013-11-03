@@ -4,7 +4,6 @@ player.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-import transaction
 import operator
 from itertools import chain
 from persistent import Persistent
@@ -12,6 +11,7 @@ from datetime import datetime
 from flask.ext.login import UserMixin
 from flask import current_app
 from const import WORLD_UID
+from world import get_world
 from server import bcrypt, db
 
 
@@ -22,6 +22,33 @@ USERNAME_LEN = dict(max=32, min=3)
 
 class Player(Persistent, UserMixin):
     """Object that contains player infomration."""
+
+    @classmethod
+    def email_available(cls, email):
+        return (cls.get_by_email(email) is None)
+
+    @classmethod
+    def username_available(cls, username):
+        return (cls.get_by_username(username) is None)
+
+    @classmethod
+    def get_by_username(cls, username):
+        return db['player_username'].get(username.lower())
+
+    @classmethod
+    def get_by_email(cls, email):
+        return db['player_email'].get(email.lower())
+
+    @classmethod
+    def get(cls, uid):
+        try:
+            uid = int(uid)
+        except Exception:
+            msg = 'Invalid user id .get(): {0}'
+            current_app.logger.warning(msg.format(uid))
+            return
+        return db['players'].get(uid)
+
     def __init__(self, username, email, password):
         Persistent.__init__(self)
         UserMixin.__init__(self)
@@ -31,22 +58,14 @@ class Player(Persistent, UserMixin):
         self._set_defaults()
         self.uid = db['player_uid'].get_next_id()
 
-    def _set_defaults(self):
-        self.created_at = datetime.utcnow()
-        self.last_login = self.created_at
-        self.login_count = 0
-        self.reset_world_state()
-
-    def reset_world_state(self):
-        self.cookie = None
-        self.roads = None
-        self.treaties = None
-
     def api_view(self):
         return dict(username=self.name, email=self.email, uid=self.uid)
 
-    def world_view(self):
-        fields = [db['fields'][c] for c in self.visible_fields]
+    def world_view(self, world):
+        w = get_world(world)
+        if w is None or self.uid not in w.players:
+            return {}
+        fields = [w.fields[c] for c in self.get_visible_fields(world)]
         return dict(visible_fields=[f.api_view() for f in fields])
 
     def combatant_view(self, squad):
@@ -54,21 +73,19 @@ class Player(Persistent, UserMixin):
         return dict(username=self.name, uid=self.uid,
                     squad=squad.combatant_view())
 
-    @property
-    def fields(self):
-        return {c: f for c, f in db['fields'].iteritems() if f.owner == self}
+    def get_fields(self, world):
+        w = get_world(world)
+        return {c: f for c, f in w.fields.iteritems() if f.owner == self}
 
-    @property
-    def visible_fields(self):
+    def get_visible_fields(self, world_id):
         g = db['grid']
-        fields = ([c] + g.get_adjacent(c) for c in self.fields)
+        fields = ([c] + g.get_adjacent(c) for c in self.get_fields(world_id))
         fields = reduce(operator.add, fields, [])
         return set(fields)
 
-    @property
-    def squads(self):
+    def get_squads(self, world_id):
         squads = (f.stronghold.squads.items.values()
-                  for f in self.fields.values())
+                  for f in self.get_fields(world_id).values())
         return list(chain.from_iterable(squads))
 
     @property
@@ -107,41 +124,13 @@ class Player(Persistent, UserMixin):
         db['players'][self.uid] = self
         db['player_username'][self.username] = self
         db['player_email'][self.email] = self
-        transaction.commit()
 
     def login(self):
         self.last_login = datetime.utcnow()
         self.login_count += 1
-        transaction.commit()
 
     def is_world(self):
         return False
-
-    @classmethod
-    def email_available(cls, email):
-        return (cls.get_by_email(email) is None)
-
-    @classmethod
-    def username_available(cls, username):
-        return (cls.get_by_username(username) is None)
-
-    @classmethod
-    def get_by_username(cls, username):
-        return db['player_username'].get(username.lower())
-
-    @classmethod
-    def get_by_email(cls, email):
-        return db['player_email'].get(email.lower())
-
-    @classmethod
-    def get(cls, uid):
-        try:
-            uid = int(uid)
-        except Exception:
-            msg = 'Invalid user id .get(): {0}'
-            current_app.logger.warning(msg.format(uid))
-            return
-        return db['players'].get(uid)
 
     def __eq__(self, other):
         print other, type(other), self.__class__, other.__class__
@@ -163,8 +152,17 @@ class Player(Persistent, UserMixin):
     def __repr__(self):
         return '<{0}: {1}>'.format(self.__class__.__name__, self.uid)
 
+    def _set_defaults(self):
+        self.created_at = datetime.utcnow()
+        self.last_login = self.created_at
+        self.login_count = 0
+
 
 class WorldPlayer(Player):
+
+    @classmethod
+    def get(cls):
+        return db['players'][WORLD_UID]
 
     def __init__(self):
         Persistent.__init__(self)
@@ -176,13 +174,7 @@ class WorldPlayer(Player):
         self._set_defaults()
 
     def persist(self):
-        self.__class__._world = self
         db['players'][self.uid] = self
-        transaction.commit()
 
     def is_world(self):
         return True
-
-    @classmethod
-    def get(cls):
-        return db['players'][WORLD_UID]

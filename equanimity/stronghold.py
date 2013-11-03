@@ -9,6 +9,7 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from operator import methodcaller
 
+from world import get_world
 from stone import Stone
 from units import Scient
 from unit_container import Squad
@@ -18,16 +19,17 @@ from const import ORTH, OPP, WEP_LIST, ELEMENTS
 from factory import Stable, Armory, Home, Farm
 from silo import Silo
 from clock import now
-from server import db
 
 
 class Stronghold(Persistent):
 
     @classmethod
-    def get(self, field_location):
-        field = db['fields'].get(tuple(field_location))
-        if field is not None:
-            return field.stronghold
+    def get(self, world, field_location):
+        w = get_world(world)
+        if w is not None:
+            field = w.fields.get(tuple(field_location))
+            if field is not None:
+                return field.stronghold
 
     def __init__(self, field):
         self._defenders = None

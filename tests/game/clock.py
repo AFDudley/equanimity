@@ -10,7 +10,7 @@ from ..base import BaseTest, FlaskTestDBWorld
 class WorldClockTest(BaseTest):
 
     def test_create(self):
-        w = WorldClock()
+        w = WorldClock(None)
         self.assertEqual(sorted(CLOCK.keys()), sorted(w._current.keys()))
         for v in w._current.values():
             self.assertEqual(v, 1)
@@ -19,7 +19,7 @@ class WorldClockTest(BaseTest):
     @patch.object(WorldClock, 'get_current_state')
     def test_create_dob(self, mock_state, mock_now):
         mock_now.return_value = 777
-        w = WorldClock()
+        w = WorldClock(None)
         self.assertEqual(w.dob, 777)
 
     @patch('equanimity.clock.now')
@@ -27,19 +27,19 @@ class WorldClockTest(BaseTest):
     def test_elapsed(self, mock_state, mock_now):
         _now = datetime.now()
         mock_now.return_value = _now
-        w = WorldClock()
+        w = WorldClock(None)
         mock_now.return_value = _now + timedelta(minutes=1)
         self.assertEqual(w.elapsed, 60)
 
         # test in the past error handling
         mock_now.return_value = _now
-        w = WorldClock()
+        w = WorldClock(None)
         mock_now.return_value = _now - timedelta(minutes=1)
         self.assertEqual(w.elapsed, 0)
 
     @patch.object(WorldClock, '_get_interval_value')
     def test_game_over(self, mock_interval):
-        w = WorldClock()
+        w = WorldClock(None)
         mock_interval.return_value = 1
         self.assertFalse(w.game_over)
         mock_interval.return_value = 2
@@ -52,7 +52,7 @@ class WorldClockTest(BaseTest):
         # check that current gets updated
         ret = dict(day=1, season=1)
         mock_get_state.return_value = ret
-        w = WorldClock()
+        w = WorldClock(None)
         w.tick()
         self.assertEqual(ret, w._current)
         # check that change_day gets called
@@ -67,11 +67,11 @@ class WorldClockTest(BaseTest):
     def test_get_interval_value(self, mock_elapsed):
         elapsed = int(timedelta(hours=70).total_seconds())
         mock_elapsed.__get__ = Mock(return_value=elapsed)
-        w = WorldClock()
+        w = WorldClock(None)
         self.assertEqual(w._get_interval_value('season'), 9)
 
     def test_getattribute(self):
-        w = WorldClock()
+        w = WorldClock(None)
         # CLOCK key attr
         for k in CLOCK:
             self.assertEqual(getattr(w, k), 1)
@@ -79,7 +79,7 @@ class WorldClockTest(BaseTest):
         self.assertTrue(w.dob)
 
     def test_setattr(self):
-        w = WorldClock()
+        w = WorldClock(None)
         w.xxx = 777
         self.assertEqual(w.xxx, 777)
         self.assertExceptionContains(ValueError, 'Can\'t set', w.__setattr__,
@@ -90,7 +90,7 @@ class WorldClockTestDB(FlaskTestDBWorld):
 
     def setUp(self):
         super(WorldClockTestDB, self).setUp()
-        self.w = WorldClock()
+        self.w = WorldClock(self.world)
 
     @patch('equanimity.field.FieldClock.change_day')
     def test_change_day(self, mock_clock):

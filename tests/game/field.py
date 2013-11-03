@@ -13,9 +13,10 @@ from ..base import FlaskTestDB, create_comp
 
 
 def _setup_full_queue():
-    World()._create_world_player()
+    world = World()
+    world._get_or_create_world_player()
     grid = Grid(radius=3)
-    field = Field((0, 0), grid=grid)
+    field = Field(world, (0, 0), grid=grid)
     return FieldQueue(field)
 
 
@@ -83,7 +84,7 @@ class FieldTest(FlaskTestDB):
     def setUp(self):
         super(FieldTest, self).setUp()
         self.player = Player('awcawca', 'a2@gmail.com', 'xcawcwaa')
-        self.f = Field((0, 0), owner=self.player)
+        self.f = Field(AttributeDict(uid=1), (0, 0), owner=self.player)
         self.s = self.f.stronghold
 
     def test_create(self):
@@ -103,13 +104,14 @@ class FieldTest(FlaskTestDB):
         self.assertValidSchema(self.f.api_view(), schema)
 
     def test_api_view_not_visible(self):
-        requester = AttributeDict(visible_fields=[])
+        requester = AttributeDict(get_visible_fields=lambda x: [])
         self.assertEqual(self.f.api_view(requester=requester), {})
 
-    def test_get(self):
-        self.db['fields'] = dict()
-        self.db['fields'][tuple(self.f.world_coord)] = self.f
-        self.assertEqual(self.f, Field.get((0, 0)))
+    @patch('equanimity.field.get_world')
+    def test_get(self, mock_get_world):
+        fields = {tuple(self.f.world_coord): self.f}
+        mock_get_world.return_value = AttributeDict(fields=fields)
+        self.assertEqual(self.f, Field.get(0, (0, 0)))
 
     def test_in_battle(self):
         self.assertFalse(self.f.in_battle)
@@ -126,14 +128,16 @@ class FieldTest(FlaskTestDB):
         self.f.game = AttributeDict(state=dict(game_over=False))
         self.assertEqual(self.f.state, FIELD_BATTLE)
 
-    def test_set_owner(self):
-        self.db['fields'] = {self.f.world_coord: self.f}
+    @patch('equanimity.player.get_world')
+    def test_set_owner(self, mock_get_world):
+        fields = {self.f.world_coord: self.f}
+        mock_get_world.return_value = AttributeDict(fields=fields)
         wp = self.f.owner
-        self.assertIn(self.f.world_coord, wp.fields)
+        self.assertIn(self.f.world_coord, wp.get_fields(0))
         p = Player('x', 'x@gmail.com', 'xxx')
         self.f.owner = p
-        self.assertIn(self.f.world_coord, p.fields)
-        self.assertNotIn(self.f.world_coord, wp.fields)
+        self.assertIn(self.f.world_coord, p.get_fields(0))
+        self.assertNotIn(self.f.world_coord, wp.get_fields(0))
         # make sure the free_units and squads and their units are updated
         self.s.silo.imbue(create_comp(earth=100))
         s = self.s.form_scient(E, create_comp(earth=1))
@@ -220,5 +224,10 @@ class FieldTest(FlaskTestDB):
     def test_eq(self, mock_get):
         mock_get.return_value = None
         self.assertEqual(self.f, self.f)
-        self.assertNotEqual(self.f, Field((1, 0)))
+        # non matching coords
+        self.assertNotEqual(self.f, Field(self.f.world, (1, 0)))
+        # non matching world
+        self.f.world = 0
+        self.assertNotEqual(self.f, Field(1, self.f.world_coord))
+        # non matching type
         self.assertNotEqual(self.f, 1)

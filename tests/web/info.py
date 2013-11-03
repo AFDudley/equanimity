@@ -89,26 +89,26 @@ class InfoTest(BattleTestBase):
         return r['result']
 
     def test_world_info(self):
-        self._test('world')
+        self._test('world', self.world.uid)
 
     def test_field_info(self):
-        data = self._test('field', self.loc)
+        data = self._test('field', self.world.uid, self.loc)
         expect = self._coerce(self.field.api_view())
         self.assertEqual(expect, data['field'])
 
     def test_clock_info(self):
-        self._test('clock')
+        self._test('clock', self.world.uid)
 
     def test_battle_info(self):
         self.maxDiff = None
         self._start_battle()
-        data = self._test('battle', self.loc)
+        data = self._test('battle', self.world.uid, self.loc)
         expect = self._coerce(self.field.game.api_view())
         self.assertEqual(expect, data['battle'])
 
     def test_battle_timer_info(self):
         self._start_battle()
-        data = self._test('battle_timer', self.loc)
+        data = self._test('battle_timer', self.world.uid, self.loc)
         expect = self._coerce(self.field.game.timer_view())
         self.assertEqual(expect, data['battle']['timer'])
 
@@ -121,6 +121,6 @@ class InfoTest(BattleTestBase):
 
     def test_stronghold_info(self):
         self._start_battle()
-        data = self._test('stronghold', self.loc)
+        data = self._test('stronghold', self.world.uid, self.loc)
         expect = self._coerce(self.f.stronghold.api_view())
         self.assertEqual(expect, data['stronghold'])

@@ -193,11 +193,14 @@ class FlaskTestDB(FlaskTest):
 
     _cached_db_name = '.cached_zodb'
 
-    def setUp(self, do_init_db=True):
+    def setUp(self, do_init_db=True, square_grid=True, grid_radius=2):
         super(FlaskTestDB, self).setUp()
         transaction.abort()
+        self.db_inited = False
         if do_init_db:
-            init_db(reset=True)
+            init_db(reset=True, square_grid=square_grid,
+                    grid_radius=grid_radius)
+            self.db_inited = True
             transaction.commit()
         self.db = db
 
@@ -229,13 +232,19 @@ class FlaskTestDB(FlaskTest):
 
 class FlaskTestDBWorld(FlaskTestDB):
 
-    def setUp(self, create_world=True):
-        super(FlaskTestDBWorld, self).setUp(do_init_db=(not create_world))
+    def setUp(self, create_world=True, grid_radius=2, square_grid=True):
+        super(FlaskTestDBWorld, self).setUp(do_init_db=(not create_world),
+                                            grid_radius=grid_radius,
+                                            square_grid=square_grid)
         if create_world:
             self.create_world()
 
     def create_world(self, version='1', radius=2, square_grid=True,
-                     init_db_reset=False):
-        self.world = World()
-        self.world.create(version, radius=radius, square_grid=square_grid,
-                          init_db_reset=init_db_reset)
+                     init_db_reset=None):
+        if init_db_reset is None:
+            init_db_reset = not self.db_inited
+        if init_db_reset:
+            init_db(reset=True, grid_radius=radius, square_grid=square_grid)
+        self.world = World.create(version=version, create_fields=True)
+        transaction.commit()
+        return self.world

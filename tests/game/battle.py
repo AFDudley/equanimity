@@ -99,12 +99,12 @@ class GameTestBase(BattleTestBase):
         self.defender = Player('Def', 'y@gmail.com', 'yyy')
         atksquad.owner = self.attacker
         defsquad.owner = self.defender
-        f = Field((0, 0), owner=self.defender)
-        self.field = self.db['fields'][(0, 0)]
+        f = Field(self.world, (0, 0), owner=self.defender)
+        self.field = self.world.fields[(0, 0)]
         self.field.owner = self.defender
         self.field.stronghold._add_squad(defsquad)
         self.field.stronghold.defenders = defsquad
-        f = self.db['fields'][(0, 1)]
+        f = self.world.fields[(0, 1)]
         f.owner = self.attacker
         f.stronghold._add_squad(atksquad)
         self.game = Game(self.field, atksquad)
@@ -120,12 +120,14 @@ class GameTestBase(BattleTestBase):
 
     @property
     def units(self):
-        return sorted(list(itertools.chain(self.defender.squads[0],
-                                           self.attacker.squads[0])))
+        return sorted(list(itertools.chain(
+            self.defender.get_squads(self.world.uid)[0],
+            self.attacker.get_squads(self.world.uid)[0]
+        )))
 
     def _place_squads(self):
-        self.f.rand_place_squad(self.attacker.squads[0])
-        self.f.rand_place_squad(self.defender.squads[0])
+        self.f.rand_place_squad(self.attacker.get_squads(self.world.uid)[0])
+        self.f.rand_place_squad(self.defender.get_squads(self.world.uid)[0])
         self.game.start()
 
 
@@ -208,10 +210,10 @@ class StateTest(BattleTestBase):
         self.defender = Player('Def', 'y@gmail.com', 'xxx')
         defsquad = rand_squad()
         defsquad.owner = self.defender
-        self.field = self.db['fields'][(0, 0)]
+        self.field = self.world.fields[(0, 0)]
         self.field.owner = self.defender
         self.field.stronghold._add_squad(defsquad)
-        f = self.db['fields'][(0, 1)]
+        f = self.world.fields[(0, 1)]
         f.owner = self.attacker
         f.stronghold._add_squad(atksquad)
         self.game = Game(self.field, atksquad)
@@ -262,7 +264,7 @@ class StateTest(BattleTestBase):
     def test_game_over_defenders_killed(self):
         # test for game over check, where defending squad is dead
         self._add_action()
-        for squad in self.defender.squads:
+        for squad in self.defender.get_squads(self.world.uid):
             for unit in squad:
                 unit.hp = 0
         self.s['old_defsquad_hp'] = 0
@@ -272,7 +274,7 @@ class StateTest(BattleTestBase):
     def test_game_over_attackers_killed(self):
         # test for game over check, where attacking squad is dead
         self._add_action()
-        for squad in self.attacker.squads:
+        for squad in self.attacker.get_squads(self.world.uid):
             for unit in squad:
                 unit.hp = 0
         self.s['old_defsquad_hp'] = 0
@@ -328,7 +330,7 @@ class GameTest(GameTestBase):
 
     def test_map_queue(self):
         self._place_squads()
-        dfdr = self.defender.squads[0][0]
+        dfdr = self.defender.get_squads(self.world.uid)[0][0]
         self.bf.dmg_queue[dfdr].append([100, 2])
         dmg_q = self.game.map_queue()
         self.assertTrue(dmg_q)
@@ -341,20 +343,20 @@ class GameTest(GameTestBase):
 
     def test_map_result(self):
         self._place_squads()
-        dfdr = self.defender.squads[0][0]
+        dfdr = self.defender.get_squads(self.world.uid)[0][0]
         self.bf.dmg_queue[dfdr].append([1, 2])
         qd = self.bf.apply_queued()
         self.assertEqual(self.game.map_result(qd), [[dfdr.uid, 1]])
 
     def test_map_action(self):
-        d = self.defender.squads[0][0]
+        d = self.defender.get_squads(self.world.uid)[0][0]
         act = self.game.map_action(unit=d)
         self.assertEqual(act['unit'], d.uid)
 
     def test_apply_queued(self):
         self._place_squads()
         self._add_actions(4)
-        dfdr = self.defender.squads[0][0]
+        dfdr = self.defender.get_squads(self.world.uid)[0][0]
         self.bf.dmg_queue[dfdr].append([1, 2])
         self.assertFalse(self.game.log['applied'])
         self.game.apply_queued()
@@ -379,12 +381,12 @@ class GameTest(GameTestBase):
         self.assertTrue(isinstance(init_state, InitialState))
 
     def test_compute_award(self):
-        self.defender.squads[0][0].hp = 0
-        comp = self.defender.squads[0][0].copy()
+        self.defender.get_squads(self.world.uid)[0][0].hp = 0
+        comp = self.defender.get_squads(self.world.uid)[0][0].copy()
         wep_comp = Stone(create_comp(earth=2))
         weapon = Sword(E, wep_comp)
         wep_comp = wep_comp.copy().extract_award()
-        self.defender.squads[0][0].equip(weapon)
+        self.defender.get_squads(self.world.uid)[0][0].equip(weapon)
         awards = self.game.compute_awards()
         comp = comp.extract_award()
         self.assertEqual(awards, [comp, wep_comp])
@@ -396,8 +398,8 @@ class GameTest(GameTestBase):
         mock_compute_awards.return_value = awards
         self._place_squads()
         self.game.winner = self.defender
-        def_survivors = self.defender.squads[0][:2]
-        atk_survivors = self.attacker.squads[0][:1]
+        def_survivors = self.defender.get_squads(self.world.uid)[0][:2]
+        atk_survivors = self.attacker.get_squads(self.world.uid)[0][:1]
         survivors = def_survivors + atk_survivors
         hps = {unit: unit.hp for unit in survivors}
         self.game.state = State(self.game, HPs=hps)
@@ -418,11 +420,11 @@ class BattleProcessActionTest(GameTestBase):
 
     @property
     def d(self):
-        return self.defender.squads[0][0]
+        return self.defender.get_squads(self.world.uid)[0][0]
 
     @property
     def a(self):
-        return self.attacker.squads[0][0]
+        return self.attacker.get_squads(self.world.uid)[0][0]
 
     @property
     def past(self):
@@ -737,7 +739,7 @@ class ActionQueueTest(GameTestBase):
         # neither squad nor squad_pos
         self.assertRaises(ValueError, self.aq._get_unit_key, unit)
         # squad, but no squad_pos
-        unit.squad = self.defender.squads[0]
+        unit.squad = self.defender.get_squads(self.world.uid)[0]
         self.assertRaises(ValueError, self.aq._get_unit_key, unit)
         # squad_pos, but no squad
         unit.squad = None

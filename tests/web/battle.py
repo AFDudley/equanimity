@@ -41,19 +41,19 @@ class BattleTest(BattleTestBase):
     service_name = 'battle'
 
     def test_invalid_field(self):
-        r = getattr(self.proxy, 'pass')((66, 77), 1)
+        r = getattr(self.proxy, 'pass')(self.world.uid, (66, 77), 1)
         self.assertError(r, 'Invalid Field')
 
     def test_field_not_in_battle_game_over(self):
         s, t, atksquad, defsquad = self._create_units()
         self._setup_game(atksquad, defsquad)
         self.f.game.state['game_over'] = True
-        r = getattr(self.proxy, 'pass')(self.loc, 1)
+        r = getattr(self.proxy, 'pass')(self.world.uid, self.loc, 1)
         self.assertError(r, 'No game is active for this field')
 
     def test_field_not_in_battle_not_started(self):
         self.f.game = None
-        r = getattr(self.proxy, 'pass')(self.loc, 1)
+        r = getattr(self.proxy, 'pass')(self.world.uid, self.loc, 1)
         self.assertError(r, 'No game is active for this field')
 
     def test_pass(self):
@@ -62,7 +62,7 @@ class BattleTest(BattleTestBase):
         self.f.place_scient(s, Hex(1, 0))
         self.f.place_scient(t, Hex(1, 0))
         self.game.start()
-        r = getattr(self.proxy, 'pass')(self.loc, t.uid)
+        r = getattr(self.proxy, 'pass')(self.world.uid, self.loc, t.uid)
         self.assertNoError(r)
 
     def test_move(self):
@@ -72,7 +72,7 @@ class BattleTest(BattleTestBase):
         self.f.place_scient(t, Hex(1, 0))
         self.game.start()
         self._setup_game(atksquad, defsquad)
-        r = self.proxy.move(self.loc, t.uid, Hex(2, 0))
+        r = self.proxy.move(self.world.uid, self.loc, t.uid, Hex(2, 0))
         self.assertNoError(r)
 
     def test_attack(self):
@@ -84,5 +84,5 @@ class BattleTest(BattleTestBase):
         self.f.place_scient(t, Hex(1, 1))
         self.game.start()
         self._setup_game(atksquad, defsquad)
-        r = self.proxy.attack(self.loc, t.uid, Hex(-2, -4))
+        r = self.proxy.attack(self.world.uid, self.loc, t.uid, Hex(-2, -4))
         self.assertNoError(r)
