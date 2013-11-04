@@ -12,7 +12,7 @@ from operator import methodcaller
 from world import get_world
 from stone import Stone
 from units import Scient
-from unit_container import Squad
+from unit_container import Squad, rand_squad
 from weapons import weapons
 from unit_container import Container
 from const import ORTH, OPP, WEP_LIST, ELEMENTS
@@ -67,6 +67,14 @@ class Stronghold(Persistent):
         """ Returns True if there are units somewhere inside the stronghold
         """
         return bool(self.units)
+
+    def populate_with_scients(self):
+        """ Adds an initial squad of scients to the stronghold """
+        if self.garrisoned:
+            raise ValueError("Stronghold is already occupied")
+        squad = rand_squad(owner=self.owner, element=self.field.element,
+                           max_value=self.field.grid.value(), size=8)
+        self._add_squad(squad)
 
     """ Defender management """
 

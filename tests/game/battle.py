@@ -92,9 +92,9 @@ class GameTestBase(BattleTestBase):
 
     def _setup_game(self, atksquad=None, defsquad=None, element=None):
         if atksquad is None:
-            atksquad = rand_squad(suit=E)
+            atksquad = rand_squad(element=E, size=5)
         if defsquad is None:
-            defsquad = rand_squad(suit=F)
+            defsquad = rand_squad(element=F, size=5)
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx')
         self.defender = Player('Def', 'y@gmail.com', 'yyy')
         atksquad.owner = self.attacker

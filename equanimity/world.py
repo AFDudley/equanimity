@@ -20,11 +20,11 @@ def get_world(world):
 
 import transaction
 from persistent import Persistent
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from frozendict import frozendict
 from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
-from random import choice, randrange
+from random import choice, randrange, sample, shuffle, randint
 from player import Player, WorldPlayer
 from clock import WorldClock
 from const import WORLD_UID, ELEMENTS, ORTH
@@ -54,6 +54,8 @@ def init_db(reset=False, verbose=False, grid_radius=8, square_grid=False):
                  worlds=lambda: IOBTree(),
                  rate_limit=lambda: defaultdict(AutoID),
                  weapons=lambda: IOBTree(),
+                 vestibules=lambda: IOBTree(),
+                 vestibule_uid=lambda: AutoID('vestibule'),
                  grid=grid)
 
     for k, v in start.iteritems():
@@ -79,15 +81,15 @@ class World(Persistent):
         w.persist()
         return w
 
-    def __init__(self, version=0.0, create_fields=True):
-        self.players = {}
+    def __init__(self, version=0.0, create_fields=True, players=None):
+        self.players = PlayerGroup()
         self.player = self._get_or_create_world_player()
         self.player.persist()
-        self.add_player(self.player)
+        self.players.add(self.player)
         self.uid = db['world_uid'].get_next_id()
         self.version = version
         self.clock = WorldClock(self)
-        self.radius = db['grid'].radius
+        self.grid = db['grid']
         self.fields = frozendict()
         if create_fields:
             self._create_fields()
@@ -96,25 +98,65 @@ class World(Persistent):
         """ Saves the world to the ZODB """
         db['worlds'][self.uid] = self
 
-    def add_player(self, p):
-        """ Adds a player as a participant of this world """
-        self.players[p.uid] = p
-
-    def has_player(self, p):
-        if hasattr(p, 'uid'):
-            if not isinstance(p, Player):
-                raise ValueError('Not a player')
-            p = p.uid
-        return p in self.players
-
     def award_field(self, new_owner, coords):
         """Transfers a field from one owner to another."""
-        if not self.has_player(new_owner):
+        if not self.players.has(new_owner):
             raise ValueError('Not participating')
         self.fields[coords].owner = new_owner
 
+    def start(self):
+        """ Starts the game """
+        self._distribute_fields_to_players()
+
     def _get_or_create_world_player(self):
         return db['players'].setdefault(WORLD_UID, WorldPlayer())
+
+    def _distribute_fields_to_players(self):
+        """ Assigns fields to participating players """
+        # Setup a player, field_count list
+        players = [[p, 0] for p in self.players if p != self.player]
+        # Decide how many fields player gets
+        each_get = len(self.grid) // len(players)
+        # Get the coordinates of the fields, minus any fields not to be
+        # assigned to players (at random)
+        coords = list(self.grid.iter_coords())
+        shuffle(coords)
+        coords = coords[:-(len(self.grid) % each_get)]
+        while coords:
+            for p_i in players:
+                p, i = p_i
+                if i >= each_get:
+                    # This player has all their fields
+                    continue
+                # Fields should be distributed in clusters of 1-4
+                cluster_size = max(randint(0, 3), each_get - i - 1)
+                # Get the starting coordinate
+                ours = [coords.pop(randrange(len(coords)))]
+                # Get random available adjacent coordinates for the cluster
+                if cluster_size:
+                    adj = self.grid.get_adjacent(ours[0])
+                    extra = sample(adj, cluster_size)
+                    for x in extra:
+                        if x in coords:
+                            coords.pop(coords.index(x))
+                    ours += extra
+                # Assign the fields to this player
+                for c in ours:
+                    self.award_field(p, c)
+                # Update this player's field count
+                p_i[1] += len(ours)
+
+    def _populate_fields(self):
+        """ Puts scients, nescients into fields based on who owns them.
+        To be called only after assigning initial fields to all players,
+        and before the game begins.
+        """
+        for f in self.fields:
+            if f.owner == self.player:
+                # TODO -- populate with nescients
+                pass
+            else:
+                f.stronghold.populate_with_scients()
 
     def _choose_initial_field_element(self, coord):
         """ Decide what element to assign a field based on coordinate """
@@ -131,13 +173,13 @@ class World(Persistent):
         c.set_opp(element, randrange(5, 10))
         for x in ORTH[element]:
             c[x] = randrange(10, 20)
-        return Grid(comp=Stone(c), radius=self.radius)
+        return Grid(comp=Stone(c), radius=self.grid.radius)
 
     def _create_fields(self):
         """ Creates all fields used in a game. """
         from field import Field
         fields = {}
-        for coord in db['grid'].iter_coords():
+        for coord in self.grid.iter_coords():
             """
             Field need to be given:
               An element
@@ -151,3 +193,30 @@ class World(Persistent):
             grid = self._choose_initial_field_grid(e, coord)
             fields[coord] = Field(self, coord, e, owner=self.player, grid=grid)
         self.fields = frozendict(fields)
+
+
+class PlayerGroup(object):
+    """ Manager for a group of players """
+
+    def __init__(self):
+        self.players = OrderedDict()
+
+    def has(self, player):
+        if hasattr(player, 'uid'):
+            if not isinstance(player, Player):
+                raise ValueError('Not a player')
+            player = player.uid
+        return (player in self.players)
+
+    def add_all(self, players):
+        for p in players.players.itervalues():
+            self.add(p)
+
+    def add(self, player):
+        self.players[player.uid] = player
+
+    def remove(self, player):
+        del self.players[player.uid]
+
+    def __iter__(self):
+        return iter(self.players)

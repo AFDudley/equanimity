@@ -29,7 +29,7 @@ def get_world(world_id, **kwargs):
     w = _get_world(world_id)
     if w is None:
         raise ValueError('Unknown world {0}'.format(world_id))
-    if not w.has_player(current_user._get_current_object()):
+    if not w.players.has(current_user._get_current_object()):
         raise ValueError('You are not in this world')
     return w
 

@@ -259,27 +259,27 @@ def get_element(comp):
         return sort[0][0]
 
 
-def max_comp(suit, kind='Scient'):
-    """Returns the maximum composition of 'kind' of element 'suit'"""
+def max_comp(element, kind='Scient'):
+    """Returns the maximum composition of 'kind' of element 'element'"""
     comp = Stone()
     if kind == 'Scient':
-        comp[suit] = 255
-        comp[OPP[suit]] = 0
-        comp[ORTH[suit][0]] = comp[ORTH[suit][1]] = 127
+        comp[element] = 255
+        comp[OPP[element]] = 0
+        comp[ORTH[element][0]] = comp[ORTH[element][1]] = 127
         return comp
     if kind == 'Weapon':
         comp2 = Stone()
-        comp2[suit] = comp[suit] = 63
-        comp2[OPP[suit]] = comp[OPP[suit]] = 0
-        comp2[ORTH[suit][0]] = comp[ORTH[suit][1]] = 0
-        comp2[ORTH[suit][1]] = comp[ORTH[suit][0]] = 63
+        comp2[element] = comp[element] = 63
+        comp2[OPP[element]] = comp[OPP[element]] = 0
+        comp2[ORTH[element][0]] = comp[ORTH[element][1]] = 0
+        comp2[ORTH[element][1]] = comp[ORTH[element][0]] = 63
         return (comp, comp2)
     if kind == 'Nescient':
         comp2 = Stone()
-        comp2[suit] = comp[suit] = 255
-        comp2[OPP[suit]] = comp[OPP[suit]] = 0
-        comp2[ORTH[suit][0]] = comp[ORTH[suit][1]] = 0
-        comp2[ORTH[suit][1]] = comp[ORTH[suit][0]] = 254
+        comp2[element] = comp[element] = 255
+        comp2[OPP[element]] = comp[OPP[element]] = 0
+        comp2[ORTH[element][0]] = comp[ORTH[element][1]] = 0
+        comp2[ORTH[element][1]] = comp[ORTH[element][0]] = 254
         return (comp, comp2)
     if kind == 'Stone':
         for i in comp:
@@ -287,31 +287,34 @@ def max_comp(suit, kind='Scient'):
         return comp
 
 
-def rand_comp(suit=None, kind=None, max_v=255):
-    """Returns a random comp in 'suit' for use instaniating 'kind'
-       If 'suit' is not valid, random element used.
+def rand_comp(element=None, kind=None, max_value=255):
+    """Returns a random comp in 'element' for use instaniating 'kind'
+       If 'element' is not valid, random element used.
        If 'kind' is not valid stone is used
-       if 'kind' is 'Stone' suit ignored"""
-    if not suit in ELEMENTS:
-        suit = rand_element()
+       if 'kind' is 'Stone' element ignored"""
+    if element is None:
+        element = rand_element()
+    if element not in ELEMENTS:
+        raise ValueError('Unknown element {0}'.format(element))
 
     comp = Stone()
-    if kind is None or kind not in KINDS:
+    if kind is None:
         kind = 'Stone'
+    if kind not in KINDS:
+        raise ValueError('Unknown kind {0}'.format(kind))
 
     if kind == 'Stone':
         for element in comp:
-            comp[element] = random.randint(0, max_v)
+            comp[element] = random.randint(0, max_value)
         return comp
-    else:
-        if kind == 'Scient':
-            comp[suit] = random.randint(1, max_v)
-            for picked in ORTH[suit]:
-                # NOTE: if comp[suit] = 1 orths will be 0.
-                comp[picked] = random.randint(0, (comp[suit] / 2))
-            return comp
-
-        else:  # Nescient is currently the only other kind
-            comp[suit] = random.randint(1, max_v)
-            comp[random.choice(ORTH[suit])] = random.randint(1, comp[suit])
-            return comp
+    elif kind == 'Scient':
+        comp[element] = random.randint(1, max_value)
+        for picked in ORTH[element]:
+            # NOTE: if comp[element] = 1 orths will be 0.
+            comp[picked] = random.randint(0, (comp[element] // 2))
+        return comp
+    else:  # Nescient is currently the only other kind
+        comp[element] = random.randint(1, max_value)
+        orth = random.choice(ORTH[element])
+        comp[orth] = random.randint(1, comp[element])
+        return comp

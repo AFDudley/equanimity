@@ -28,6 +28,7 @@ WEP_BONUS = {'Sword': 0, 'Bow': 0, 'Wand': 0, 'Glove': 0}
 EQUIP_LIMIT = {'Sword': 1, 'Bow': 1, 'Wand': 1, 'Glove': 1}
 
 KINDS = ('Stone', 'Weapon', 'Nescient', 'Scient')
+UNIT_KINDS = ('Nescient', 'Scient')
 SEX = ('female', 'male')
 OPPSEX = {'female': 'male', 'male': 'female'}
 

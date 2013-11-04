@@ -7,7 +7,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 import random
 from datetime import datetime
 from stone import Stone, Composition, rand_comp
-from const import ELEMENTS, E, F, I, W, ORTH, OPP
+from const import ELEMENTS, E, F, I, W, ORTH, OPP, UNIT_KINDS
 from grid import Hex
 from server import db
 from helpers import validate_length, rand_string, rand_element
@@ -300,22 +300,25 @@ class Part(object):
 """ Unit helpers """
 
 
-def rand_unit(suit=None, kind='Scient'):
-    """Returns a random Scient of suit. Random suit used if none given."""
-    kinds = ('Scient', 'Nescient')
-    if not kind in kinds:
-        kind = random.choice(kinds)
+def rand_unit(element=None, kind=None, max_value=255):
+    """Returns a random Scient of element. Random element used if none given.
+    """
+    if kind is None:
+        kind = random.choice(UNIT_KINDS)
+    if kind not in UNIT_KINDS:
+        raise ValueError('Unknown unit kind {0}'.format(kind))
 
-    if not suit in ELEMENTS:
-        suit = rand_element()
-        comp = rand_comp(suit, kind)
-    else:
-        comp = rand_comp(suit, kind)
+    if element is None:
+        element = rand_element()
+    if element not in ELEMENTS:
+        raise ValueError('Unknown element {0}'.format(element))
+
+    comp = rand_comp(element=element, kind=kind, max_value=max_value)
 
     if kind == 'Scient':
-        return Scient(suit, comp, rand_string())
+        return Scient(element, comp)
     else:
-        return Nescient(suit, rand_comp(suit, 'Nescient'), rand_string())
+        return Nescient(element, comp)
 
 
 def stats(unit):

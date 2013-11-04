@@ -81,7 +81,7 @@ class BattleTestBiggerGrid(BattleTestBase):
     service_name = 'battle'
 
     def setUp(self):
-        super(BattleTestBiggerGrid, self).setUp(grid_radius=8)
+        super(BattleTestBiggerGrid, self).setUp(grid_radius=6)
 
     def test_attack(self):
         s, t, atksquad, defsquad = self._create_units()

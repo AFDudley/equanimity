@@ -209,30 +209,22 @@ class Squad(Container):
 """ Squad helpers """
 
 
-def rand_squad(owner=None, suit=None, kind='Scient'):
-    """Returns a Squad of five random Scients of suit. Random suit used
+def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8):
+    """Returns a Squad of five random Scients of element. Random element used
        if none given."""
-    #please clean me up.
-    squad = Squad(owner=owner)
+    if element is None:
+        element = rand_element()
     if kind == 'Scient':
-        size = 5
-        if not suit in ELEMENTS:
-            for _ in range(size):
-                squad.append(rand_unit(rand_element(), kind))
-        else:
-            for _ in range(size):
-                squad.append(rand_unit(suit, kind))
+        units = [rand_unit(element=element, kind=kind, max_value=max_value)
+                 for _ in range(size)]
+        squad = Squad(owner=owner, data=units)
     else:
-        if not suit in ELEMENTS:
-            while squad.free_spaces >= 2:
-                squad.append(rand_unit(rand_element()))
-            if squad.free_spaces == 1:
-                squad.append(rand_unit(rand_element(), kind='Scient'))
-        else:
-            while squad.free_spaces >= 2:
-                squad.append(rand_unit(suit))
-            if squad.free_spaces == 1:
-                squad.append(rand_unit(suit, kind='Scient'))
+        squad = Squad(owner=owner)
+        while squad.free_spaces >= 2:
+            squad.append(rand_unit(element=element, max_value=max_value))
+        if squad.free_spaces == 1:
+            squad.append(rand_unit(element=element, kind='Scient',
+                                   max_value=max_value))
     return squad
 
 
@@ -241,8 +233,8 @@ def max_squad_by_value(value):
     squad such that comp[element] == value, comp[orth] == value/2, comp[opp]
     == 0"""
     squad = Squad()
-    value = value / 2  # more logical, really.
-    half = value / 2
+    value = value // 2  # more logical, really.
+    half = value // 2
     for i in ELEMENTS:
         s = Stone()
         s[i] = value
