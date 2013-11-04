@@ -44,7 +44,7 @@ class Stronghold(Persistent):
         self.armory = None
         self.home = None
         self.farm = None
-        self.create_factory(field.element)
+        # self.create_factory(field.element)
 
     @property
     def location(self):

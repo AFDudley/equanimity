@@ -24,16 +24,18 @@ from collections import defaultdict
 from frozendict import frozendict
 from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
+from random import choice, randrange
 from player import Player, WorldPlayer
 from clock import WorldClock
-from const import WORLD_UID
+from const import WORLD_UID, ELEMENTS, ORTH
+from stone import Stone, Composition
+from grid import Grid, SquareGrid
 from db import AutoID
 from server import db
 
 
 def init_db(reset=False, verbose=False, grid_radius=8, square_grid=False):
     """ Creates top level datastructures in the ZODB """
-    from grid import Grid, SquareGrid
 
     if square_grid:
         grid = lambda: SquareGrid(radius=grid_radius)
@@ -85,6 +87,7 @@ class World(Persistent):
         self.uid = db['world_uid'].get_next_id()
         self.version = version
         self.clock = WorldClock(self)
+        self.radius = db['grid'].radius
         self.fields = frozendict()
         if create_fields:
             self._create_fields()
@@ -113,11 +116,38 @@ class World(Persistent):
     def _get_or_create_world_player(self):
         return db['players'].setdefault(WORLD_UID, WorldPlayer())
 
+    def _choose_initial_field_element(self, coord):
+        """ Decide what element to assign a field based on coordinate """
+        # For now, just choose a random element. Later, distribute the
+        # elements by a heuristic
+        return choice(ELEMENTS)
+
+    def _choose_initial_field_grid(self, element, coord):
+        """Decide what stones to populate a grid's tiles with and return
+        the grid
+        """
+        c = Composition()
+        c[element] = randrange(20, 40)
+        c.set_opp(element, randrange(5, 10))
+        for x in ORTH[element]:
+            c[x] = randrange(10, 20)
+        return Grid(comp=Stone(c), radius=self.radius)
+
     def _create_fields(self):
         """ Creates all fields used in a game. """
         from field import Field
-        self.radius = db['grid'].radius
         fields = {}
         for coord in db['grid'].iter_coords():
-            fields[coord] = Field(self, coord, owner=self.player)
+            """
+            Field need to be given:
+              An element
+              Grid needs to filled with values based on a target value,
+                  and the field's element
+              Fully equipped squad in stronghold
+                  (NO, do this when assigning to a player, after game is
+                   started)
+            """
+            e = self._choose_initial_field_element(coord)
+            grid = self._choose_initial_field_grid(e, coord)
+            fields[coord] = Field(self, coord, e, owner=self.player, grid=grid)
         self.fields = frozendict(fields)

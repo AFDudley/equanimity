@@ -16,7 +16,7 @@ def _setup_full_queue():
     world = World()
     world._get_or_create_world_player()
     grid = Grid(radius=3)
-    field = Field(world, (0, 0), grid=grid)
+    field = Field(world, (0, 0), I, grid=grid)
     return FieldQueue(field)
 
 
@@ -84,7 +84,7 @@ class FieldTest(FlaskTestDB):
     def setUp(self):
         super(FieldTest, self).setUp()
         self.player = Player('awcawca', 'a2@gmail.com', 'xcawcwaa')
-        self.f = Field(AttributeDict(uid=1), (0, 0), owner=self.player)
+        self.f = Field(AttributeDict(uid=1), (0, 0), I, owner=self.player)
         self.s = self.f.stronghold
 
     def test_create(self):
@@ -225,9 +225,9 @@ class FieldTest(FlaskTestDB):
         mock_get.return_value = None
         self.assertEqual(self.f, self.f)
         # non matching coords
-        self.assertNotEqual(self.f, Field(self.f.world, (1, 0)))
+        self.assertNotEqual(self.f, Field(self.f.world, (1, 0), I))
         # non matching world
         self.f.world = 0
-        self.assertNotEqual(self.f, Field(1, self.f.world_coord))
+        self.assertNotEqual(self.f, Field(1, self.f.world_coord, I))
         # non matching type
         self.assertNotEqual(self.f, 1)

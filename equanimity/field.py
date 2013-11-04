@@ -17,7 +17,7 @@ from battle import Game
 from stronghold import Stronghold
 from clock import FieldClock
 from unit_container import Squad
-from const import FIELD_BATTLE, I
+from const import FIELD_BATTLE
 
 
 class FieldQueue(Persistent):
@@ -60,14 +60,13 @@ class Field(Persistent):
         if w is not None:
             return w.fields.get(tuple(loc))
 
-    def __init__(self, world, coord, owner=None, grid=None):
+    def __init__(self, world, coord, element, owner=None, grid=None):
         self.world = world
         self.world_coord = Hex._make(coord)
         if grid is None:
             grid = Grid()
         self.grid = grid
-        self.element = I  # For testing (TODO)
-        #self.element = get_element(self.grid.comp)
+        self.element = element
         self.clock = FieldClock(self)
         self.stronghold = Stronghold(self)
         self.queue = FieldQueue(self)

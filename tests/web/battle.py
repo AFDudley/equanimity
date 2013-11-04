@@ -11,8 +11,8 @@ from rpc_base import RPCTestBase
 
 class BattleTestBase(RPCTestBase):
 
-    def setUp(self):
-        super(BattleTestBase, self).setUp()
+    def setUp(self, **db_kwargs):
+        super(BattleTestBase, self).setUp(**db_kwargs)
         self.defender = self.get_user()
         self.f.owner = self.defender
         self.attacker = Player('Atk', 'x@gmail.com', 'xxx')
@@ -75,11 +75,20 @@ class BattleTest(BattleTestBase):
         r = self.proxy.move(self.world.uid, self.loc, t.uid, Hex(2, 0))
         self.assertNoError(r)
 
+
+class BattleTestBiggerGrid(BattleTestBase):
+
+    service_name = 'battle'
+
+    def setUp(self):
+        super(BattleTestBiggerGrid, self).setUp(grid_radius=8)
+
     def test_attack(self):
         s, t, atksquad, defsquad = self._create_units()
         wep = Bow(E, create_comp(earth=0))
         t.equip(wep)
         self._setup_game(atksquad, defsquad)
+        print 'Radius:', self.f.grid.radius
         self.f.place_scient(s, Hex(2, 4))
         self.f.place_scient(t, Hex(1, 1))
         self.game.start()

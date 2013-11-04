@@ -213,7 +213,7 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertIs(self.s.stable, None)
         self.assertIs(self.s.armory, None)
         self.assertIs(self.s.farm, None)
-        self.assertIsNot(self.s.home, None)
+        self.assertIs(self.s.home, None)
 
     def test_owner(self):
         self.assertEqual(self.s.owner, self.f.owner)

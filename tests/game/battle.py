@@ -5,7 +5,7 @@ from datetime import timedelta, datetime
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
 from server.utils import AttributeDict
 from equanimity.grid import Grid, Hex
-from equanimity.const import E, F, PLY_TIME
+from equanimity.const import E, F, I, PLY_TIME
 from equanimity.weapons import Sword
 from equanimity.units import Scient
 from equanimity.field import Field
@@ -99,7 +99,7 @@ class GameTestBase(BattleTestBase):
         self.defender = Player('Def', 'y@gmail.com', 'yyy')
         atksquad.owner = self.attacker
         defsquad.owner = self.defender
-        f = Field(self.world, (0, 0), owner=self.defender)
+        f = Field(self.world, (0, 0), I, owner=self.defender)
         self.field = self.world.fields[(0, 0)]
         self.field.owner = self.defender
         self.field.stronghold._add_squad(defsquad)

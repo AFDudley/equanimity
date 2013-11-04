@@ -5,7 +5,7 @@ from equanimity.unit_container import Squad
 from equanimity.battlefield import Battlefield
 from equanimity.field import Field
 from equanimity.stone import Stone
-from equanimity.const import E, F
+from equanimity.const import E, F, I
 from equanimity.weapons import Sword, Wand, Bow, Glove
 from ..base import create_comp, FlaskTestDBWorld
 
@@ -14,7 +14,7 @@ class BattlefieldTest(FlaskTestDBWorld):
 
     def create_battlefield(self, field=None, defsquad=None, atksquad=None):
         if field is None:
-            field = Field(self.world, Hex(0, 0))
+            field = Field(self.world, Hex(0, 0), I)
         if defsquad is None:
             s = Scient(E, create_comp(earth=128))
             defsquad = Squad(data=[s])
@@ -28,7 +28,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         defsquad = Squad(data=[s])
         t = Scient(E, create_comp(earth=128))
         atksquad = Squad(data=[t])
-        field = Field(self.world, Hex(0, 0))
+        field = Field(self.world, Hex(0, 0), I)
         bf = self.create_battlefield(field=field, defsquad=defsquad,
                                      atksquad=atksquad)
         self.assertEqual(bf.grid, field.grid)
@@ -64,7 +64,7 @@ class BattlefieldTest(FlaskTestDBWorld):
 
     def test_on_grid(self):
         grid = Grid(radius=4)
-        field = Field(self.world, Hex(0, 0), grid=grid)
+        field = Field(self.world, Hex(0, 0), I, grid=grid)
         bf = self.create_battlefield(field=field)
         self.assertTrue(bf.grid.in_bounds((1, 3)))
         self.assertFalse(bf.grid.in_bounds((2, 10)))
@@ -147,13 +147,13 @@ class BattlefieldTest(FlaskTestDBWorld):
     def test_get_rotations(self):
         # Test unable to move at all
         g = Grid(radius=1)
-        f = Field(self.world, Hex(0, 0), grid=g)
+        f = Field(self.world, Hex(0, 0), I, grid=g)
         bf = self.create_battlefield(field=f)
         nes = Nescient(E, create_comp(earth=128))
         nes.body = bf.make_body((-16, 16), 'North')
         self.assertFalse(bf.get_rotations(nes))
 
-        f = Field(self.world, Hex(0, 0), grid=Grid(radius=16))
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=16))
         bf = self.create_battlefield(f)
         nes = Nescient(E, create_comp(earth=128))
         nes.body = bf.make_body((4, 4), 'North')
@@ -171,7 +171,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         self.assertRaises(ValueError, bf.rotate, nes, 'South')
 
     def test_map_to_grid(self):
-        f = Field(self.world, Hex(0, 0), grid=Grid(radius=16))
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=16))
         bf = self.create_battlefield(field=f)
         expect = [
             (-4, 4), (-4, 5), (-4, 6), (-4, 7), (-4, 8), (-4, 9), (-4, 10),
@@ -331,7 +331,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         self.assertIs(self.create_battlefield().calc_ranged(None, None), None)
 
     def test_calc_damage(self):
-        f = Field(self.world, Hex(0, 0), grid=Grid(radius=16))
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=16))
         bf = self.create_battlefield(field=f)
         # attack with Sword (short range)
         wep = Sword(E, create_comp(earth=128))
@@ -384,7 +384,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         bf.bury.assert_called_once_with(s)
 
     def test_attack(self):
-        f = Field(self.world, Hex(0, 0), grid=Grid(radius=16))
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=16))
         bf = self.create_battlefield(field=f)
         s = Scient(E, create_comp(earth=128))
         t = Nescient(F, create_comp(fire=128))

@@ -32,8 +32,9 @@ class RPCTestBase(FlaskTestDBWorld, UserTestMixin):
 
     service_name = None
 
-    def setUp(self):
-        FlaskTestDBWorld.setUp(self, create_world=False)
+    def setUp(self, **db_kwargs):
+        db_kwargs['create_world'] = False
+        FlaskTestDBWorld.setUp(self, **db_kwargs)
         UserTestMixin.setUp(self)
         self.create_user()
         self.create_world(init_db_reset=False)
