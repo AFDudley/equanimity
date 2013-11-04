@@ -74,7 +74,7 @@ class Stronghold(Persistent):
             raise ValueError("Stronghold is already occupied")
         squad = rand_squad(owner=self.owner, element=self.field.element,
                            max_value=self.field.grid.value(), size=size,
-                           kind=kind)
+                           kind=kind, equip=True)
         self._add_squad(squad)
 
     """ Defender management """

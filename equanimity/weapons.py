@@ -4,7 +4,11 @@ weapons.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
+from random import choice
 from stone import Stone
+from helpers import rand_element
+from const import ELEMENTS
+from stone import rand_comp
 
 
 class Weapon(Stone):
@@ -170,3 +174,17 @@ class Glove(Weapon):
 
 
 weapons = dict(Sword=Sword, Bow=Bow, Glove=Glove, Wand=Wand)
+
+
+def rand_weapon(element=None, weapon=None, max_value=255):
+    if element is None:
+        element = rand_element()
+    if element not in ELEMENTS:
+        raise ValueError('Unknown element {0}'.format(element))
+    if weapon is None:
+        weapon = choice(weapons)
+    if weapon not in weapons:
+        raise ValueError('Invalid weapon {0}'.format(weapon))
+    weapon = weapons[weapon]
+    comp = rand_comp(element=element, max_value=max_value, kind='Weapon')
+    return weapon(element, comp)

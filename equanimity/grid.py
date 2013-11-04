@@ -279,10 +279,6 @@ class Grid(Stone):
             for tile in axis.itervalues():
                 yield tile
 
-    def value(self):
-        """ Returns the average initial value of the grid """
-        return self.comp.value()
-
     def __contains__(self, thing):
         loc = getattr(thing, 'location', thing)
         try:

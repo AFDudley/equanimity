@@ -6,10 +6,10 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from persistent import Persistent
 from persistent.list import PersistentList
-import weapons
 from stone import Stone
 from const import ELEMENTS, WEP_LIST, OPP, ORTH
 from units import Scient, rand_unit
+from weapons import rand_weapon, weapons
 from helpers import validate_length, rand_string, rand_element
 
 
@@ -184,7 +184,7 @@ class Squad(Container):
         s.set_orth(element, 2)
         for wep in WEP_LIST:
             scient = Scient(element, s)
-            scient.equip(getattr(weapons, wep)(element, Stone()))
+            scient.equip(weapons[wep](element, Stone()))
             scient.name = "Ms. " + wep
             self.append(scient)
         if set_name:
@@ -209,7 +209,8 @@ class Squad(Container):
 """ Squad helpers """
 
 
-def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8):
+def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8,
+               equip=False):
     """Returns a Squad of five random Scients of element. Random element used
        if none given."""
     if element is None:
@@ -225,6 +226,11 @@ def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8):
         if squad.free_spaces == 1:
             squad.append(rand_unit(element=element, kind='Scient',
                                    max_value=max_value))
+    if equip:
+        for unit in squad:
+            if unit.type == 'scient':
+                unit.equip(rand_weapon(element=element,
+                                       max_value=unit.value() // 2))
     return squad
 
 

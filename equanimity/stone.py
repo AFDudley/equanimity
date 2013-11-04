@@ -313,8 +313,12 @@ def rand_comp(element=None, kind=None, max_value=255):
             # NOTE: if comp[element] = 1 orths will be 0.
             comp[picked] = random.randint(0, (comp[element] // 2))
         return comp
-    else:  # Nescient is currently the only other kind
+    elif kind == 'Nescient':
         comp[element] = random.randint(1, max_value)
         orth = random.choice(ORTH[element])
         comp[orth] = random.randint(1, comp[element])
         return comp
+    elif kind == 'Weapon':
+        pass
+    else:
+        raise NotImplementedError('Unimplement kind {0}'.format(kind))
