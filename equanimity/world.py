@@ -152,11 +152,10 @@ class World(Persistent):
         and before the game begins.
         """
         for f in self.fields:
-            if f.owner == self.player:
-                # TODO -- populate with nescients
-                pass
-            else:
-                f.stronghold.populate_with_scients()
+            kind = None
+            if f.owner != self.player:
+                kind = 'Scient'
+            f.stronghold.populate(kind='Scient')
 
     def _choose_initial_field_element(self, coord):
         """ Decide what element to assign a field based on coordinate """

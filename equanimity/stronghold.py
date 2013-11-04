@@ -68,12 +68,13 @@ class Stronghold(Persistent):
         """
         return bool(self.units)
 
-    def populate_with_scients(self):
+    def populate(self, kind=None, size=8):
         """ Adds an initial squad of scients to the stronghold """
         if self.garrisoned:
             raise ValueError("Stronghold is already occupied")
         squad = rand_squad(owner=self.owner, element=self.field.element,
-                           max_value=self.field.grid.value(), size=8)
+                           max_value=self.field.grid.value(), size=size,
+                           kind=kind)
         self._add_squad(squad)
 
     """ Defender management """
