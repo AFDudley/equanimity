@@ -228,9 +228,9 @@ def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8,
                                    max_value=max_value))
     if equip:
         for unit in squad:
-            if unit.type == 'scient':
-                unit.equip(rand_weapon(element=element,
-                                       max_value=unit.value() // 2))
+            if isinstance(unit, Scient):
+                wep = rand_weapon(element=element, max_value=unit.value() // 2)
+                unit.equip(wep)
     return squad
 
 
