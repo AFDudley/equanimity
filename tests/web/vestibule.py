@@ -102,6 +102,11 @@ class VestibuleTest(RPCTestBase):
         r = self.proxy.start(v['uid'])
         self.assertError(r)
 
+    def test_start_vestibule_not_leader(self):
+        v = self.test_join_vestibule()
+        r = self.proxy.start(v['uid'])
+        self.assertError(r)
+
     def test_get_vestibule(self):
         v = self.test_create_vestibule()
         r = self.proxy.get(v['uid'])
