@@ -9,7 +9,6 @@ This needs to be refactored to properly generate json/serialized output
 and should be refactored with battle as well.
 
 """
-import transaction
 from bidict import bidict, inverted
 from datetime import timedelta
 from persistent import Persistent
@@ -425,8 +424,6 @@ class Game(Persistent):
         self.state.check(self)
         if not num % 4:
             self.apply_queued()
-
-        transaction.commit()
 
         result = dict(command=dict(self.log['actions'][-1]),
                       response=dict(self.log['messages'][-1]))

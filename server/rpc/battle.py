@@ -1,7 +1,7 @@
 from flask import Blueprint
 from equanimity.battle import Action
 from server import jsonrpc
-from server.decorators import require_login
+from server.decorators import require_login, commit
 from server.rpc.common import get_unit, get_field as _get_field
 
 
@@ -17,6 +17,7 @@ def get_field(world_id, loc, **kwargs):
 
 @jsonrpc.method('battle.pass(int, list, int) -> dict', validate=True)
 @require_login
+@commit
 def pass_turn(world_id, field_loc, unit_id):
     # Field coord, Unit, type, target
     field = get_field(world_id, field_loc)
@@ -27,6 +28,7 @@ def pass_turn(world_id, field_loc, unit_id):
 
 @jsonrpc.method('battle.move(int, list, int, list) -> dict', validate=True)
 @require_login
+@commit
 def move(world_id, field_loc, unit_id, target):
     field = get_field(world_id, field_loc)
     unit = get_unit(unit_id)
@@ -36,6 +38,7 @@ def move(world_id, field_loc, unit_id, target):
 
 @jsonrpc.method('battle.attack(int, list, int, list) -> dict', validate=True)
 @require_login
+@commit
 def attack(world_id, field_loc, unit_id, target):
     field = get_field(world_id, field_loc)
     unit = get_unit(unit_id)

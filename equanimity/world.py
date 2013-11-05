@@ -199,6 +199,7 @@ class PlayerGroup(object):
 
     def __init__(self):
         self.players = OrderedDict()
+        self._leader = None
 
     def has(self, player):
         if hasattr(player, 'uid'):
@@ -213,9 +214,30 @@ class PlayerGroup(object):
 
     def add(self, player):
         self.players[player.uid] = player
+        if self._leader is None:
+            self._leader = player
 
     def remove(self, player):
+        if self.leader == self.players[player.uid]:
+            self._leader = None
         del self.players[player.uid]
+
+    def get_leader(self, allow_world=True):
+        if not allow_world:
+            wp = WorldPlayer.get()
+        if self._leader is None:
+            players = self.players.values()
+            if not allow_world:
+                players = [p for p in players if p != wp]
+            if self.players:
+                return players[0]
+        else:
+            if not allow_world and self._leader == wp:
+                players = [p for p in players if p != wp]
+                if players:
+                    return players[0]
+            else:
+                return self._leader
 
     def __iter__(self):
         return iter(self.players)

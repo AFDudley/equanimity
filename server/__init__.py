@@ -44,11 +44,13 @@ def register_blueprints(app):
     from rpc.stronghold import stronghold
     from rpc.battle import battle
     from rpc.info import info
+    from rpc.vestibule import vestibule
     app.register_blueprint(frontend)
     app.register_blueprint(users)
     app.register_blueprint(stronghold)
     app.register_blueprint(battle)
     app.register_blueprint(info)
+    app.register_blueprint(vestibule)
     rpc_bp = Blueprint('jsonrpc', __name__, url_prefix='/api')
     jsonrpc.register_blueprint(rpc_bp)
 

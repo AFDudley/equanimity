@@ -1,5 +1,5 @@
 from persistent import Persistent
-from World import World, PlayerGroup
+from world import World, PlayerGroup
 from server import db
 
 
@@ -7,9 +7,16 @@ class Vestibule(Persistent):
     """ A game waiting for players to start
     """
 
+    @classmethod
+    def get(self, uid):
+        return db['vestibules'].get(self.uid)
+
     def __init__(self):
         self.players = PlayerGroup()
         self.uid = db['vestibule_uid'].get_next_id()
+
+    def api_view(self):
+        return dict(players=[p for p in self.players], uid=self.uid)
 
     def persist(self):
         db['vestibules'][self.uid] = self
