@@ -4,7 +4,7 @@ from equanimity.stronghold import Stronghold
 from equanimity.units import Unit
 from equanimity.battle import Game
 from equanimity.field import Field
-from equanimity.world import get_world as _get_world
+from equanimity.worldtools import get_world as _get_world
 
 
 def get_thing(cls, ids, name=None, check_owner=True):

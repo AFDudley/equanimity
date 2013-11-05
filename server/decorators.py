@@ -114,7 +114,23 @@ def commit(f):
     """
     @wraps(f)
     def wrapped(*args, **kwargs):
-        r = f(*args, **kwargs)
-        transaction.commit()
+        try:
+            try:
+                r = f(*args, **kwargs)
+                print 'Result: ', r
+            except Exception as e:
+                import traceback
+                print traceback.format_exc()
+                print 'F ERROR:', str(e)
+                raise
+            try:
+                transaction.commit()
+                print 'Commited'
+            except Exception as e:
+                print 'Commit ERROR:', str(e)
+                raise
+        except Exception as e:
+            print 'WTF ERROR:', str(e)
+            raise
         return r
     return wrapped

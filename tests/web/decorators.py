@@ -5,7 +5,7 @@ from StringIO import StringIO
 from flask import Blueprint, url_for
 from equanimity.world import init_db
 from server import db, create_app
-from server.decorators import script, api, ratelimit
+from server.decorators import script, api, ratelimit, commit
 from users import UserTestBase
 from ..base import FlaskTest
 
@@ -118,3 +118,13 @@ class RateLimitDecoratorTest(TestCase):
         r = client.get(url)
         self.assertEqual(r.status_code, 400)
         self.assertIn('hit the rate limit', r.data)
+
+
+class CommitTest(TestCase):
+
+    @patch('server.decorators.transaction.commit')
+    def test_commit(self, mock_commit):
+        f = lambda: 7
+        g = commit(f)
+        self.assertEqual(g(), 7)
+        mock_commit.assert_called_once_with()

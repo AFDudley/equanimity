@@ -39,10 +39,10 @@ class RPCTestBase(FlaskTestDBWorld, UserTestMixin):
         self.create_user()
         self.create_world(init_db_reset=False)
         self._proxy = None
-        me = self.db['players'][self.uid]
-        self.world.players.add(me)
+        self.player = self.get_user()
+        self.world.players.add(self.player)
         self.loc = (0, 0)
-        self.world.award_field(me, self.loc)
+        self.world.award_field(self.player, self.loc)
         self.f = self.world.fields[self.loc]
         self.field = self.f
         self.s = self.f.stronghold
@@ -67,7 +67,8 @@ class RPCTestBase(FlaskTestDBWorld, UserTestMixin):
     def assertError(self, r, msg=None):
         err = r.get('error')
         self.assertIsNot(err, None)
-        self.assertIn(msg, err['message'])
+        if msg is not None:
+            self.assertIn(msg, err['message'])
 
     def make_weapon(self, *args, **kwargs):
         return self.s.form_weapon(*args, **kwargs)

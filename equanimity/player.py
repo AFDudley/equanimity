@@ -5,13 +5,14 @@ Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import operator
+from collections import OrderedDict
 from itertools import chain
 from persistent import Persistent
 from datetime import datetime
 from flask.ext.login import UserMixin
 from flask import current_app
 from const import WORLD_UID
-from world import get_world
+from worldtools import get_world
 from server import bcrypt, db
 
 
@@ -133,7 +134,6 @@ class Player(Persistent, UserMixin):
         return False
 
     def __eq__(self, other):
-        print other, type(other), self.__class__, other.__class__
         if not isinstance(other, self.__class__):
             return False
         return self.uid == other.uid
@@ -164,6 +164,13 @@ class WorldPlayer(Player):
     def get(cls):
         return db['players'][WORLD_UID]
 
+    @classmethod
+    def get_or_create(cls):
+        wp = db['players'].get(WORLD_UID)
+        if wp is None:
+            wp = db['players'][WORLD_UID] = cls()
+        return wp
+
     def __init__(self):
         Persistent.__init__(self)
         UserMixin.__init__(self)
@@ -178,3 +185,61 @@ class WorldPlayer(Player):
 
     def is_world(self):
         return True
+
+
+class PlayerGroup(object):
+    """ Manager for a group of players """
+
+    def __init__(self):
+        self.players = OrderedDict()
+        self._leader = None
+
+    def has(self, player):
+        if hasattr(player, 'uid'):
+            if not isinstance(player, Player):
+                raise ValueError('Not a player')
+            player = player.uid
+        return (player in self.players)
+
+    def add_all(self, players):
+        for p in players:
+            self.add(p)
+
+    def add(self, player):
+        self.players[player.uid] = player
+        if self._leader is None:
+            self._leader = player
+
+    def remove(self, player):
+        if self._leader == self.players[player.uid]:
+            self._leader = None
+        del self.players[player.uid]
+
+    def get_leader(self, allow_world=True):
+        if not allow_world:
+            wp = WorldPlayer.get()
+        if self._leader is None:
+            if allow_world:
+                players = self.players.keys()
+            else:
+                players = [p for p in self.players if p != wp.uid]
+            if players:
+                return self.players[players[0]]
+        else:
+            if not allow_world and self._leader == wp:
+                players = [p for p in self.players if p != wp.uid]
+                if players:
+                    return self.players[players[0]]
+            else:
+                return self._leader
+
+    def set_leader(self, player):
+        if player is not None:
+            if not self.has(player):
+                raise ValueError('Unknown player')
+            if not hasattr(player, 'uid'):
+                player = self.players[player]
+        self._leader = player
+
+    def __iter__(self):
+        return iter(self.players)

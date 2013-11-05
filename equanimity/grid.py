@@ -6,7 +6,6 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import random
 from bidict import bidict, inverted
-from persistent.mapping import PersistentMapping
 from collections import namedtuple
 from itertools import product, ifilter
 
@@ -370,10 +369,11 @@ class Grid(Stone):
         return sum([len(row) for row in tiles.itervalues()])
 
 
-class SquareGrid(PersistentMapping):
+class SquareGrid(Stone):
     """ Incomplete, but useful for testing since it is much quicker """
 
     def __init__(self, comp=None, radius=8, tiles=None):
+        super(SquareGrid, self).__init__(comp)
         self.radius = radius
 
     def in_bounds(self, (x, y)):

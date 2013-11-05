@@ -8,28 +8,18 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 # TODO -- configure logging separately
 import logging
 logging.basicConfig()
-
-
-def get_world(world):
-    """ Returns the world by id if provided """
-    if isinstance(world, World):
-        return world
-    else:
-        return World.get(world)
-
-
 import transaction
 from persistent import Persistent
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from frozendict import frozendict
 from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
 from random import choice, randrange, sample, shuffle, randint
-from player import Player, WorldPlayer
 from clock import WorldClock
 from const import WORLD_UID, ELEMENTS, ORTH
 from stone import Stone, Composition
 from grid import Grid, SquareGrid
+from player import WorldPlayer, PlayerGroup
 from db import AutoID
 from server import db
 
@@ -83,7 +73,7 @@ class World(Persistent):
 
     def __init__(self, version=0.0, create_fields=True, players=None):
         self.players = PlayerGroup()
-        self.player = self._get_or_create_world_player()
+        self.player = WorldPlayer.get_or_create()
         self.player.persist()
         self.players.add(self.player)
         self.uid = db['world_uid'].get_next_id()
@@ -107,9 +97,6 @@ class World(Persistent):
     def start(self):
         """ Starts the game """
         self._distribute_fields_to_players()
-
-    def _get_or_create_world_player(self):
-        return db['players'].setdefault(WORLD_UID, WorldPlayer())
 
     def _distribute_fields_to_players(self):
         """ Assigns fields to participating players """
@@ -192,52 +179,3 @@ class World(Persistent):
             grid = self._choose_initial_field_grid(e, coord)
             fields[coord] = Field(self, coord, e, owner=self.player, grid=grid)
         self.fields = frozendict(fields)
-
-
-class PlayerGroup(object):
-    """ Manager for a group of players """
-
-    def __init__(self):
-        self.players = OrderedDict()
-        self._leader = None
-
-    def has(self, player):
-        if hasattr(player, 'uid'):
-            if not isinstance(player, Player):
-                raise ValueError('Not a player')
-            player = player.uid
-        return (player in self.players)
-
-    def add_all(self, players):
-        for p in players.players.itervalues():
-            self.add(p)
-
-    def add(self, player):
-        self.players[player.uid] = player
-        if self._leader is None:
-            self._leader = player
-
-    def remove(self, player):
-        if self.leader == self.players[player.uid]:
-            self._leader = None
-        del self.players[player.uid]
-
-    def get_leader(self, allow_world=True):
-        if not allow_world:
-            wp = WorldPlayer.get()
-        if self._leader is None:
-            players = self.players.values()
-            if not allow_world:
-                players = [p for p in players if p != wp]
-            if self.players:
-                return players[0]
-        else:
-            if not allow_world and self._leader == wp:
-                players = [p for p in players if p != wp]
-                if players:
-                    return players[0]
-            else:
-                return self._leader
-
-    def __iter__(self):
-        return iter(self.players)

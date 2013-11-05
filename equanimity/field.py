@@ -9,7 +9,7 @@ from persistent import Persistent
 from math import ceil
 from collections import OrderedDict
 
-from world import get_world
+from worldtools import get_world
 from stone import Stone, get_element
 from grid import Grid, Hex
 from player import WorldPlayer

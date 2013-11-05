@@ -20,7 +20,7 @@ from units import Unit
 from grid import Hex
 from const import PLY_TIME
 from helpers import now, timestamp
-from world import get_world
+from worldtools import get_world
 
 
 class BattleError(Exception):
@@ -97,7 +97,6 @@ class Log(PersistentMapping):
 
     def get_owners(self):
         """Mapping of unit number to player/owner."""
-        print self['units']
         return {unit.uid: unit.owner.name for unit in self['units']}
 
     def last_message(self):

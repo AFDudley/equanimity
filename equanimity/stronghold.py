@@ -9,7 +9,7 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from operator import methodcaller
 
-from world import get_world
+from worldtools import get_world
 from stone import Stone
 from units import Scient
 from unit_container import Squad, rand_squad

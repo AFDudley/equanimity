@@ -1,9 +1,8 @@
-from ..base import FlaskTestDB, FlaskTestDBWorld
 from equanimity.units import Scient
 from equanimity.unit_container import Squad
-from equanimity.player import Player, WorldPlayer
+from equanimity.player import Player, WorldPlayer, PlayerGroup
 from equanimity.const import WORLD_UID, E
-from ..base import create_comp
+from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
 
 class PlayerTest(FlaskTestDB):
@@ -66,3 +65,119 @@ class WorldPlayerTest(FlaskTestDB):
         p.persist()
         q = WorldPlayer.get()
         self.assertEqual(p, q)
+
+
+class PlayerGroupTest(FlaskTestDB):
+
+    def setUp(self):
+        super(PlayerGroupTest, self).setUp()
+        self.pg = PlayerGroup()
+        self.p = Player('xxx', 'yyy@gmail.com', 'asdawdawdad')
+        self.q = Player('xyyy', 'asdawd@gmail.com', 'adawdoadawd')
+
+    def test_create(self):
+        self.assertFalse(self.pg.players)
+        self.assertIs(self.pg._leader, None)
+
+    def test_has(self):
+        self.assertFalse(self.pg.has(self.p))
+        self.assertFalse(self.pg.has(0))
+        self.pg.add(self.p)
+        self.assertTrue(self.pg.has(self.p))
+        self.assertTrue(self.pg.has(self.p.uid))
+
+    def test_add_all(self):
+        players = [self.p, self.q]
+        self.assertFalse(self.pg.players)
+        self.pg.add_all(players)
+        self.assertEqual(players, self.pg.players.values())
+        for p in players:
+            self.assertTrue(self.pg.has(p))
+
+    def test_add(self):
+        self.assertFalse(self.pg.has(self.p))
+        self.pg.add(self.p)
+        self.assertTrue(self.pg.has(self.p))
+        self.assertEqual(self.pg._leader, self.p)
+        self.pg.add(self.q)
+        self.assertEqual(self.pg._leader, self.p)
+
+    def test_remove(self):
+        self.test_add()
+        self.pg.remove(self.p)
+        self.assertFalse(self.pg.has(self.p))
+        self.assertIs(self.pg._leader, None)
+
+    def test_remove_dont_reset_leader(self):
+        self.test_add()
+        self.assertEqual(self.pg.get_leader(), self.p)
+        self.pg.add(self.q)
+        self.assertEqual(self.pg.get_leader(), self.p)
+        self.assertTrue(self.pg.has(self.q))
+        self.pg.remove(self.q)
+        self.assertEqual(self.pg.get_leader(), self.p)
+        self.assertFalse(self.pg.has(self.q))
+
+    def test_set_leader(self):
+        # unset
+        self.assertIs(self.pg._leader, None)
+        # first add, autoset
+        self.pg.add(self.p)
+        self.assertEqual(self.pg._leader, self.p)
+        # unset
+        self.pg.set_leader(None)
+        self.assertIs(self.pg._leader, None)
+        # force set
+        self.pg.set_leader(self.p)
+        self.assertEqual(self.pg._leader, self.p)
+        # unset
+        self.pg.set_leader(None)
+        self.assertIs(self.pg._leader, None)
+        # set by uid
+        self.pg.set_leader(self.p.uid)
+        self.assertEqual(self.pg._leader, self.p)
+
+    def test_set_leader_bad(self):
+        self.assertIs(self.pg._leader, None)
+        self.assertExceptionContains(ValueError, 'Unknown player',
+                                     self.pg.set_leader, self.p)
+
+    def test_iter(self):
+        self.test_add_all()
+        self.assertEqual(list(iter(self.pg)), [self.p.uid, self.q.uid])
+
+    def test_get_leader(self):
+        self.pg.add(self.p)
+        self.assertEqual(self.pg.get_leader(), self.p)
+
+    def test_get_leader_no_leader_set(self):
+        self.pg.add(self.p)
+        self.pg.set_leader(None)
+        self.assertIs(self.pg._leader, None)
+        self.assertEqual(self.pg.get_leader(), self.p)
+
+    def test_get_leader_no_world(self):
+        wp = WorldPlayer.get_or_create()
+        self.pg.add(wp)
+        self.pg.add(self.p)
+        self.pg.set_leader(wp)
+        self.assertEqual(self.p, self.pg.get_leader(allow_world=False))
+        self.pg.set_leader(None)
+        self.assertEqual(self.p, self.pg.get_leader(allow_world=False))
+
+    def test_get_leader_yes_world(self):
+        wp = WorldPlayer.get_or_create()
+        self.pg.add(wp)
+        self.pg.add(self.p)
+        self.pg.set_leader(wp)
+        self.assertEqual(wp, self.pg.get_leader(allow_world=True))
+        self.pg.set_leader(None)
+        self.assertIs(self.pg._leader, None)
+        self.assertEqual(self.p, self.pg.get_leader(allow_world=False))
+
+    def test_get_leader_no_leader(self):
+        wp = WorldPlayer.get_or_create()
+        self.assertIs(self.pg.get_leader(), None)
+        self.pg.add(wp)
+        self.assertEqual(self.pg._leader, wp)
+        self.assertIs(self.pg.get_leader(allow_world=False), None)

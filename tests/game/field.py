@@ -14,7 +14,6 @@ from ..base import FlaskTestDB, create_comp
 
 def _setup_full_queue():
     world = World()
-    world._get_or_create_world_player()
     grid = Grid(radius=3)
     field = Field(world, (0, 0), I, grid=grid)
     return FieldQueue(field)
