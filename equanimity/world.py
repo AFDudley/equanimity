@@ -16,7 +16,7 @@ from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
 from random import choice, randrange, sample, shuffle, randint
 from clock import WorldClock
-from const import WORLD_UID, ELEMENTS, ORTH
+from const import ELEMENTS, ORTH
 from stone import Stone, Composition
 from grid import Grid, SquareGrid
 from player import WorldPlayer, PlayerGroup
