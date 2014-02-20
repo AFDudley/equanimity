@@ -12,7 +12,7 @@ def get_args():
     p.add_argument('--reset', action='store_true', help='Reset original world')
     p.add_argument('-v', '--verbose', action='store_true',
                    help='Verbose output')
-    p.add_argument('--grid-radius', type=int,
+    p.add_argument('--grid-radius', type=int, default=8,
                    help='Radius of world and field grids')
     p.add_argument('--square-grid', action='store_true',
                    help='Use a square grid')
