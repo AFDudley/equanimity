@@ -1,0 +1,63 @@
+The client will need to fetch information after the client has logged in,
+in order to display the fields. It also needs information for battles.
+
+
+World info:
+    visible_fields: a list of field infos visible to the player
+    clock_info
+
+Field info:
+    owner
+    element
+    season
+    coordinate
+    in_battle
+    misc factory, farming stuff that isnt defined yet
+
+Clock info:
+    undefined at this point
+
+Battle info:
+    grid_size (maybe not necessary since its fixed)
+    tiles: a list of tile infos
+    defender
+    attacker
+    timer_info
+
+Timer info:
+    current turn number
+    current ply number (1 or 2)
+    current unit for ply: a unit_info
+    time remaining in ply
+    time passed in battle
+
+Defender/attacker info:
+    squad: name, and list of unit infos
+
+Unit info:
+    id
+    owner
+    weapon: a weapon info
+    type (nescient, scient or mounted nescient)
+    composition
+    tile coordinate
+
+Weapon info:
+    element
+    composition
+    type
+
+Tile info:
+    coordinate
+    composition
+
+RPC methods:
+info.world
+info.clock
+info.field
+info.battle
+info.timer
+info.combatants
+info.unit
+info.weapon
+info.tile
