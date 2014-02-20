@@ -264,6 +264,52 @@ class Nescient(Unit):
         self.body = body
         self.facing = facing
         self.weapon = self  # hack for attack logic.
+        # state machine first attempt
+        self.afraid = False
+        self.hungry = False
+        self.in_season = False
+        self.found_mate = False
+        self.ready_to_mate = False
+
+    def _generate_action(self, mood, gamestate):
+        """generates actual action returned."""
+        if mood == 'escape':
+            # return action of me moving toward the field ahead of me.
+            pass  # fake
+        elif mood == 'forage':
+            # if: I am standing on food, eat it,
+            # else: Find tile closest to me with 'best food',
+            # if 'best food' is unit, target it,
+            # else: move toward it.
+            pass  # fake
+        elif mood == 'mate':
+            if self.found_mate:
+                if self.adjacent_to_mate:
+                    self.ready_to_mate = True
+                else:
+                    # move toward found_mate
+                    pass  # fake
+            else:
+                if self.find_mate():
+                    # move toward found mate.
+                    pass  # fake
+                else:
+                    pass
+        else:
+            pass
+            # walk in random direction.
+
+    def act(self, gamestate):
+        """returns an action based on the current game state,
+        field state and internal state."""
+        if self.afraid:
+            return self._generate_action('escape', gamestate)
+        elif self.hungry:
+            return self._generate_action('forage', gamestate)
+        elif gamestate.season == self.element:
+            return self._generate_action('mate', gamestate)
+        else:
+            return self._generate_action('wander', gamestate)
 
     def take_body(self, new_body):
         """Takes locations from new_body and applies them to body."""
