@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from common import hack_syspath
+hack_syspath(__file__)
 import argparse
 from equanimity.world import init_db
 from server import create_app
