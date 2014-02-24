@@ -1,0 +1,11 @@
+Change "Value" to "Weight"
+Change the EFIW convention to EFWI, so that there is consistent meaning to left and right orthogonals.
+Verify that full games are completely deterministic.
+Fix harvesting/feeding/sowing:
+    All Fields Harvest
+    Strongholds feed all units
+    Player controlled fields sow 
+    World controlled fields feed nescients based on yielded stones not in silo.
+How do Nescients move out of fields?
+Create fourth state for world controlled fields.
+    create the equivilent of battle.py for the new state. (this is effectively a third game, a simulated life game.)
