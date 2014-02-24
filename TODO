@@ -6,6 +6,10 @@ Fix harvesting/feeding/sowing:
     Strongholds feed all units
     Player controlled fields sow 
     World controlled fields feed nescients based on yielded stones not in silo.
-How do Nescients move out of fields?
+
 Create fourth state for world controlled fields.
-    create the equivilent of battle.py for the new state. (this is effectively a third game, a simulated life game.)
+    How do Nescients move out of fields?
+    create the equivalent of battle.py for the new state. (this is effectively a third game, a simulated life game.)
+
+
+fix line 175 in equanimity/field.py
