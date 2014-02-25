@@ -100,7 +100,7 @@ class Unit(Stone):
         self.patk = self.p + self.atk + (2 * self.comp[F])
         self.matk = self.m + self.atk + (2 * self.comp[I])
         self.mdef = self.m + self.defe + (2 * self.comp[W])
-        #does this make sense? It was wrong for a long time.
+        # does this make sense? It was wrong for a long time.
         self.hp = 4 * ((self.pdef + self.mdef) + self.value())
 
     def stats(self):
@@ -114,6 +114,9 @@ class Unit(Stone):
         self.chosen_location = Hex.null
 
     def remove_from_container(self):
+        """ Unsets container state from the unit.  This should only be called
+        by the container's owner.  To remove the unit elsewise, do
+        unit.container.remove(unit) """
         self.container = None
         self.container_pos = None
         self.chosen_location = Hex.null
@@ -131,6 +134,7 @@ class Unit(Stone):
 
 
 class Scient(Unit):
+
     """A Scient (playable character) unit.
 
     Initializer takes element and comp:
@@ -165,7 +169,7 @@ class Scient(Unit):
                                    self.weapon_bonus[i])
         self.calcstats()
 
-        #equiping weapons should be done someplace else.
+        # equiping weapons should be done someplace else.
         self.equip(self.weapon)
 
     def api_view(self):
@@ -206,6 +210,7 @@ class Scient(Unit):
 
 
 class Nescient(Unit):
+
     """A non-playable unit."""
 
     type = 'nescient'
@@ -227,7 +232,7 @@ class Nescient(Unit):
         super(Nescient, self).__init__(element, comp, name=name, sex=sex)
         self.size = 2
         self.move = 4
-        #Set nescient type.
+        # Set nescient type.
         if self.element == 'Earth':
             self.kind = 'p'
             if self.comp[F] == 0:

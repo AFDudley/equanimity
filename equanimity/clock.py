@@ -115,7 +115,9 @@ class FieldClock(Persistent):
             # is resolved. When that battle completes, it will trigger the
             # next action
             return
-        self.field.process_queue()
+        # Do the next battle or movement
+        self.field.process_battle_and_movement()
+        # Revert to the WorldPlayer if left empty
         self.field.check_ungarrisoned()
 
     def change_season(self):

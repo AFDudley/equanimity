@@ -69,6 +69,7 @@ class InitialStateTest(TestCase):
 
 
 class BattleTestBase(FlaskTestDBWorld):
+
     def assertGameOver(self, winner, condition):
         self.assertTrue(self.game.state['game_over'])
         self.assertEqual(self.game.winner, winner)

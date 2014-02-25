@@ -110,3 +110,12 @@ def remove_squad(world_id, field_location, squad_num):
     stronghold = get_stronghold(world_id, field_location)
     stronghold.remove_squad(squad_num)
     return dict(squads=[s.api_view() for s in stronghold.squads])
+
+
+@jsonrpc.method('stronghold.move_squad(int, list, int, list)', validate=True)
+@require_login
+@commit
+def move_squad(world_id, field_location, squad_num, direction):
+    stronghold = get_stronghold(world_id, field_location)
+    moved = stronghold.move_squad_out(squad_num, direction)
+    return dict(moved=moved)

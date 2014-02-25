@@ -28,8 +28,10 @@ class BattleError(Exception):
 
 
 class Action(PersistentMapping):
+
     """In a two player game, two actions from a single player make a ply and
        a ply from each player makes a turn. """
+
     def __init__(self, unit=None, type='pass', target=Hex.null, when=None,
                  num=None):
         if when is None:
@@ -39,17 +41,20 @@ class Action(PersistentMapping):
 
 
 class Message(PersistentMapping):
+
     def __init__(self, num, result):
         super(Message, self).__init__(num=num, result=result, when=now())
 
 
 class ChangeList(PersistentMapping):
     # TODO - belongs in different file
+
     def __init__(self, event, **kwargs):
         super(ChangeList, self).__init__(event=event, **kwargs)
 
 
 class BattleChanges(ChangeList):
+
     def __init__(self, victors, prisoners, awards, event='battle'):
         super(BattleChanges, self).__init__(event=event, victors=victors,
                                             prisoners=prisoners,
@@ -57,7 +62,9 @@ class BattleChanges(ChangeList):
 
 
 class InitialState(PersistentMapping):
+
     """A hack for serialization."""
+
     def __init__(self, log):
         names = tuple(player.name for player in log['players'])
         super(InitialState, self).__init__(
@@ -68,6 +75,7 @@ class InitialState(PersistentMapping):
 
 
 class Log(PersistentMapping):
+
     def __init__(self, players, units, grid):
         """Records initial game state, timestamps log."""
         super(Log, self).__init__(players=players, units=units, grid=grid)
@@ -152,6 +160,7 @@ class Log(PersistentMapping):
 class State(PersistentMapping):
 
     """A dictionary containing the current game state."""
+
     def __init__(self, game, num=1, pass_count=0, hp_count=0,
                  old_defsquad_hp=0, queued=None, locs=None, HPs=None,
                  game_over=False, **_):
@@ -180,21 +189,21 @@ class State(PersistentMapping):
             self['pass_count'] = 0
 
         if not num % 4:  # There are 4 actions in a turn.
-            #This calcuates hp_count
+            # This calcuates hp_count
             defsquad_hp = game.battlefield.defsquad.hp()
             if self['old_defsquad_hp'] >= defsquad_hp:
                 self['hp_count'] += 1
             else:
                 self['hp_count'] = 0
 
-            #game over check:
+            # game over check:
             if self['hp_count'] == 4:
                 game.winner = game.defender
                 return game.end("Attacker failed to deal sufficent damage.")
             else:
                 self['old_defsquad_hp'] = defsquad_hp
 
-        #check if game is over.
+        # check if game is over.
         if game.battlefield.defsquad.hp() == 0:
             game.winner = game.attacker
             return game.end("Defender's squad is dead")
@@ -212,7 +221,7 @@ class State(PersistentMapping):
 
         game.log['states'].append(State(game=self.game, **self))
 
-        #game is not over, state is stored, update state.
+        # game is not over, state is stored, update state.
         self['num'] += 1
         aq = self.game.action_queue
         self['whose_action'] = aq.get_player_for_action(self['num']).uid
@@ -221,6 +230,7 @@ class State(PersistentMapping):
 class Game(Persistent):
 
     """Almost-state-machine that maintains game state."""
+
     def __init__(self, field, attacker):
         super(Game, self).__init__()
         self.field = field
@@ -443,7 +453,7 @@ class Game(Persistent):
 
     def get_last_state(self):
         """Returns the last state in the log."""
-        #Figure out if this is actually the *current* state or not, oops.
+        # Figure out if this is actually the *current* state or not, oops.
         try:
             return self.log['states'][-1]
         except (KeyError, IndexError):
@@ -470,6 +480,17 @@ class Game(Persistent):
                         awards.append(unit.weapon.extract_award())
         return awards
 
+    def clean_up_dead_units(self):
+        """ Removes dead units from their respective locations, and disbands
+        the squad if empty """
+        for s in self.battlefield.squads:
+            for u in s:
+                if u.hp <= 0:
+                    s.stronghold.remove_unit_from_squad(s.stronghold_pos,
+                                                        u.uid)
+            if not s:
+                s.stronghold.disband_squad(s.stronghold_pos)
+
     def end(self, condition):
         """ Mame over state, handles log closing,
         writes change list for world"""
@@ -492,12 +513,20 @@ class Game(Persistent):
         self.field.stronghold.silo.imbue_list(awards)
         self.log['change_list'] = BattleChanges(victors, prisoners, awards)
 
-        # TODO -- what about remaining squads in a losing defender's
-        # stronghold?
+        self.clean_up_dead_units()
+
         if self.winner == self.attacker:
-            # Transfer the field to the attacker, and move their squad in
-            self.field.owner = self.attacker
-            self.field.stronghold.move_squad_in(self.battlefield.atksquad)
+            # Attempt to capture the field. It will fail if the stronghold
+            # is still garrisoned.
+            self.field.get_taken_over(self.battlefield.atksquad)
+        else:
+            # Prisoners must be transferred from attacker to defender's
+            # stronghold's free units
+            # If prisoners cannot fit they return to where they came from
+            for u in prisoners:
+                # TODO -- handle stronghold capacity limits
+                self.field.stronghold.add_free_unit(u)
+        # Allow the world to take over if the defender is vacant
         self.field.check_ungarrisoned()
 
 

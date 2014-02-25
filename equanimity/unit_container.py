@@ -17,6 +17,7 @@ SQUAD_NAME_LEN = dict(min=1, max=64)
 
 
 class Container(Persistent):
+
     """contains units"""
 
     def __init__(self, data=None, free_spaces=8, owner=None):
@@ -107,7 +108,9 @@ class Container(Persistent):
 
 
 class Squad(Container):
+
     """contains a number of Units. Takes a list of Units"""
+
     def __init__(self, data=None, name=None, kind=None, element=None,
                  owner=None):
         super(Squad, self).__init__(data=data, free_spaces=8, owner=owner)
@@ -147,6 +150,8 @@ class Squad(Container):
         self.stronghold_pos = pos
 
     def remove_from_stronghold(self):
+        # TODO -- need to be removed from stronghold when queued, to avoid
+        # situations where the original stronghold was attacked
         if self.queued_field is not None:
             raise ValueError('Can\'t change queued squad\'s stronghold')
         self.stronghold = None

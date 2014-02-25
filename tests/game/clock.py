@@ -127,12 +127,14 @@ class FieldClockTest(TestCase):
 
     def test_change_day(self):
         mock_process = Mock()
-        f = FieldClock(MagicMock(in_battle=False, process_queue=mock_process))
+        f = FieldClock(MagicMock(in_battle=False,
+                       process_battle_and_movement=mock_process))
         f.change_day()
         mock_process.assert_called_once_with()
 
     def test_change_day_in_battle(self):
         mock_process = Mock()
-        f = FieldClock(MagicMock(in_battle=True, process_queue=mock_process))
+        f = FieldClock(MagicMock(in_battle=True,
+                       process_battle_and_movement=mock_process))
         f.change_day()
         mock_process.assert_not_called()

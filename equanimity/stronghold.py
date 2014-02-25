@@ -77,13 +77,25 @@ class Stronghold(Persistent):
                            kind=kind, equip=True)
         self._add_squad(squad)
 
+    def add_free_unit(self, unit):
+        """ Adds a unit to the free units """
+        # TODO -- handle capacity. Must account for squads and free_units
+        if unit.container is not None:
+            unit.container.remove(unit)
+        unit.owner = self.owner
+        self.free_units.append(unit)
+        self.free_units.append(unit)
+        self.units[unit.uid] = unit
+
     """ Defender management """
 
     @property
     def defenders(self):
-        if self._defenders is None:
-            self.defenders = self._get_automatic_defenders()
-        return self.squads[self._defenders]
+        sq = self.squads.get(self._defenders)
+        if sq is None:
+            sq = self._get_automatic_defenders()
+            self.defenders = sq
+        return sq
 
     @defenders.setter
     def defenders(self, val):
@@ -110,6 +122,15 @@ class Stronghold(Persistent):
         return self._remove_unit_from(self.defenders, unit_id)
 
     """ Squad management """
+
+    def move_squad_out(self, squad_num, direction):
+        """ Moves a squad to an adjacent's field's queue. Returns True if
+        there is an adjacent field. """
+        f = self.field.get_adjacent(direction)
+        if f is not None:
+            f.queue.add(self.squads[squad_num])
+            return True
+        return False
 
     def move_squad_in(self, squad):
         """ Move foreign squad into here """
@@ -156,9 +177,7 @@ class Stronghold(Persistent):
         """Takes a stone from stronghold and turns it into a Scient."""
         comp = self.silo.get(comp)
         scient = Scient(element, comp, name=name)
-        scient.owner = self.owner
-        self.free_units.append(scient)
-        self.units[scient.uid] = scient
+        self.add_free_unit(scient)
         self.feed_unit(scient.uid)
         return scient
 
@@ -238,7 +257,7 @@ class Stronghold(Persistent):
         """Attempts to feed units. check happens every game day."""
         # 1. feed scients first.
         # 2. feed nescients.
-        #should not happen when field is embattled.
+        # should not happen when field is embattled.
         n = now()
         for unit in self.units:
             d = n - unit.fed_on
@@ -276,7 +295,7 @@ class Stronghold(Persistent):
     def create_factory(self, kind):
         """Adds a factory to a stronghold, raises exception if factory already
         exists."""
-        #factories should cost something.
+        # factories should cost something.
         if kind == 'Stable' or kind == 'Earth':
             if self.stable is None:
                 factory = self.stable = Stable()
@@ -345,10 +364,12 @@ class Stronghold(Persistent):
             msg = 'Squad {0} does not have same owner as stronghold'
             raise ValueError(msg.format(squad))
         self.squads.append(squad)
+        for u in squad:
+            self.units[u.uid] = u
 
     def _add_unit_to(self, container, unit_id):
         """Add unit to container."""
-        #wrapper to keep containers private.
+        # wrapper to keep containers private.
         container.append(self.free_units[unit_id])
 
     def _remove_unit_from(self, container, unit_id):
@@ -360,8 +381,7 @@ class Stronghold(Persistent):
                 raise ValueError('Unit container has no relation to this '
                                  'stronghold')
             unit = self.units[unit_id]
-            container.remove(unit)
-            self.free_units.append(unit)
+            self.add_free_unit(unit)
 
     def _get_automatic_defenders(self):
         """ Returns the highest valued squad, if one exists. Otherwise
@@ -422,10 +442,11 @@ class Stronghold(Persistent):
 
 
 class MappedContainer(Container):
+
     def __init__(self):
-        super(MappedContainer, self).__init__(data=None, free_spaces=32)
-        #maybe map should actually return the key and method
-        #should be added instead of using .map
+        super(MappedContainer, self).__init__(data=None)
+        # maybe map should actually return the key and method
+        # should be added instead of using .map
         self.map = PersistentMapping()
         self.name = 'stronghold'
 

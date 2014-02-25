@@ -382,6 +382,8 @@ class StrongholdTest(FlaskTestDBWorld):
 
     def test_form_squad_error(self):
         start_units = len(self.s.free_units)
+        self.s.free_units.max_free_spaces = 20
+        self.s.free_units.free_spaces = 20
         n_units = 20
         scients = [self.s.form_scient(E, create_comp(earth=1))
                    for i in range(n_units)]

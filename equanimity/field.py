@@ -21,6 +21,7 @@ from const import FIELD_BATTLE
 
 
 class FieldQueue(Persistent):
+
     """ Manages requests to move into a field """
 
     def __init__(self, field):
@@ -45,6 +46,7 @@ class FieldQueue(Persistent):
         squad.queue_at(self.field)
 
     def pop(self):
+        """ Removes and returns the next item in the queue """
         if self.queue:
             s = self.queue.popitem(last=False)[1]
             s.unqueue()
@@ -52,6 +54,7 @@ class FieldQueue(Persistent):
 
 
 class Field(Persistent):
+
     """Player owned field logic."""
 
     @classmethod
@@ -112,14 +115,29 @@ class Field(Persistent):
         for u in self.stronghold.free_units:
             u.owner = owner
 
-    def process_queue(self):
-        next_squad = self.queue.pop()
-        if next_squad is not None:
-            if next_squad.owner == self.owner:
-                self.stronghold.move_squad_in(next_squad)
-            else:
-                self.start_battle(next_squad)
-        return next_squad
+    def get_adjacent(self, direction):
+        """ Returns the field adjacent to this one in a given direction.
+        Returns None if at the border. """
+        t = self.field.grid.get_adjacent(self.field.world_coord, direction)
+        if t:
+            return self.world.fields.get(tuple(t[0]))
+
+    def process_battle_and_movement(self):
+        """ Starts a battle if an attacker is available, otherwise moves
+        a friendly squad into the stronghold if available """
+        # First, check if there was a previous battle and if it is over
+        if self.game is not None and self.game.state['game_over']:
+            # If the winner is not the owner, that means the stronghold was
+            # still garrisoned, and we must start a new battle
+            if self.game.winner != self.owner:
+                self.start_battle(self.game.battlefield.atksquad)
+        else:
+            next_squad = self.queue.pop()
+            if next_squad is not None:
+                if next_squad.owner == self.owner:
+                    self.stronghold.move_squad_in(next_squad)
+                else:
+                    self.start_battle(next_squad)
 
     def start_battle(self, attacking_squad):
         self.game = Game(self, attacking_squad)
@@ -130,6 +148,15 @@ class Field(Persistent):
         wp = WorldPlayer.get()
         if self.owner != wp and not self.stronghold.garrisoned():
             self.owner = wp
+
+    def get_taken_over(self, atkr):
+        """ Transfers a winning attacking squad to the field. Returns False
+        if the stronghold is still controlled. """
+        if self.stronghold.garrisoned():
+            return False
+        self.owner = atkr.owner
+        self.stronghold.move_squad_in(self.battlefield.atksquad)
+        return True
 
     def place_scient(self, unit, location):
         if getattr(unit, 'type', '') != 'scient':
@@ -194,7 +221,7 @@ class Field(Persistent):
 
     def set_silo_limit(self):
         """Sets the silo limit to 1 year's worth of stones."""
-        #this uses get_tile_comps so the / 8 is only maintained in one place.
+        # this uses get_tile_comps so the / 8 is only maintained in one place.
         limit = {'Earth': 0, 'Fire': 0, 'Ice': 0, 'Wind': 0}
         for stone in self.get_tile_comps():
             for element in limit.keys():
@@ -219,9 +246,9 @@ class Field(Persistent):
 
     def harvest(self):
         """returns set of stones generated at harvest"""
-        #this needs to be more clever and relate to the units in
-        #the stronghold somehow.
-        #happens once a year.
+        # this needs to be more clever and relate to the units in
+        # the stronghold somehow.
+        # happens once a year.
         return self.stronghold.silo.imbue_list(self.get_tile_comps())
 
     """ Special """

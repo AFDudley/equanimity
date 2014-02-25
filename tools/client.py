@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from common import hack_syspath
 hack_syspath(__file__)
 import requests

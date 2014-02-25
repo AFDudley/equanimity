@@ -152,24 +152,26 @@ class FieldTest(FlaskTestDB):
         self.assertEqual(t.owner, p)
         self.assertEqual(sq.owner, self.s.owner)
 
-    def test_process_queue_nothing_next(self):
-        self.assertIs(self.f.process_queue(), None)
+    def test_process_battle_and_movement_nothing_next(self):
+        self.assertIs(self.f.process_battle_and_movement(), None)
 
     @patch('equanimity.stronghold.Stronghold.move_squad_in')
-    def test_process_queue_next_movement(self, mock_move):
+    def test_process_battle_and_movement_next_movement(self, mock_move):
         s, _ = _mocked_squad()
         s.owner = self.f.owner
         self.f.queue.add(s)
-        self.assertEqual(self.f.process_queue(), s)
+        self.f.process_battle_and_movement()
         mock_move.assert_called_once_with(s)
 
     @patch.object(Field, 'start_battle')
-    def test_process_queue_next_attacking(self, mock_start):
+    def test_process_battle_and_movement_next_attacking(self, mock_start):
         s, _ = _mocked_squad()
         s.owner = None
         self.f.queue.add(s)
-        self.assertEqual(self.f.process_queue(), s)
+        self.f.process_battle_and_movement()
         mock_start.assert_called_once_with(s)
+
+    # TODO -- more tests for process_battle_and_movement
 
     @patch('equanimity.field.Game.start')
     def test_start_battle(self, mock_start):
