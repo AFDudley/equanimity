@@ -180,7 +180,7 @@ class State(PersistentMapping):
 
     def check(self, game):
         """Checks for game ending conditions.
-        (Assumes two players and no action cue.)"""
+        (Assumes two players and no ActionQueue.)"""
         num = self['num']
         last_type = game.log['actions'][num - 1]['type']
         if last_type == 'pass' or last_type == 'timed_out':
