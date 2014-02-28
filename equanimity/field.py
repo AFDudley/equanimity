@@ -187,7 +187,7 @@ class Field(Persistent):
         for tile in self.grid.iter_tiles():
             stone = Stone()
             for suit, value in tile.comp.iteritems():
-                stone[suit] += value / 8  # this 8 will need to be tweaked.
+                stone[suit] += value // 8  # this 8 will need to be tweaked.
             if stone.value() != 0:
                 stone_list += [stone]
         return stone_list
@@ -217,13 +217,23 @@ class Field(Persistent):
                 self.set_stronghold_capacity()
                 self.set_silo_limit()
 
+    def set_crops(self):
+        """generates stones and places them in tiles."""
+        for tile in self.grid.iter_tiles():
+            stone = Stone()
+            for suit, value in tile.comp.iteritems():
+                stone[suit] += value // 8 # This 8 will need to be tweaked.
+            if stone.value() != 0:
+                tile.set_crop(stone)
+
     def harvest(self):
         """returns set of stones generated at harvest"""
         #this needs to be more clever and relate to the units in
         #the stronghold somehow.
         #happens once a year.
-        return self.stronghold.silo.imbue_list(self.get_tile_comps())
-
+        
+        #return self.stronghold.silo.imbue_list(self.get_tile_comps())
+    
     """ Special """
 
     def __eq__(self, other):

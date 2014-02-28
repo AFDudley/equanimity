@@ -214,9 +214,23 @@ class State(PersistentMapping):
 
         #game is not over, state is stored, update state.
         self['num'] += 1
-        aq = self.game.action_queue
-        self['whose_action'] = aq.get_player_for_action(self['num']).uid
+        self._whose_action()
 
+    def _whose_action(self):
+        aq = self.game.action_queue
+        num = self['num']
+        self['whose_action'] = aq.get_player_for_action(num).uid
+        if self['whose_action'] == 0:
+            # It must be a Nescient, call AI.
+            unit = aq.get_unit_for_action(num)
+            self.game.process_action(unit.act(self.game._get_object_info(unit.uid)))
+        else:
+            unit = aq.get_unit_for_action(num)
+            if unit.type == 'nescient':
+                # it must be a Nescient, call AI.
+                self.game.process_action(unit.act(self.game._get_object_info(unit.uid)))
+            else:
+                pass
 
 class Game(Persistent):
 
@@ -322,6 +336,20 @@ class Game(Persistent):
             new['unit'] = new['unit'].uid
         return new
 
+    def _get_unit_smell(self, uid):
+        """Builds a model of the world for Nescients, excludes Nescient
+         and rider."""
+         unit_smells = {}
+         for unit in self.units:
+            if not unit.location.is_null():
+                unit_smells[unit.uid] = unit.smell()
+         del unit_smells[uid]
+         return unit_smells
+         
+    def _get_crop_smells(self):
+        crop_smells = {}
+        for tile in self.battlefield.grid.iter_tiles():
+            
     def get_time_remaining_for_action(self):
         self._fill_timed_out_actions()
         return self.log.get_time_remaining_for_action()

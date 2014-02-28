@@ -24,7 +24,8 @@ class Tile(Stone):
         self.contents = None
         if contents is not None:
             self.set_contents(contents)
-
+        self.crop = None
+        
     def __eq__(self, other):
         if not isinstance(other, Tile):
             return False
@@ -46,6 +47,22 @@ class Tile(Stone):
         self.contents = contents
         contents.location = self.location
 
+    def set_crop(self, crop):
+        """places yielded crops in tile."""
+        # This just seems more efficient because units can stand on crops.
+        if self.has_crop():
+            try:
+                # Attempt to imbue tile with existing crop
+                self.imbue(self.crop)
+            finally:
+                # Discard previous crop
+                self.crop = crop
+        else:
+            self.crop = crop
+
+    def get_crops(self):
+        """returns crops to battle.py"""
+        return 
     def move_contents_to(self, dest):
         if self == dest:
             raise ValueError('Can\'t move to the same loc {0}'.format(self))
@@ -57,6 +74,8 @@ class Tile(Stone):
     def occupied(self):
         return (self.contents is not None)
 
+    def has_crop(self):
+        return (self.crop is not None)
 
 class Hex(namedtuple('Hex', 'q r')):
     __slots__ = ()
