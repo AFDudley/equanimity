@@ -514,6 +514,19 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(len(self.s.defenders), l + 1)
         self.assertIn(s, self.s.defenders)
 
+    def test_move_squad_out(self):
+        # Move into adjacent field's queue
+        ua = self.s.form_scient(E, create_comp(earth=10))
+        sq = self.s.form_squad(unit_ids=(ua.uid,), name='xxy')
+        self.assertTrue(self.s.move_squad_out(sq.stronghold_pos, 'South'))
+        self.assertEqual(sq.queued_field.world_coord, Hex(0, 1))
+
+        # No adjacent field
+        ua = self.s.form_scient(E, create_comp(earth=10))
+        sq = self.s.form_squad(unit_ids=(ua.uid,), name='xxz')
+        self.assertFalse(self.s.move_squad_out(sq.stronghold_pos, 'North'))
+        self.assertIsNone(sq.queued_field)
+
     def test_move_squad_in(self):
         s = Squad(owner=self.s.owner)
         s.stronghold_pos = 0

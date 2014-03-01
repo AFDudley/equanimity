@@ -387,8 +387,12 @@ class SquareGrid(Stone):
         return product(xrange(self.radius), xrange(self.radius))
 
     def get_adjacent(self, (x, y), direction='all', filtered=True):
-        adj = [(x + 1, y + 1), (x + 1, y), (x + 1, y - 1), (x, y + 1),
-               (x, y - 1), (x - 1, y + 1), (x - 1, y), (x - 1, y - 1)]
+        if direction == 'all':
+            adj = [(x + 1, y + 1), (x + 1, y), (x + 1, y - 1), (x, y + 1),
+                   (x, y - 1), (x - 1, y + 1), (x - 1, y), (x - 1, y - 1)]
+        else:
+            d = Grid.vectors[direction]
+            adj = [(x + d.q, y + d.r)]
         adj = [Hex._make(a) for a in adj]
         if filtered:
             adj = filter(self.in_bounds, adj)

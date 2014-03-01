@@ -1,4 +1,5 @@
 import transaction
+import traceback
 from functools import wraps
 from flask import g, current_app, request, jsonify, abort
 from flask.ext.login import current_user
@@ -115,22 +116,16 @@ def commit(f):
     @wraps(f)
     def wrapped(*args, **kwargs):
         try:
-            try:
-                r = f(*args, **kwargs)
-                print 'Result: ', r
-            except Exception as e:
-                import traceback
-                print traceback.format_exc()
-                print 'F ERROR:', str(e)
-                raise
-            try:
-                transaction.commit()
-                print 'Commited'
-            except Exception as e:
-                print 'Commit ERROR:', str(e)
-                raise
+            r = f(*args, **kwargs)
         except Exception as e:
-            print 'WTF ERROR:', str(e)
+            print traceback.format_exc()
+            print 'RPC function error:', str(e)
+            raise
+        try:
+            transaction.commit()
+        except Exception as e:
+            print traceback.format_exc()
+            print 'Commit error:', str(e)
             raise
         return r
     return wrapped

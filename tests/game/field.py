@@ -5,6 +5,7 @@ from equanimity.field import FieldQueue, Field
 from equanimity.unit_container import Squad
 from equanimity.player import Player
 from equanimity.grid import Grid, Hex
+from equanimity.battle import Game
 from equanimity.units import Scient
 from equanimity.world import World
 from equanimity.const import FIELD_PRODUCE, FIELD_YIELD, FIELD_BATTLE, E, I
@@ -168,8 +169,30 @@ class FieldTest(FlaskTestDB):
         self.assertEqual(t.owner, p)
         self.assertEqual(sq.owner, self.s.owner)
 
-    def test_process_battle_and_movement_nothing_next(self):
-        self.assertIs(self.f.process_battle_and_movement(), None)
+    @patch('equanimity.stronghold.Stronghold.move_squad_in')
+    @patch.object(Field, 'start_battle')
+    def test_process_battle_and_movement_nothing_next(self, mock_battle,
+                                                      mock_move):
+        self.f.process_battle_and_movement()
+        mock_battle.assert_not_called()
+        mock_move.assert_not_called()
+
+    @patch('equanimity.stronghold.Stronghold.move_squad_in')
+    @patch.object(Field, 'start_battle')
+    def test_process_battle_and_movement_restart_battle(self, mock_battle,
+                                                        mock_move):
+        opp = Player('awcawca', 'a2@gmail.com', 'xcawcwaa')
+        k = Field(AttributeDict(uid=2), (0, 1), I, owner=opp)
+        k.stronghold.silo.imbue(create_comp(earth=100))
+        t = k.stronghold.form_scient(E, create_comp(earth=1))
+        sq = k.stronghold.form_squad(unit_ids=(t.uid,))
+        self.s.silo.imbue(create_comp(earth=100))
+        self.s.form_scient(E, create_comp(earth=1))
+        g = self.f.game = Game(self.f, sq)
+        g.state['game_over'] = True
+        self.f.process_battle_and_movement()
+        mock_move.assert_not_called()
+        mock_battle.assert_called_once_with(g.battlefield.atksquad)
 
     @patch('equanimity.stronghold.Stronghold.move_squad_in')
     def test_process_battle_and_movement_next_movement(self, mock_move):

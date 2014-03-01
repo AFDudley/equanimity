@@ -132,6 +132,18 @@ class StrongholdTest(RPCTestBase):
         self.assertIsNot(squads, None)
         self.assertEqual(len(squads), old_len - 1)
 
+    def test_move_squad(self):
+        # Make a squad
+        sq = self.test_form_squad()
+        # Move it to adjacent field
+        r = self.proxy.move_squad(self.world.uid, self.loc,
+                                  sq['stronghold_pos'], 'South')
+        self.assertNoError(r)
+        rsq = r['result'].get('squad')
+        self.assertIsNotNone(rsq)
+        self.assertIsNotNone(rsq['queued_field'])
+        self.assertEqual(list(rsq['queued_field']), [0, 1])
+
     def test_place_unit(self):
         sq = self.test_form_squad()
         unit_id = sq['units'][0]
