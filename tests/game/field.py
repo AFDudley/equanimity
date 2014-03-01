@@ -9,7 +9,7 @@ from equanimity.units import Scient
 from equanimity.world import World
 from equanimity.const import FIELD_PRODUCE, FIELD_YIELD, FIELD_BATTLE, E, I
 from server.utils import AttributeDict
-from ..base import FlaskTestDB, create_comp
+from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
 
 def _setup_full_queue():
@@ -76,6 +76,22 @@ class FieldQueueTestDB(FlaskTestDB):
         s, _ = _mocked_squad()
         f.add(s)
         self.assertExceptionContains(ValueError, 'slot is taken', f.add, s)
+
+
+class FieldWorldTest(FlaskTestDBWorld):
+
+    """ Field tests that require a World """
+
+    def setUp(self):
+        super(FieldWorldTest, self).setUp(square_grid=False, grid_radius=3)
+
+    def test_get_adjacent(self):
+        f = self.world.fields[Hex(0, 0)]
+        g = f.get_adjacent('Northeast')
+        self.assertEqual(g.world_coord, Hex(1, -1))
+        f = self.world.fields[Hex(self.world.grid.radius, 0)]
+        # Off the edge of the map
+        self.assertIsNone(f.get_adjacent('South'))
 
 
 class FieldTest(FlaskTestDB):
@@ -170,8 +186,6 @@ class FieldTest(FlaskTestDB):
         self.f.queue.add(s)
         self.f.process_battle_and_movement()
         mock_start.assert_called_once_with(s)
-
-    # TODO -- more tests for process_battle_and_movement
 
     @patch('equanimity.field.Game.start')
     def test_start_battle(self, mock_start):

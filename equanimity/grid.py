@@ -14,7 +14,9 @@ from helpers import classproperty
 
 
 class Tile(Stone):
+
     """Tiles contain units or stones and are used to make battlefields."""
+
     def __init__(self, location=None, comp=None, contents=None):
         super(Tile, self).__init__(comp=comp)
         if location is None:
@@ -114,6 +116,7 @@ class HexCube(namedtuple('HexCube', 'x y z')):
 
 
 class Grid(Stone):
+
     """ Grid that uses axial/trapezoidal coordinate system outlined
     here: http://www.redblobgames.com/grids/hexagons/
     """
@@ -370,6 +373,7 @@ class Grid(Stone):
 
 
 class SquareGrid(Stone):
+
     """ Incomplete, but useful for testing since it is much quicker """
 
     def __init__(self, comp=None, radius=8, tiles=None):

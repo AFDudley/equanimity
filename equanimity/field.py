@@ -118,9 +118,9 @@ class Field(Persistent):
     def get_adjacent(self, direction):
         """ Returns the field adjacent to this one in a given direction.
         Returns None if at the border. """
-        t = self.field.grid.get_adjacent(self.field.world_coord, direction)
+        t = self.world.grid.get_adjacent(self.world_coord, direction=direction)
         if t:
-            return self.world.fields.get(tuple(t[0]))
+            return self.world.fields.get(tuple(tuple(t)[0]))
 
     def process_battle_and_movement(self):
         """ Starts a battle if an attacker is available, otherwise moves

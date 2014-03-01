@@ -237,7 +237,7 @@ class FlaskTestDBWorld(FlaskTestDB):
                                             grid_radius=grid_radius,
                                             square_grid=square_grid)
         if create_world:
-            self.create_world()
+            self.create_world(radius=grid_radius, square_grid=square_grid)
 
     def create_world(self, version='1', radius=2, square_grid=True,
                      init_db_reset=None):
