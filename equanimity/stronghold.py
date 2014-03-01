@@ -371,11 +371,13 @@ class Stronghold(Persistent):
         """Add unit to container."""
         # wrapper to keep containers private.
         container.append(self.free_units[unit_id])
+        del self.free_units[unit_id]
 
     def _remove_unit_from(self, container, unit_id):
         """remove unit from a container, either a stronghold or a squad. """
         if container == self:
             del self.free_units[unit_id]
+            del self.units[unit_id]
         else:
             if unit_id not in self.units:
                 raise ValueError('Unit container has no relation to this '

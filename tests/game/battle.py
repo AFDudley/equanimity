@@ -1,6 +1,6 @@
 import itertools
 from unittest import TestCase
-from mock import MagicMock, patch
+from mock import MagicMock, patch, call
 from datetime import timedelta, datetime
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
 from server.utils import AttributeDict
@@ -388,9 +388,97 @@ class GameTest(GameTestBase):
         weapon = Sword(E, wep_comp)
         wep_comp = wep_comp.copy().extract_award()
         self.defender.get_squads(self.world.uid)[0][0].equip(weapon)
-        awards = self.game.compute_awards()
+        awards = self.game.compute_awards(self.game.battlefield.squads)
         comp = comp.extract_award()
         self.assertEqual(awards, [comp, wep_comp])
+
+    def test_clean_up_dead_units(self):
+        # Set some hps to <= 0, and check that are removed from the stronghold
+        self.game.battlefield.squads[:]
+        defsquad = self.defender.get_squads(self.world.uid)[0]
+        atksquad = self.attacker.get_squads(self.world.uid)[0]
+        self.assertEqual(defsquad,
+                         defsquad.stronghold.squads[defsquad.stronghold_pos])
+        self.assertEqual(atksquad,
+                         atksquad.stronghold.squads[atksquad.stronghold_pos])
+        defsquad[0].hp = 0
+        atksquad[0].hp = -1
+        defsquadlen = len(defsquad)
+        atksquadlen = len(atksquad)
+        strongholdlen = len(defsquad.stronghold.squads)
+        defstronghold = defsquad.stronghold
+        defstronghold_pos = defsquad.stronghold_pos
+        self.game.clean_up_dead_units(self.game.battlefield.squads)
+        self.assertEqual(len(defsquad), defsquadlen - 1)
+        self.assertEqual(len(atksquad), atksquadlen - 1)
+        self.assertEqual(defsquad,
+                         defsquad.stronghold.squads[defsquad.stronghold_pos])
+        self.assertEqual(atksquad,
+                         atksquad.stronghold.squads[atksquad.stronghold_pos])
+        # Now, set all hps in one squad to <= 0, and check that the squad is
+        # removed from the stronghold entirely
+        self.assertNotEqual(len(defsquad), 0)
+        for u in defsquad:
+            u.hp = 0
+        self.assertEqual(defsquad, self.game.battlefield.defsquad)
+        self.assertIn(defsquad, self.game.battlefield.squads)
+        self.assertFalse(filter(lambda x: x.hp > 0, defsquad))
+        self.game.clean_up_dead_units(self.game.battlefield.squads)
+        self.assertIsNone(defsquad.stronghold)
+        self.assertIsNone(defsquad.stronghold_pos)
+        self.assertEqual(strongholdlen - 1, len(defstronghold.squads))
+        self.assertIsNone(
+            defstronghold.squads.get(defstronghold_pos))
+
+    def test_get_victors_and_prisoners(self):
+        self.game.winner = self.attacker
+        v, p = self.game.get_victors_and_prisoners()
+        self.assertEqual(list(v), list(self.game.battlefield.atksquad))
+        self.assertEqual(list(p), list(self.game.battlefield.defsquad))
+        self.game.winner = self.defender
+        v, p = self.game.get_victors_and_prisoners()
+        self.assertEqual(list(v), list(self.game.battlefield.defsquad))
+        self.assertEqual(list(p), list(self.game.battlefield.atksquad))
+
+    @patch('equanimity.battle.Game.clean_up_dead_units')
+    @patch('equanimity.silo.Silo.imbue_list')
+    @patch('equanimity.field.Field.get_taken_over')
+    @patch('equanimity.stronghold.Stronghold.add_free_unit')
+    @patch('equanimity.field.Field.check_ungarrisoned')
+    def test_update_field_attacker_wins(self, mock_garr, mock_add, mock_taken,
+                                        mock_imbue, mock_clean):
+        # Update with attacker wins
+        self.game.winner = self.attacker
+        atksquad = self.game.battlefield.atksquad
+        defsquad = self.game.battlefield.defsquad
+        prisoners = [u for u in defsquad]
+        awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
+        self.game.update_field(atksquad, defsquad, awards, prisoners)
+        mock_garr.assert_called_once_with()
+        mock_add.assert_not_called()
+        mock_clean.assert_called_once_with([atksquad, defsquad])
+        mock_taken.assert_called_once_with(atksquad)
+        mock_imbue.assert_called_once_with(awards)
+
+    @patch('equanimity.battle.Game.clean_up_dead_units')
+    @patch('equanimity.silo.Silo.imbue_list')
+    @patch('equanimity.field.Field.get_taken_over')
+    @patch('equanimity.stronghold.Stronghold.add_free_unit')
+    @patch('equanimity.field.Field.check_ungarrisoned')
+    def test_update_field_defender_wins(self, mock_garr, mock_add, mock_taken,
+                                        mock_imbue, mock_clean):
+        # Update with defender wins
+        self.game.winner = self.defender
+        atksquad = self.game.battlefield.atksquad
+        defsquad = self.game.battlefield.defsquad
+        prisoners = [u for u in atksquad]
+        awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
+        self.game.update_field(atksquad, defsquad, awards, prisoners)
+        mock_garr.assert_called_once_with()
+        mock_add.assert_has_calls([call(u) for u in prisoners])
+        mock_clean.assert_called_once_with([atksquad, defsquad])
+        mock_taken.assert_not_called()
+        mock_imbue.assert_called_once_with(awards)
 
     @patch('equanimity.silo.Silo.imbue_list')
     @patch.object(Game, 'compute_awards')
@@ -399,18 +487,26 @@ class GameTest(GameTestBase):
         mock_compute_awards.return_value = awards
         self._place_squads()
         self.game.winner = self.defender
-        def_survivors = self.defender.get_squads(self.world.uid)[0][:2]
-        atk_survivors = self.attacker.get_squads(self.world.uid)[0][:1]
-        survivors = def_survivors + atk_survivors
-        hps = {unit: unit.hp for unit in survivors}
-        self.game.state = State(self.game, HPs=hps)
+        defsquad = self.defender.get_squads(self.world.uid)[0]
+        for u in defsquad[2:]:
+            u.hp = 0
+        atksquad = self.attacker.get_squads(self.world.uid)[0]
+        for u in atksquad[1:]:
+            u.hp = -1
+        def_survivors = defsquad[:2]
+        atk_survivors = atksquad[:1]
         self.game.end('Defender won')
         self.assertGameOver(self.defender, 'Defender won')
+        for u in self.game.log['change_list']['victors']:
+            self.assertGreater(u.hp, 0)
+        for u in self.game.log['change_list']['prisoners']:
+            self.assertGreater(u.hp, 0)
         self.assertEqual(sorted(def_survivors),
                          sorted(self.game.log['change_list']['victors']))
         self.assertEqual(sorted(atk_survivors),
                          sorted(self.game.log['change_list']['prisoners']))
-        mock_compute_awards.assert_called_once_with()
+        mock_compute_awards.assert_called_once_with(
+            self.game.battlefield.squads)
         mock_imbue.assert_called_once_with(awards)
 
 

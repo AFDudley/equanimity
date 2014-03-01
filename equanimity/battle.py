@@ -470,9 +470,9 @@ class Game(Persistent):
         """Returns stuff to create the client side of the game"""
         return InitialState(self.log)
 
-    def compute_awards(self):
+    def compute_awards(self, squads):
         awards = []
-        for squad in self.battlefield.squads:
+        for squad in squads:
             for unit in squad:
                 if unit.hp <= 0:
                     awards.append(unit.extract_award())
@@ -480,45 +480,35 @@ class Game(Persistent):
                         awards.append(unit.weapon.extract_award())
         return awards
 
-    def clean_up_dead_units(self):
+    def clean_up_dead_units(self, squads):
         """ Removes dead units from their respective locations, and disbands
         the squad if empty """
-        for s in self.battlefield.squads:
-            for u in s:
-                if u.hp <= 0:
-                    s.stronghold.remove_unit_from_squad(s.stronghold_pos,
-                                                        u.uid)
+        for s in squads:
+            remove = [u for u in s if u.hp <= 0]
+            for u in remove:
+                s.stronghold.remove_unit_from_squad(s.stronghold_pos, u.uid)
             if not s:
                 s.stronghold.disband_squad(s.stronghold_pos)
 
-    def end(self, condition):
-        """ Mame over state, handles log closing,
-        writes change list for world"""
-        self.state['game_over'] = True
-        self.log['states'].append(self.state)
-        self.log.close(self.winner, condition)
-        # make change list
-        victors = PersistentList()
-        prisoners = PersistentList()
+    def get_victors_and_prisoners(self):
+        if self.winner == self.attacker:
+            winner = self.battlefield.atksquad
+            loser = self.battlefield.defsquad
+        else:
+            winner = self.battlefield.defsquad
+            loser = self.battlefield.atksquad
+        victors = PersistentList([u for u in winner if u.hp > 0])
+        prisoners = PersistentList([u for u in loser if u.hp > 0])
+        return victors, prisoners
 
-        # split survivors into victors and prisoners
-        for unit in self.log['states'][-1]['HPs']:
-            if self.log['owners'][unit.uid] == self.winner.name:
-                victors.append(unit)
-            else:
-                prisoners.append(unit)
-
-        # calculate awards
-        awards = self.compute_awards()
+    def update_field(self, atksquad, defsquad, awards, prisoners):
+        # Update field state
+        self.clean_up_dead_units([atksquad, defsquad])
         self.field.stronghold.silo.imbue_list(awards)
-        self.log['change_list'] = BattleChanges(victors, prisoners, awards)
-
-        self.clean_up_dead_units()
-
         if self.winner == self.attacker:
             # Attempt to capture the field. It will fail if the stronghold
             # is still garrisoned.
-            self.field.get_taken_over(self.battlefield.atksquad)
+            self.field.get_taken_over(atksquad)
         else:
             # Prisoners must be transferred from attacker to defender's
             # stronghold's free units
@@ -528,6 +518,26 @@ class Game(Persistent):
                 self.field.stronghold.add_free_unit(u)
         # Allow the world to take over if the defender is vacant
         self.field.check_ungarrisoned()
+
+    def end(self, condition):
+        """ Mame over state, handles log closing,
+        writes change list for world"""
+        self.state['game_over'] = True
+        self.log['states'].append(self.state)
+        self.log.close(self.winner, condition)
+
+        # Calculate awards, based on dead units
+        awards = self.compute_awards(self.battlefield.squads)
+
+        # Split survivors into victors and prisoners
+        victors, prisoners = self.get_victors_and_prisoners()
+
+        # Record
+        self.log['change_list'] = BattleChanges(victors, prisoners, awards)
+
+        # Update the underlying field
+        self.update_field(self.battlefield.atksquad, self.battlefield.defsquad,
+                          awards, prisoners)
 
 
 class ActionQueue(Persistent):
