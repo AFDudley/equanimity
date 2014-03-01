@@ -4,7 +4,7 @@ world.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
-#ZODB needs to log stuff
+# ZODB needs to log stuff
 # TODO -- configure logging separately
 import logging
 logging.basicConfig()
@@ -103,12 +103,14 @@ class World(Persistent):
         # Setup a player, field_count list
         players = [[p, 0] for p in self.players if p != self.player]
         # Decide how many fields player gets
-        each_get = len(self.grid) // len(players)
+        coords = list(self.grid.iter_coords())
+        each_get = len(coords) // len(players)
+        # Randomize
+        shuffle(coords)
         # Get the coordinates of the fields, minus any fields not to be
         # assigned to players (at random)
-        coords = list(self.grid.iter_coords())
-        shuffle(coords)
-        coords = coords[:-(len(self.grid) % each_get)]
+        extra = len(coords) - (each_get * len(players))
+        coords = coords[extra:]
         while coords:
             for p_i in players:
                 p, i = p_i
@@ -116,17 +118,16 @@ class World(Persistent):
                     # This player has all their fields
                     continue
                 # Fields should be distributed in clusters of 1-4
-                cluster_size = max(randint(0, 3), each_get - i - 1)
+                cluster_size = min(randint(1, 4), each_get - i - 1)
                 # Get the starting coordinate
                 ours = [coords.pop(randrange(len(coords)))]
                 # Get random available adjacent coordinates for the cluster
                 if cluster_size:
                     adj = self.grid.get_adjacent(ours[0])
-                    extra = sample(adj, cluster_size)
+                    extra = sample(adj, min(cluster_size, len(adj)))
                     for x in extra:
                         if x in coords:
-                            coords.pop(coords.index(x))
-                    ours += extra
+                            ours.append(coords.pop(coords.index(x)))
                 # Assign the fields to this player
                 for c in ours:
                     self.award_field(p, c)
@@ -138,7 +139,7 @@ class World(Persistent):
         To be called only after assigning initial fields to all players,
         and before the game begins.
         """
-        for f in self.fields:
+        for f in self.fields.itervalues():
             kind = None
             if f.owner != self.player:
                 kind = 'Scient'

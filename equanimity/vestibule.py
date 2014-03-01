@@ -4,6 +4,7 @@ from server import db
 
 
 class Vestibule(Persistent):
+
     """ A game waiting for players to start
     """
 
@@ -23,7 +24,7 @@ class Vestibule(Persistent):
         world = self.world
         if world is not None:
             world = self.world.uid
-        return dict(players=[p for p in self.players], uid=self.uid,
+        return dict(players=[p.uid for p in self.players], uid=self.uid,
                     leader=leader, world=world)
 
     def persist(self):

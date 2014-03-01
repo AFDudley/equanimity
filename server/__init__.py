@@ -107,7 +107,6 @@ def attach_loggers(app):
 
 
 def create_app(subdomain='', config=None):
-
     """ App """
     app = Flask(__name__)
 

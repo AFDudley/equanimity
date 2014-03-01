@@ -9,21 +9,27 @@ from client import EquanimityClient
 def create_player(c, username, password, email):
     """ Creates a player and logs in """
     # Signup, to make sure the account exists
-    c.signup(username, password, email)
+    print 'Signup'
+    print c.signup(username, password, email)
     # Login
-    c.signup(username, password)
+    print 'Login'
+    print c.login(username, password)
 
 
 def start_game(p, q):
     """ Creates a vestibule, adds the second player and starts a game """
     # Setup the vestibule
-    v = p.rpc('vestibule.create')
-    id = v['result']['vestibule']['id']
+    print 'Create vestibule'
+    v = p.must_rpc('vestibule.create')
+    id = v['result']['vestibule']['uid']
+    print 'Join vestibule'
     q.rpc('vestibule.join', id)
-    p.rpc('vestibule.start', id)
+    print 'Start vestibule'
+    world = p.must_rpc('vestibule.start', id)
+    return world['result']['world']
 
 
-def start_battle(p, q):
+def start_battle(world, p, q):
     # p moves a squad to an adjacent q field
     # then somehow the field clock is advanced and a battle is initiated
 
@@ -32,7 +38,7 @@ def start_battle(p, q):
     # Move the squad from that stronghold to the adjacent one TODO move_squad
     # Somehow get the clock to advance so the battle starts??
 
-    pass
+    print p.must_rpc('info.world', world['uid'])
 
 
 def battle(p, q):
@@ -51,13 +57,16 @@ def run_demo():
     q = EquanimityClient()
     # Create two players
     create_player(p, 'atkr', 'atkrpassword', 'atkr@example.com')
+    print 'P Cookies', p.cookies
     create_player(q, 'dfdr', 'dfdrpassword', 'dfdr@example.com')
+    print 'Q Cookies', q.cookies
     # Start the game via the vestibule
-    start_game(p, q)
+    world = start_game(p, q)
+    print 'World', world
 
     # How to initiate a battle?
     # Move squad?
-    start_battle(p, q)
+    start_battle(world, p, q)
 
     battle(p, q)
 

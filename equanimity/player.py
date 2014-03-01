@@ -22,6 +22,7 @@ USERNAME_LEN = dict(max=32, min=3)
 
 
 class Player(Persistent, UserMixin):
+
     """Object that contains player infomration."""
 
     @classmethod
@@ -188,6 +189,7 @@ class WorldPlayer(Player):
 
 
 class PlayerGroup(object):
+
     """ Manager for a group of players """
 
     def __init__(self):
@@ -217,19 +219,19 @@ class PlayerGroup(object):
 
     def get_leader(self, allow_world=True):
         if not allow_world:
-            wp = WorldPlayer.get()
+            wp = WorldPlayer.get_or_create()
         if self._leader is None:
             if allow_world:
-                players = self.players.keys()
+                players = self.players.values()
             else:
-                players = [p for p in self.players if p != wp.uid]
+                players = [p for p in self if p != wp]
             if players:
-                return self.players[players[0]]
+                return players[0]
         else:
             if not allow_world and self._leader == wp:
-                players = [p for p in self.players if p != wp.uid]
+                players = [p for p in self if p != wp]
                 if players:
-                    return self.players[players[0]]
+                    return players[0]
             else:
                 return self._leader
 
@@ -242,4 +244,4 @@ class PlayerGroup(object):
         self._leader = player
 
     def __iter__(self):
-        return iter(self.players)
+        return self.players.itervalues()

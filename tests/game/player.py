@@ -144,7 +144,7 @@ class PlayerGroupTest(FlaskTestDB):
 
     def test_iter(self):
         self.test_add_all()
-        self.assertEqual(list(iter(self.pg)), [self.p.uid, self.q.uid])
+        self.assertEqual(list(iter(self.pg)), [self.p, self.q])
 
     def test_get_leader(self):
         self.pg.add(self.p)

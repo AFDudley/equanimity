@@ -81,12 +81,20 @@ class EquanimityClient(object):
         url = urljoin(self.url, '/auth/logout')
         return self._get(url)
 
-    def rpc(self, method, params):
+    def rpc(self, method, *params):
         methods = method.split('.')
         action = self.proxy
         for m in methods:
             action = getattr(action, m)
         return action(params, cookies=self.cookies)
+
+    def must_rpc(self, method, *params):
+        """ Raises an exception if the rpc had error """
+        r = self.rpc(method, *params)
+        err = r.get('error')
+        if err is not None:
+            raise ValueError(err)
+        return r
 
     def _post(self, *args, **kwargs):
         kwargs.setdefault('cookies', {}).update(self.cookies)

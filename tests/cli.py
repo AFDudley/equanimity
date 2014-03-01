@@ -93,9 +93,9 @@ class EquanimityClientTest(TestCase):
         resp = 2
         mock_send_payload.return_value = AttributeDict(json=lambda: resp)
         self.c.cookies = dict(token='xxx')
-        params = [0, 'string', [1, 2]]
+        params = (0, 'string', [1, 2])
         method = 'stronghold.name_unit'
-        r = self.c.rpc(method, params)
+        r = self.c.rpc(method, *params)
         self.assertEqual(r, resp)
         mock_send_payload.assert_called_with(params, cookies=self.c.cookies)
 
@@ -106,9 +106,9 @@ class EquanimityClientTest(TestCase):
         mock_send_payload.return_value = AttributeDict(json=lambda: int('a'),
                                                        content=resp)
         self.c.cookies = dict(token='xxx')
-        params = [0, 'string', [1, 2]]
+        params = (0, 'string', [1, 2])
         method = 'stronghold.name_unit'
-        r = self.c.rpc(method, params)
+        r = self.c.rpc(method, *params)
         self.assertEqual(r, resp)
         mock_send_payload.assert_called_with(params, cookies=self.c.cookies)
 
@@ -117,9 +117,9 @@ class EquanimityClientTest(TestCase):
         resp = 2
         mock_post.return_value = AttributeDict(json=lambda: resp)
         self.c.cookies = dict(token='xxx')
-        params = [0, 'string', [1, 2]]
+        params = (0, 'string', [1, 2])
         method = 'stronghold.name_unit'
-        r = self.c.rpc(method, params)
+        r = self.c.rpc(method, *params)
         self.assertEqual(r, resp)
         # Make sure the service name is correctly concatenated
         service_name = '.'.join([self.service_name, method])
