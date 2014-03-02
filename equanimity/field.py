@@ -146,13 +146,13 @@ class Field(Persistent):
     def check_ungarrisoned(self):
         """ Reverts ownership to the WorldPlayer if unoccupied """
         wp = WorldPlayer.get()
-        if self.owner != wp and not self.stronghold.garrisoned():
+        if self.owner != wp and not self.stronghold.garrisoned:
             self.owner = wp
 
     def get_taken_over(self, atkr):
         """ Transfers a winning attacking squad to the field. Returns False
         if the stronghold is still controlled. """
-        if self.stronghold.garrisoned():
+        if self.stronghold.garrisoned:
             return False
         self.owner = atkr.owner
         self.stronghold.move_squad_in(self.battlefield.atksquad)

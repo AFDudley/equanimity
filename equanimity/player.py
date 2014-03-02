@@ -65,10 +65,10 @@ class Player(Persistent, UserMixin):
 
     def world_view(self, world):
         w = get_world(world)
-        if w is None or self.uid not in w.players:
+        if w is None or self not in w.players:
             return {}
         fields = [w.fields[c] for c in self.get_visible_fields(world)]
-        return dict(visible_fields=[f.api_view() for f in fields])
+        return dict(uid=w.uid, visible_fields=[f.api_view() for f in fields])
 
     def combatant_view(self, squad):
         """ API data to return when requested as a combatant in a battle """
@@ -79,15 +79,17 @@ class Player(Persistent, UserMixin):
         w = get_world(world)
         return {c: f for c, f in w.fields.iteritems() if f.owner == self}
 
-    def get_visible_fields(self, world_id):
-        g = db['grid']
-        fields = ([c] + g.get_adjacent(c) for c in self.get_fields(world_id))
-        fields = reduce(operator.add, fields, [])
-        return set(fields)
+    def get_visible_fields(self, world):
+        w = get_world(world)
+        g = w.grid
+        fields = (set((c,)) | g.get_adjacent(c)
+                  for c in self.get_fields(world))
+        fields = reduce(operator.or_, fields, set())
+        return fields
 
-    def get_squads(self, world_id):
+    def get_squads(self, world):
         squads = (f.stronghold.squads.items.values()
-                  for f in self.get_fields(world_id).values())
+                  for f in self.get_fields(world).values())
         return list(chain.from_iterable(squads))
 
     @property

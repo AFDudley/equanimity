@@ -394,6 +394,11 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(len(self.s.free_units) - start_units,
                          n_units - len(sq))
 
+    def test_garrisoned(self):
+        self.assertFalse(self.s.garrisoned)
+        self.s.form_scient(E, create_comp(earth=10))
+        self.assertTrue(self.s.garrisoned)
+
     def test_name_squad(self):
         unit = self.s.form_scient(E, create_comp(earth=10))
         sq = self.s.form_squad(unit_ids=(unit.uid,), name='sq')
@@ -415,8 +420,7 @@ class StrongholdTest(FlaskTestDBWorld):
 
     def test_get_defenders_automatic_no_units(self):
         self.s._defenders = None
-        self.assertExceptionContains(ValueError, 'No free units',
-                                     getattr, self.s, 'defenders')
+        self.assertIsNone(getattr(self.s, 'defenders'))
 
     def test_get_defenders_automatic_existing_squad(self):
         self.s._defenders = None

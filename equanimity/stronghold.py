@@ -54,19 +54,23 @@ class Stronghold(Persistent):
     def owner(self):
         return self.field.owner
 
+    @property
+    def garrisoned(self):
+        """ Returns True if there are units somewhere inside the stronghold
+        """
+        return bool(self.units)
+
     def api_view(self):
+        defenders = {}
+        if self.defenders is not None:
+            defenders = self.defenders.api_view()
         return dict(
             field=self.location, silo=self.silo.api_view(),
             weapons=[w.api_view() for w in self.weapons],
             free_units=[u.api_view() for u in self.free_units],
             squads=[s.api_view() for s in self.squads],
-            defenders=self.defenders.api_view()
+            defenders=defenders,
         )
-
-    def garrisoned(self):
-        """ Returns True if there are units somewhere inside the stronghold
-        """
-        return bool(self.units)
 
     def populate(self, kind=None, size=8):
         """ Adds an initial squad of scients to the stronghold """
@@ -411,7 +415,7 @@ class Stronghold(Persistent):
         units = sorted(self.free_units.units, key=methodcaller('value'),
                        reverse=True)
         if not units:
-            raise ValueError('No free units available')
+            return
         units = [unit.uid for unit in units]
         return self.form_squad(unit_ids=units, name='Defenders')
 

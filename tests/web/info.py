@@ -20,7 +20,7 @@ class InfoTest(BattleTestBase):
         )
         self.field_schema = Schema(dict(field=self._field_schema))
         self.world_schema = Schema(dict(
-            world=dict(visible_fields=[self._field_schema])
+            world=dict(uid=int, visible_fields=[self._field_schema])
         ))
         self._battle_timer_schema = dict(
             start_time=int, action_num=int, current_ply=int, current_unit=int,

@@ -67,7 +67,8 @@ class World(Persistent):
 
     @classmethod
     def create(cls, **kwargs):
-        w = World(**kwargs)
+        w = cls(**kwargs)
+        print 'Creating world'
         w.persist()
         return w
 
@@ -78,7 +79,7 @@ class World(Persistent):
         self.players.add(self.player)
         self.uid = db['world_uid'].get_next_id()
         self.version = version
-        self.clock = WorldClock(self)
+        self.clock = WorldClock()
         self.grid = db['grid']
         self.fields = frozendict()
         if create_fields:
@@ -97,6 +98,7 @@ class World(Persistent):
     def start(self):
         """ Starts the game """
         self._distribute_fields_to_players()
+        self._populate_fields()
 
     def _distribute_fields_to_players(self):
         """ Assigns fields to participating players """
@@ -139,7 +141,7 @@ class World(Persistent):
         To be called only after assigning initial fields to all players,
         and before the game begins.
         """
-        for f in self.fields.itervalues():
+        for f in self.fields.values():
             kind = None
             if f.owner != self.player:
                 kind = 'Scient'

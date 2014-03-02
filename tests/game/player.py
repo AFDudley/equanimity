@@ -1,7 +1,9 @@
+from mock import patch
 from equanimity.units import Scient
 from equanimity.unit_container import Squad
 from equanimity.player import Player, WorldPlayer, PlayerGroup
 from equanimity.const import WORLD_UID, E
+from equanimity.grid import Hex
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
 
@@ -22,8 +24,12 @@ class PlayerTest(FlaskTestDB):
 
 class PlayerTestWorld(FlaskTestDBWorld):
 
+    def setUp(self):
+        super(PlayerTestWorld, self).setUp()
+        self.player = Player('x', 'x', 'x')
+
     def test_squads(self):
-        player = Player('x', 'x', 'x')
+        player = self.player
         self.assertEqual(player.get_squads(self.world.uid), [])
 
         s = Scient(E, create_comp(earth=1))
@@ -37,6 +43,29 @@ class PlayerTestWorld(FlaskTestDBWorld):
 
         self.assertEqual(sorted(player.get_squads(self.world.uid)),
                          sorted([sqa, sqb]))
+
+    @patch.object(Player, 'get_visible_fields')
+    def test_world_view(self, mock_get):
+        player = self.player
+        # No world
+        self.assertEqual(player.world_view(self.world.uid), {})
+        # Yes world
+        f = self.world.fields[(0, 0)]
+        f.owner = player
+        mock_get.return_value = set((f.world_coord,))
+        self.world.players.add(player)
+        self.assertEqual(player.world_view(self.world.uid),
+                         dict(uid=self.world.uid,
+                              visible_fields=[f.api_view()]))
+        mock_get.assert_called_once_with(self.world.uid)
+
+    def test_get_visible_fields(self):
+        self.world.players.add(self.player)
+        f = self.world.fields[(0, 0)]
+        f.owner = self.player
+        v = self.player.get_visible_fields(self.world.uid)
+        expect = [(0, 0), (0, 1), (1, 1), (1, 0)]
+        self.assertEqual(v, set([Hex._make(x) for x in expect]))
 
 
 class WorldPlayerTest(FlaskTestDB):

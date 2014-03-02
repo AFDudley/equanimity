@@ -63,6 +63,7 @@ class EquanimityClient(object):
         self.proxy = ClientServiceProxy(urljoin(url, '/api'),
                                         service_name=service_name)
         self.clear_cookies()
+        self.player = None
 
     def clear_cookies(self):
         self.cookies = {}
@@ -70,16 +71,24 @@ class EquanimityClient(object):
     def signup(self, username, password, email):
         url = urljoin(self.url, '/auth/signup')
         data = dict(username=username, password=password, email=email)
-        return self._post(url, data=data)
+        r = self._post(url, data=data)
+        if r.status_code == 200:
+            self.player = r.json()
+        return r
 
     def login(self, username, password):
         url = urljoin(self.url, '/auth/login')
         data = dict(username=username, password=password)
-        return self._post(url, data=data)
+        r = self._post(url, data=data)
+        if r.status_code == 200:
+            self.player = r.json()
+        return r
 
     def logout(self):
         url = urljoin(self.url, '/auth/logout')
-        return self._get(url)
+        r = self._get(url)
+        self.player = None
+        return r
 
     def rpc(self, method, *params):
         methods = method.split('.')

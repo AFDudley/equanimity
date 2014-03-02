@@ -12,11 +12,12 @@ from stone import rand_comp
 
 
 class Weapon(Stone):
+
     """Scients Equip weapons to do damage"""
     kind = None
 
     def __init__(self, element, comp, wep_type):
-        #this should return the correct weapon based on . (?)
+        # this should return the correct weapon based on . (?)
         super(Weapon, self).__init__(comp)
         self.type = wep_type
         self.element = element
@@ -41,7 +42,7 @@ class Weapon(Stone):
                 (1, -1)]
 
     def map_to_grid(self, origin, grid_size):
-        #TODO move to battlefield
+        # TODO move to battlefield
         """maps pattern to grid centered on origin.
         Returns list of tiles on grid. (Lots of room for optimization)"""
         orix, oriy = origin
@@ -57,8 +58,8 @@ class Weapon(Stone):
     def make_pattern(self, origin, distance, pointing):
         """generates a pattern based on an origin, distance, and
         direction. Returns a set of coords"""
-        #TODO: use inversion to create Wand/Ice attack pattern.
-        #needs lots o checking
+        # TODO: use inversion to create Wand/Ice attack pattern.
+        # needs lots o checking
         src = origin
         sid = 2 * distance
         pattern = []
@@ -68,7 +69,7 @@ class Weapon(Stone):
                 continue
             half = i / 2
             in_range = xrange(-half, half + 1)
-            #rotate pattern based on direction
+            # rotate pattern based on direction
             for j in xrange(len(in_range)):
                 if pointing == 'North':
                     pattern.append((src[0] + in_range[j],
@@ -86,6 +87,7 @@ class Weapon(Stone):
 
 
 class Sword(Weapon):
+
     """Close range physial weapon"""
     kind = 'p'
 
@@ -94,6 +96,7 @@ class Sword(Weapon):
 
 
 class Bow(Weapon):
+
     """Long range physical weapon"""
     kind = 'p'
 
@@ -112,6 +115,7 @@ class Bow(Weapon):
 
 
 class Wand(Weapon):
+
     """Long range magical weapon"""
     kind = 'm'
 
@@ -124,8 +128,8 @@ class Wand(Weapon):
     def make_pattern(self, origin, distance, pointing):
         """generates a pattern based on an origin, distance, and
         direction. Returns a set of coords"""
-        #TODO: use inversion to create wand attack pattern.
-        #needs lots o checking
+        # TODO: use inversion to create wand attack pattern.
+        # needs lots o checking
         src = origin
         sid = 2 * distance
         pattern = []
@@ -135,7 +139,7 @@ class Wand(Weapon):
                 continue
             half = i / 2
             in_range = xrange(-half, half + 1)
-            #rotate pattern based on direction
+            # rotate pattern based on direction
             for j in xrange(len(in_range)):
                 if pointing == 'North':
                     pattern.append((src[0] + in_range[j],
@@ -165,6 +169,7 @@ class Wand(Weapon):
 
 
 class Glove(Weapon):
+
     """Close range magical weapon"""
     kind = 'm'
 
@@ -182,7 +187,7 @@ def rand_weapon(element=None, weapon=None, max_value=255):
     if element not in ELEMENTS:
         raise ValueError('Unknown element {0}'.format(element))
     if weapon is None:
-        weapon = choice(weapons)
+        weapon = choice(weapons.keys())
     if weapon not in weapons:
         raise ValueError('Invalid weapon {0}'.format(weapon))
     weapon = weapons[weapon]

@@ -24,11 +24,13 @@ class WorldTest(FlaskTestDB):
         World(create_fields=True)
         mock_create.assert_called_once_with()
 
+    @patch.object(World, '_populate_fields')
     @patch.object(World, '_distribute_fields_to_players')
-    def test_start(self, mock_dist):
+    def test_start(self, mock_dist, mock_pop):
         w = World()
         w.start()
         mock_dist.assert_called_once_with()
+        mock_pop.assert_called_once_with()
 
     def test_award_field_not_participating(self):
         w = World()

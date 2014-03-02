@@ -23,8 +23,7 @@ Field clock:
 
 class WorldClock(Persistent):
 
-    def __init__(self, world):
-        self.world = world
+    def __init__(self):
         self.dob = now()
         self._current = self.get_current_state()
 
@@ -47,7 +46,7 @@ class WorldClock(Persistent):
         """ Returns the current computed clock interval values since dob """
         return {k: getattr(self, k) for k in CLOCK}
 
-    def tick(self):
+    def tick(self, fields):
         """ Updates the clock state, and does necessary actions if the
         day or season changes.
         Call this at least once per game day (4 minutes)
@@ -65,17 +64,17 @@ class WorldClock(Persistent):
         '''
         next = self.get_current_state()
         if next['day'] > self._current['day']:
-            self.change_day()
+            self.change_day(fields)
         if next['season'] > self._current['season']:
-            self.change_season()
+            self.change_season(fields)
         self._current = next
 
-    def change_day(self):
-        for field in self.world.fields.values():
+    def change_day(self, fields):
+        for field in fields.values():
             field.clock.change_day()
 
-    def change_season(self):
-        for field in self.world.fields.values():
+    def change_season(self, fields):
+        for field in fields.values():
             field.clock.change_season()
 
     def _get_interval_value(self, interval):
@@ -84,10 +83,11 @@ class WorldClock(Persistent):
     def __getattribute__(self, k):
         """ Computes day, week, year, season, generation on demand
         """
+        s = super(WorldClock, self)
         if k in CLOCK:
-            return object.__getattribute__(self, '_get_interval_value')(k)
+            return s.__getattribute__('_get_interval_value')(k)
         else:
-            return object.__getattribute__(self, k)
+            return s.__getattribute__(k)
 
     def __setattr__(self, k, v):
         if k in CLOCK:

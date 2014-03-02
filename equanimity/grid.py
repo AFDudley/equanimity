@@ -149,6 +149,13 @@ class Grid(Stone):
         cls._inverted_vectors = bidict(inverted(cls.vectors))
         return cls._inverted_vectors
 
+    @classmethod
+    def is_adjacent(cls, q, r):
+        """ Returns whether hex q is adjacent to hex r """
+        q = Hex._make(q)
+        r = Hex._make(r)
+        return (q - r) in cls.inverted_vectors
+
     def __init__(self, comp=None, radius=8, tiles=None):
         if radius <= 0:
             raise ValueError('Invalid hex grid radius {0}'.format(radius))
@@ -216,12 +223,6 @@ class Grid(Stone):
             return self.filter_tiles(tiles)
         else:
             return set(tiles)
-
-    def is_adjacent(self, q, r):
-        """ Returns whether hex q is adjacent to hex r """
-        q = Hex._make(q)
-        r = Hex._make(r)
-        return (q - r) in self.inverted_vectors
 
     def get_triangulating_vectors(self, direction):
         """ Returns the vector for direction, and the vector for the direction
@@ -396,4 +397,4 @@ class SquareGrid(Stone):
         adj = [Hex._make(a) for a in adj]
         if filtered:
             adj = filter(self.in_bounds, adj)
-        return adj
+        return set(adj)
