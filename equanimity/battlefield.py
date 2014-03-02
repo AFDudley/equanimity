@@ -40,7 +40,7 @@ class Battlefield(object):
 
     def get_units(self):
         """looks in squads, returns all units in squads."""
-        #Squads should be made immutable somewhere in Battlefield.
+        # Squads should be made immutable somewhere in Battlefield.
         units = []
         for squad in self.squads:
             if squad is not None:
@@ -162,6 +162,7 @@ class Battlefield(object):
         return drctns
 
     def put_squads_on_field(self):
+        # TODO -- automatically assign field positions if unassigned
         for unit in self.defsquad:
             self.place_object(unit)
         for unit in self.atksquad:
@@ -302,8 +303,8 @@ class Battlefield(object):
 
     def calc_ranged(self, atkr, target):
         """UGH"""
-        #use something like get_rotations to target 4 tiles at a time.
-        #maybe it should magically hit 4 contigious tiles?
+        # use something like get_rotations to target 4 tiles at a time.
+        # maybe it should magically hit 4 contigious tiles?
         pass
 
     def calc_damage(self, atkr, defdr, target_loc=None):
@@ -320,8 +321,9 @@ class Battlefield(object):
         dmg_lst = []
         in_range = self.map_to_grid(aloc, weapon)
         if not (set(dlocs) & set(in_range)):
-            msg = "Defender's location: {0} is outside of attacker's range"
-            raise ValueError(msg.format(dlocs))
+            msg = ("Defenders' locations: {0} is outside of attacker's " +
+                   "range, located at {1}")
+            raise ValueError(msg.format(dlocs, aloc))
 
         if target_loc is None:
             target_loc = defdr.location

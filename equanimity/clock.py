@@ -49,7 +49,10 @@ class WorldClock(Persistent):
     def tick(self, fields):
         """ Updates the clock state, and does necessary actions if the
         day or season changes.
-        Call this at least once per game day (4 minutes)
+        Call this at least once per game day (4 minutes).
+
+        When this function is called, it will advance clocks if enough time
+        has elapsed.  Otherwise no action occurs
         """
 
         '''
@@ -71,7 +74,7 @@ class WorldClock(Persistent):
 
     def change_day(self, fields):
         for field in fields.values():
-            field.clock.change_day()
+            field.clock.change_day(field)
 
     def change_season(self, fields):
         for field in fields.values():
@@ -97,28 +100,26 @@ class WorldClock(Persistent):
 
 class FieldClock(Persistent):
 
-    def __init__(self, field, season=E):
-        self.field = field
+    def __init__(self, season=E):
         self.season = season
 
-    @property
-    def state(self):
-        if self.season == self.field.element:
+    def state(self, field):
+        if self.season == field.element:
             return FIELD_YIELD
         else:
             return FIELD_PRODUCE
 
-    def change_day(self):
+    def change_day(self, field):
         """ Process the field's queues """
-        if self.field.in_battle:
+        if field.in_battle:
             # We can't process the next queued action until that battle
             # is resolved. When that battle completes, it will trigger the
             # next action
             return
         # Do the next battle or movement
-        self.field.process_battle_and_movement()
+        field.process_battle_and_movement()
         # Revert to the WorldPlayer if left empty
-        self.field.check_ungarrisoned()
+        field.check_ungarrisoned()
 
     def change_season(self):
         """ Move to the next season """

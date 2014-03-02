@@ -4,9 +4,11 @@ from common import hack_syspath
 hack_syspath(__file__)
 
 import transaction
+import random
+from itertools import ifilter
 from client import EquanimityClient
 from equanimity.grid import Grid, Hex
-from equanimity.world import World
+from equanimity.field import Field
 from server.decorators import script
 
 
@@ -34,39 +36,41 @@ def start_game(p, q):
 
 
 @script()
-def tick_clock(world):
+def force_start_battle(world, df):
     # Field clock must tick.  There is no RPC to force the clock to tick,
-    # so we import it here.
-    w = World.get(world['uid'])
-    w.clock.tick(w.fields)
+    # so we import it here.  We also bypass the time counting, and forecfully
+    # advance the field's day (this only processes the field queue)
+    f = Field.get(world['uid'], df['coordinate'])
+    if not f.queue.queue:
+        raise ValueError("Field queue is empty")
+    f.clock.change_day(f)
     transaction.commit()
+
+
+def find_first(predicate, seq):
+    return next(ifilter(predicate, seq), None)
 
 
 def get_adjacent_enemy_fields(fields, p, q):
     # All visible enemy fields are adjacent to one of ours, so pick one of
     # those first
-    df = None
-    for f in fields:
-        if f['owner'] == q.player['uid']:
-            df = f
-            break
+    df = find_first(lambda f: f['owner'] == q.player['uid'], fields)
     if df is None:
         raise ValueError('No defender found to be attacked')
 
     # Pick any field of the attacker's that is adjacent
-    af = None
-    for f in fields:
+    def matches(f):
         adj = Grid.is_adjacent(f['coordinate'], df['coordinate'])
-        if f['owner'] == p.player['uid'] and adj:
-            af = f
-            break
+        return f['owner'] == p.player['uid'] and adj
+
+    af = find_first(matches, fields)
     if af is None:
         raise ValueError('No adjacent attacking field for chosen defender')
 
     return df, af
 
 
-def get_attacking_squad(world, stronghold, p, af):
+def get_stronghold_squad(world, stronghold, p):
     squad = None
     if stronghold['squads']:
         squad = stronghold['squads'][0]
@@ -74,12 +78,12 @@ def get_attacking_squad(world, stronghold, p, af):
         if stronghold['free_units']:
             units = [u['uid'] for u in stronghold['free_units']]
             sq = p.must_rpc('stronghold.form_squad', world['uid'],
-                            af['coordinate'], units)
+                            stronghold['field'], units)
             squad = sq['result']['squad']
         else:
             raise ValueError('No squads, no free units')
     if squad is None:
-        raise ValueError('Could not acquire an attacking squad')
+        raise ValueError('Could not find a squad')
     return squad
 
 
@@ -102,20 +106,123 @@ def setup_battle(world, p, q):
     df, af = get_adjacent_enemy_fields(fields, p, q)
 
     # Get the attacker's stronghold info
-    stronghold = p.must_rpc('info.stronghold', world['uid'], af['coordinate'])
-    stronghold = stronghold['result']['stronghold']
+    astr = p.must_rpc('info.stronghold', world['uid'], af['coordinate'])
+    astr = astr['result']['stronghold']
 
     # Get the attacking squad
-    squad = get_attacking_squad(world, stronghold, p, af)
+    asq = get_stronghold_squad(world, astr, p)
+
+    # Choose the attacking scient's position on the field
+    for i, uid in enumerate(asq['units']):
+        p.must_rpc('stronghold.place_unit', uid, [i + 1, 0])
+
+    # Get the defender's stronghold info
+    dstr = q.must_rpc('info.stronghold', world['uid'], df['coordinate'])
+    dstr = dstr['result']['stronghold']
+
+    # Get the defending squad
+    dsq = get_stronghold_squad(world, dstr, q)
+
+    # Choose the defender's position on the field so that it is easy to kill
+    for i, uid in enumerate(dsq['units']):
+        q.must_rpc('stronghold.place_unit', uid, [i + 1, 0])
 
     # Move squad from p's field to q's
-    move_squad(world, squad, df, af, p)
+    move_squad(world, asq, df, af, p)
+
+    # Make sure we see the attacking squad in the defending field queue
+    df = q.must_rpc('info.field', world['uid'], df['coordinate'])
+    df = df['result']['field']
+    print df['queue']
+    if not df['queue']:
+        raise ValueError("No attacking squad in defending field queue")
 
     # Update the world clock so that the battle starts
-    tick_clock(world)
+    print 'Forcing battle start'
+    force_start_battle(world, df)
+
+    return af, df
 
 
-def battle(p, q):
+def attack_or_move(world, df, p, au, du):
+    print 'Attacking or moving'
+    r = p.rpc('battle.attack', world['uid'], df['coordinate'], au['uid'],
+              du['location'])
+    if r.get('error') is None:
+        # Attack again
+        print 'Successful attack, doing it again'
+        r = p.rpc('battle.attack', world['uid'], df['coordinate'], au['uid'],
+                  du['location'])
+        if r.get('error') is None:
+            print 'Successful second attack'
+        else:
+            print 'Second attack failed:'
+            print r['error']
+    else:
+        print 'Failed to attack:'
+        print r['error']
+        print 'Moving instead'
+        # Move and pass
+        pos = au['location']
+        moved = False
+        vectors = Grid.inverted_vectors.keys()
+        random.shuffle(vectors)
+        for v in vectors:
+            pos[0] += v.q
+            pos[1] += v.r
+            r = p.rpc('battle.move', world['uid'], df['coordinate'], au['uid'],
+                      pos)
+            if r.get('error') is None:
+                print 'Moved to ', pos
+                au['location'] = pos
+                moved = True
+                break
+            else:
+                print 'Movement attempt to {} failed'.format(v)
+        if not moved:
+            print 'Couldn\'t move, doing an extra pass'
+            p.must_rpc('battle.pass', world['uid'], df['coordinate'],
+                       au['uid'])
+    p.must_rpc('battle.pass', world['uid'], df['coordinate'], au['uid'])
+
+
+def pass_all(world, df, q, du):
+    print 'Passing all defender moves'
+    for i in range(2):
+        q.rpc('battle.pass', world['uid'], df['coordinate'], du['uid'])
+
+
+def _battle(world, df, p, q, battle):
+    """ The actual battle """
+    asq = battle['attacker']['squad']
+    dsq = battle['defender']['squad']
+    au = asq['units'][0]
+    du = dsq['units'][0]
+
+    t = p.must_rpc('info.battle_timer', world['uid'], df['coordinate'])
+    t = t['result']['battle']['timer']
+
+    actions = [
+        lambda: attack_or_move(world, df, p, au, du),
+        lambda: pass_all(world, df, q, du),
+    ]
+    if t['current_unit'] == du['uid']:
+        actions.reverse()
+
+    # Move around until we are in range
+    while True:
+        for a in actions:
+            a()
+        print 'Checking battle status'
+        r = p.must_rpc('info.battle', world['uid'], df['coordinate'])
+        battle = r['result']['battle']
+        if battle['game_over']:
+            print 'Game is over'
+            print battle
+            break
+
+
+def battle(world, df, p, q):
     # p kills everything of q's
 
     # Get battle, field info
@@ -123,7 +230,15 @@ def battle(p, q):
     # Have q pass every turn
     # Once we've won, we should own the stronghold
 
-    pass
+    print 'Getting battle info'
+    battle = p.must_rpc('info.battle', world['uid'], df['coordinate'])
+    battle = battle['result']['battle']
+    print battle
+    print 'Attacker unit count:', len(battle['attacker']['squad']['units'])
+    print 'Defender unit count:', len(battle['defender']['squad']['units'])
+
+    print 'Attacking'
+    _battle(world, df, p, q, battle)
 
 
 def run_demo():
@@ -131,18 +246,16 @@ def run_demo():
     q = EquanimityClient()
     # Create two players
     create_player(p, 'atkr', 'atkrpassword', 'atkr@example.com')
-    print 'P Cookies', p.cookies
     create_player(q, 'dfdr', 'dfdrpassword', 'dfdr@example.com')
-    print 'Q Cookies', q.cookies
     # Start the game via the vestibule
     world = start_game(p, q)
     print 'World', world
 
     # How to initiate a battle?
     # Move squad?
-    setup_battle(world, p, q)
+    _, df = setup_battle(world, p, q)
 
-    battle(p, q)
+    battle(world, df, p, q)
 
 if __name__ == '__main__':
     run_demo()

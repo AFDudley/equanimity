@@ -133,14 +133,16 @@ class Squad(Container):
 
     def api_view(self):
         return dict(
-            name=self.name, units=[u.uid for u in self.units],
+            name=self.name,
+            units=[u.uid for u in self.units],
             stronghold=getattr(self.stronghold, 'location', None),
             stronghold_pos=self.stronghold_pos,
             queued_field=getattr(self.queued_field, 'world_coord', None)
         )
 
     def combatant_view(self):
-        return dict(name=self.name, owner=self.owner.uid,
+        return dict(name=self.name,
+                    owner=self.owner.uid,
                     units=[u.api_view() for u in self])
 
     def add_to_stronghold(self, stronghold, pos):

@@ -17,7 +17,7 @@ def _setup_full_queue():
     world = World()
     grid = Grid(radius=3)
     field = Field(world, (0, 0), I, grid=grid)
-    return FieldQueue(field)
+    return field, FieldQueue()
 
 
 def _mocked_squad():
@@ -29,19 +29,18 @@ def _mocked_squad():
 class FieldQueueTestSimple(TestCase):
 
     def test_create(self):
-        f = FieldQueue(1)
-        self.assertEqual(f.field, 1)
+        f = FieldQueue()
         self.assertFalse(f.queue)
 
     def test_flush(self):
-        f = FieldQueue(None)
+        f = FieldQueue()
         f.queue[1] = 10
         self.assertTrue(f.queue)
         f.flush()
         self.assertFalse(f.queue)
 
     def test_pop(self):
-        f = FieldQueue(None)
+        f = FieldQueue()
         self.assertIs(f.pop(), None)
         mock_unqueue = Mock()
         s = MagicMock(unqueue=mock_unqueue)
@@ -54,29 +53,30 @@ class FieldQueueTestSimple(TestCase):
 class FieldQueueTestDB(FlaskTestDB):
 
     def test_add(self):
-        f = _setup_full_queue()
+        field, f = _setup_full_queue()
         s, mock_queue_at = _mocked_squad()
-        f.add(s)
-        mock_queue_at.assert_called_once_with(f.field)
+        f.add(field, s)
+        mock_queue_at.assert_called_once_with(field)
         self.assertEqual(f.queue[Hex(0, 1)], s)
 
     def test_add_no_stronghold(self):
-        f = FieldQueue(None)
+        field, f = _setup_full_queue()
         self.assertExceptionContains(ValueError, 'must be in a stronghold',
-                                     f.add, Squad())
+                                     f.add, field, Squad())
 
     def test_add_not_adjacent(self):
-        f = _setup_full_queue()
+        field, f = _setup_full_queue()
         s = Squad()
         s.stronghold = AttributeDict(location=(0, 2))
         self.assertExceptionContains(ValueError, 'must be adjacent',
-                                     f.add, s)
+                                     f.add, field, s)
 
     def test_add_slot_taken(self):
-        f = _setup_full_queue()
+        field, f = _setup_full_queue()
         s, _ = _mocked_squad()
-        f.add(s)
-        self.assertExceptionContains(ValueError, 'slot is taken', f.add, s)
+        f.add(field, s)
+        self.assertExceptionContains(ValueError, 'slot is taken', f.add,
+                                     field, s)
 
 
 class FieldWorldTest(FlaskTestDBWorld):
@@ -198,7 +198,7 @@ class FieldTest(FlaskTestDB):
     def test_process_battle_and_movement_next_movement(self, mock_move):
         s, _ = _mocked_squad()
         s.owner = self.f.owner
-        self.f.queue.add(s)
+        self.f.queue.add(self.f, s)
         self.f.process_battle_and_movement()
         mock_move.assert_called_once_with(s)
 
@@ -206,7 +206,7 @@ class FieldTest(FlaskTestDB):
     def test_process_battle_and_movement_next_attacking(self, mock_start):
         s, _ = _mocked_squad()
         s.owner = None
-        self.f.queue.add(s)
+        self.f.queue.add(self.f, s)
         self.f.process_battle_and_movement()
         mock_start.assert_called_once_with(s)
 

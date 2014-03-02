@@ -24,33 +24,37 @@ class FieldQueue(Persistent):
 
     """ Manages requests to move into a field """
 
-    def __init__(self, field):
-        self.field = field
+    def __init__(self):
         self.flush()
 
     def flush(self):
         self.queue = OrderedDict()
 
-    def add(self, squad):
+    def add(self, field, squad):
         if squad.stronghold is None:
             msg = 'Squad must be in a stronghold to move to a field'
             raise ValueError(msg)
-        f = self.field
         sq_pos = squad.stronghold.location
-        if not f.grid.is_adjacent(f.world_coord, sq_pos):
+        if not field.grid.is_adjacent(field.world_coord, sq_pos):
             raise ValueError('Fields must be adjacent')
-        slot = sq_pos - f.world_coord
+        slot = sq_pos - field.world_coord
         if slot in self.queue:
             raise ValueError('Queue slot is taken')
         self.queue[slot] = squad
-        squad.queue_at(self.field)
+        squad.queue_at(field)
+        self._p_changed = 1
 
     def pop(self):
         """ Removes and returns the next item in the queue """
         if self.queue:
             s = self.queue.popitem(last=False)[1]
             s.unqueue()
+            self._p_changed = 1
             return s
+
+    def as_array(self):
+        return [dict(squad=sq.api_view(), slot=k)
+                for k, sq in self.queue.iteritems()]
 
 
 class Field(Persistent):
@@ -70,9 +74,9 @@ class Field(Persistent):
             grid = Grid()
         self.grid = grid
         self.element = element
-        self.clock = FieldClock(self)
+        self.clock = FieldClock()
         self.stronghold = Stronghold(self)
-        self.queue = FieldQueue(self)
+        self.queue = FieldQueue()
         self.plantings = {}
         self.game = None
         self._owner = None
@@ -90,7 +94,8 @@ class Field(Persistent):
                     element=self.element,
                     coordinate=self.world_coord,
                     state=self.state,
-                    clock=self.clock.api_view())
+                    clock=self.clock.api_view(),
+                    queue=self.queue.as_array())
 
     @property
     def in_battle(self):
@@ -101,7 +106,7 @@ class Field(Persistent):
         if self.in_battle:
             return FIELD_BATTLE
         else:
-            return self.clock.state
+            return self.clock.state(self)
 
     @property
     def owner(self):
@@ -129,14 +134,21 @@ class Field(Persistent):
         if self.game is not None and self.game.state['game_over']:
             # If the winner is not the owner, that means the stronghold was
             # still garrisoned, and we must start a new battle
+            print 'Have a game, and its over'
             if self.game.winner != self.owner:
+                print 'Restarting last battle'
                 self.start_battle(self.game.battlefield.atksquad)
         else:
+            print 'Getting next squad'
             next_squad = self.queue.pop()
+            if next_squad is None:
+                print 'Nothing in the field queue'
             if next_squad is not None:
                 if next_squad.owner == self.owner:
+                    print 'Moving friendly squad in'
                     self.stronghold.move_squad_in(next_squad)
                 else:
+                    print 'Starting new battle'
                     self.start_battle(next_squad)
 
     def start_battle(self, attacking_squad):

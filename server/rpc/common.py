@@ -12,6 +12,7 @@ def get_thing(cls, ids, name=None, check_owner=True):
         name = cls.__name__
     thing = cls.get(*ids)
     if thing is None:
+        ids = [getattr(id, 'uid', id) for id in ids]
         raise ValueError('Invalid {name} {ids}'.format(name=name, ids=ids))
     if check_owner and thing.owner != current_user._get_current_object():
         raise ValueError('You do not own this {name}'.format(name=name))

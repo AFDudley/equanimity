@@ -279,7 +279,9 @@ class Game(Persistent):
             timer=self.timer_view(),
             defender=self.defender.combatant_view(self.battlefield.defsquad),
             attacker=self.attacker.combatant_view(self.battlefield.atksquad),
-            action_num=self.state['num'])
+            action_num=self.state['num'],
+            game_over=self.state['game_over'],
+            winner=getattr(self.winner, 'api_view', lambda: None)())
 
     def map_locs(self):
         """maps unit name unto locations, only returns live units"""

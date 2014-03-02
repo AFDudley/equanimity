@@ -65,7 +65,8 @@ class Stronghold(Persistent):
         if self.defenders is not None:
             defenders = self.defenders.api_view()
         return dict(
-            field=self.location, silo=self.silo.api_view(),
+            field=self.location,
+            silo=self.silo.api_view(),
             weapons=[w.api_view() for w in self.weapons],
             free_units=[u.api_view() for u in self.free_units],
             squads=[s.api_view() for s in self.squads],
@@ -132,7 +133,7 @@ class Stronghold(Persistent):
         there is an adjacent field. """
         f = self.field.get_adjacent(direction)
         if f is not None:
-            f.queue.add(self.squads[squad_num])
+            f.queue.add(f, self.squads[squad_num])
             return True
         return False
 

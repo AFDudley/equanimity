@@ -72,7 +72,8 @@ class Player(Persistent, UserMixin):
 
     def combatant_view(self, squad):
         """ API data to return when requested as a combatant in a battle """
-        return dict(username=self.name, uid=self.uid,
+        return dict(username=self.name,
+                    uid=self.uid,
                     squad=squad.combatant_view())
 
     def get_fields(self, world):

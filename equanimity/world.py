@@ -145,7 +145,7 @@ class World(Persistent):
             kind = None
             if f.owner != self.player:
                 kind = 'Scient'
-            f.stronghold.populate(kind=kind)
+            f.stronghold.populate(kind=kind, size=1)
 
     def _choose_initial_field_element(self, coord):
         """ Decide what element to assign a field based on coordinate """

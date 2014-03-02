@@ -1,4 +1,4 @@
-from mock import patch, Mock, MagicMock
+from mock import patch, Mock, MagicMock, call
 from unittest import TestCase
 from datetime import timedelta, datetime
 from equanimity.clock import WorldClock, FieldClock
@@ -94,33 +94,34 @@ class WorldClockTestDB(FlaskTestDBWorld):
         self.w = WorldClock()
 
     @patch('equanimity.field.FieldClock.change_day')
-    def test_change_day(self, mock_clock):
-        self.w.change_day(self.world.fields)
-        mock_clock.assert_called_with()
+    def test_change_day(self, mock_change):
+        fields = self.world.fields
+        self.w.change_day(fields)
+        mock_change.assert_has_calls([call(f) for f in fields.values()])
 
     @patch('equanimity.field.FieldClock.change_season')
-    def test_change_season(self, mock_clock):
-        self.w.change_season(self.world.fields)
-        mock_clock.assert_called_with()
+    def test_change_season(self, mock_change):
+        fields = self.world.fields
+        self.w.change_season(fields)
+        mock_change.assert_has_calls([call() for f in fields.values()])
 
 
 class FieldClockTest(TestCase):
 
     def test_create(self):
-        f = FieldClock(7)
-        self.assertEqual(f.field, 7)
+        f = FieldClock()
         self.assertEqual(f.season, E)
-        f = FieldClock(7, season=F)
+        f = FieldClock(season=F)
         self.assertEqual(f.season, F)
 
     def test_state(self):
-        f = FieldClock(AttributeDict(element=E))
-        self.assertEqual(f.state, FIELD_YIELD)
-        f = FieldClock(AttributeDict(element=F))
-        self.assertEqual(f.state, FIELD_PRODUCE)
+        f = FieldClock()
+        self.assertEqual(f.state(AttributeDict(element=E)), FIELD_YIELD)
+        f = FieldClock()
+        self.assertEqual(f.state(AttributeDict(element=F)), FIELD_PRODUCE)
 
     def test_change_season(self):
-        f = FieldClock(None)
+        f = FieldClock()
         self.assertEqual(f.season, E)
         for i, e in enumerate(ELEMENTS[1:] + (ELEMENTS[0],)):
             f.change_season()
@@ -128,14 +129,16 @@ class FieldClockTest(TestCase):
 
     def test_change_day(self):
         mock_process = Mock()
-        f = FieldClock(MagicMock(in_battle=False,
-                       process_battle_and_movement=mock_process))
-        f.change_day()
+        f = FieldClock()
+        field = MagicMock(in_battle=False,
+                          process_battle_and_movement=mock_process)
+        f.change_day(field)
         mock_process.assert_called_once_with()
 
     def test_change_day_in_battle(self):
         mock_process = Mock()
-        f = FieldClock(MagicMock(in_battle=True,
-                       process_battle_and_movement=mock_process))
-        f.change_day()
+        f = FieldClock()
+        field = MagicMock(in_battle=True,
+                          process_battle_and_movement=mock_process)
+        f.change_day(field)
         mock_process.assert_not_called()
