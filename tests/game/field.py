@@ -115,7 +115,7 @@ class FieldTest(FlaskTestDB):
     def test_api_view(self):
         schema = Schema(dict(
             owner=int, element=str, coordinate=Hex, state=str,
-            clock=dict
+            clock=dict, queue=[dict(uid=int, slot=[int, int])],
         ))
         self.assertValidSchema(self.f.api_view(), schema)
 

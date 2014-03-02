@@ -14,9 +14,10 @@ class InfoTest(BattleTestBase):
         self.clock_schema = Schema(dict(clock=dict(dob=int, elapsed=int,
                                                    state=dict)))
         self._field_clock_schema = dict(season=unicode)
+        self._queue_schema = dict(uid=int, slot=[int, int])
         self._field_schema = dict(
             owner=int, element=unicode, coordinate=[int, int], state=unicode,
-            clock=self._field_clock_schema
+            clock=self._field_clock_schema, queue=[self._queue_schema],
         )
         self.field_schema = Schema(dict(field=self._field_schema))
         self.world_schema = Schema(dict(
@@ -44,7 +45,8 @@ class InfoTest(BattleTestBase):
         ))
         self.battle_schema = Schema(dict(battle=dict(
             timer=self._battle_timer_schema, defender=self.combatant_schema,
-            attacker=self.combatant_schema, action_num=int
+            attacker=self.combatant_schema, action_num=int, game_over=bool,
+            winner=Any(None, self.combatant_schema),
         )))
         self._squad_schema = Schema(dict(
             name=unicode, units=[int], stronghold=list,

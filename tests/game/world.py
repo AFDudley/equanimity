@@ -58,7 +58,8 @@ class WorldTest(FlaskTestDB):
     def test_populate_fields_no_players(self, mock_populate):
         w = World()
         w._populate_fields()
-        mock_populate.assert_has_calls([call(kind=None) for x in w.fields])
+        calls = [call(kind=None, size=1) for x in w.fields]
+        mock_populate.assert_has_calls(calls)
 
     @patch('equanimity.stronghold.Stronghold.populate')
     def test_populate_fields(self, mock_populate):
@@ -67,7 +68,8 @@ class WorldTest(FlaskTestDB):
         for f in w.fields.itervalues():
             f.owner = p
         w._populate_fields()
-        mock_populate.assert_has_calls([call(kind='Scient') for x in w.fields])
+        calls = [call(kind='Scient', size=1) for x in w.fields]
+        mock_populate.assert_has_calls(calls)
 
     def test_choose_initial_field_element(self):
         w = World()
