@@ -6,7 +6,6 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 import random
 from persistent import Persistent
-from math import ceil
 from collections import OrderedDict
 
 from worldtools import get_world
@@ -211,15 +210,6 @@ class Field(Persistent):
         for unit, pos in zip(squad, positions):
             self.place_scient(unit, pos)
 
-    def set_stronghold_capacity(self):
-        """Uses grid.value to determine stronghold capacity."""
-        # squad points. scient = 1 nescient = 2
-        # capacity increases at:
-        # [61, 125, 189, 253, 317, 381, 445, 509, 573, 637, 701, 765, 829,
-        #  893, 957,]
-        spaces = ceil((self.grid.value() + 4) / 64.0)
-        self.stronghold.units.free_spaces = int(spaces) * 8
-
     def get_tile_comps(self):
         """returns a list of stones 1/8th the value of the tile comps."""
         stone_list = []
@@ -253,7 +243,6 @@ class Field(Persistent):
                 self.grid._p_changed = 1
                 self.element = get_element(self.grid.comp)
                 self._p_changed = 1
-                self.set_stronghold_capacity()
                 self.set_silo_limit()
 
     def harvest(self):

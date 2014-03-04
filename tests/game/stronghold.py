@@ -240,6 +240,28 @@ class StrongholdTest(FlaskTestDBWorld):
             self.assertEqual(s, self.s.units.get(s.uid))
         self.assertEqual(len(self.s.units), len(scients))
 
+    @patch('equanimity.grid.Grid.value')
+    def test_max_occupancy(self, mock_val):
+        mock_val.return_value = 0
+        self.assertEqual(self.s.max_occupancy, 8)
+        mock_val.return_value = 60
+        self.assertEqual(self.s.max_occupancy, 8)
+        mock_val.return_value = 61
+        self.assertEqual(self.s.max_occupancy, 16)
+        mock_val.return_value = 64
+        self.assertEqual(self.s.max_occupancy, 16)
+        mock_val.return_value = (64 * 100) - 4
+        self.assertEqual(self.s.max_occupancy, 800)
+        mock_val.return_value = (64 * 100) - 4 + 1
+        self.assertEqual(self.s.max_occupancy, 808)
+        mock_val.return_value = (64 * 100) - 4 - 1
+        self.assertEqual(self.s.max_occupancy, 800)
+        for i in range(101, 10111, 3):
+            mock_val.return_value = i
+            x = (i + 4) // 64
+            x += 1 if (i + 4) % 64 else 0
+            self.assertEqual(self.s.max_occupancy, x * 8)
+
     def test_occupancy(self):
         scients = []
         for i in xrange(6):
@@ -323,8 +345,10 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(self.s.silo.value(), 128 - scient.value() * 2)
         self.assertEqual(self.s.units[scient.uid], scient)
         self.assertEqual(self.s.free_units[scient.uid], scient)
-        # Occupancy met
-        self.s.max_occupancy = 1
+
+    @patch.object(Stronghold, 'max_occupancy')
+    def test_form_scient_max_occupancy(self, mock_max):
+        mock_max.__get__ = Mock(return_value=0)
         self.assertExceptionContains(ValueError, 'Not enough room',
                                      self.s.form_scient, E,
                                      create_comp(earth=1), name='test2')
@@ -403,19 +427,23 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(sq.stronghold, self.s)
         self.assertIsNot(sq.stronghold_pos, None)
 
-    def test_form_squad_error(self):
-        start_units = len(self.s.free_units)
-        self.s.free_units.max_free_spaces = 20
-        self.s.free_units.free_spaces = 20
-        n_units = 20
+    @patch('equanimity.grid.Grid.value')
+    def test_form_squad_error(self, mock_value):
+        mock_value.return_value = 128
+        self.assertEqual(len(self.s.free_units), 0)
+        self.s.free_units.max_free_spaces = self.s.max_occupancy
+        self.s.free_units.free_spaces = self.s.max_occupancy
+        n_units = self.s.max_occupancy
+        self.assertGreater(n_units, 0)
         scients = [self.s.form_scient(E, create_comp(earth=1))
                    for i in range(n_units)]
         uids = [s.uid for s in scients]
         sq = self.s.form_squad(unit_ids=uids, name='sq')
-        # squad should not be filled up
+        # Squad should not use all of the units, since there are more units
+        # than can fit in the squad. This triggers the exception, which keeps
+        # the units in the free_units pool
         self.assertLess(len(sq), n_units)
-        self.assertEqual(len(self.s.free_units) - start_units,
-                         n_units - len(sq))
+        self.assertEqual(len(self.s.free_units), n_units - len(sq))
 
     def test_garrisoned(self):
         self.assertFalse(self.s.garrisoned)
@@ -505,8 +533,10 @@ class StrongholdTest(FlaskTestDBWorld):
         # Already in free units
         self.assertExceptionContains(ValueError, 'already in free units',
                                      self.s.add_free_unit, unit)
-        # Occupancy met
-        self.s.max_occupancy = 1
+
+    @patch.object(Stronghold, 'max_occupancy')
+    def test_add_free_unit_max_occupancy(self, mock_max):
+        mock_max.__get__ = Mock(return_value=0)
         unit = Scient(I, create_comp(ice=1))
         self.assertExceptionContains(ValueError, 'Not enough room',
                                      self.s.add_free_unit, unit)
@@ -580,10 +610,12 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(s.stronghold, self.s)
         mock_remove.assert_called_once_with(0)
 
-    def test_move_squad_in_max_occupancy(self):
+    @patch('equanimity.stronghold.Stronghold.max_occupancy')
+    def test_move_squad_in_max_occupancy(self, mock_max):
+        mock_max.__get__ = Mock(return_value=0)
         unit = Scient(E, create_comp(earth=1))
         s = Squad(owner=self.s.owner, data=[unit])
-        self.s.max_occupancy = 0
+        self.assertGreater(s.size, 0)
         self.assertExceptionContains(ValueError, 'Not enough room',
                                      self.s.move_squad_in, s)
 

@@ -1,6 +1,6 @@
 import itertools
 from unittest import TestCase
-from mock import MagicMock, patch, call
+from mock import MagicMock, patch, call, Mock
 from operator import methodcaller
 from datetime import timedelta, datetime
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
@@ -838,7 +838,9 @@ class ActionQueueTest(GameTestBase):
             self.assertTrue(pos_tested)
             self.assertTrue(atk_tested)
 
-    def test_queue_order(self):
+    @patch('equanimity.stronghold.Stronghold.max_occupancy')
+    def test_queue_order(self, mock_max):
+        mock_max.__get__ = Mock(return_value=128)
         # Test with the random squads
         self.assertQueueOrder()
         # Test with hand-crafted squad intended to catch all cases

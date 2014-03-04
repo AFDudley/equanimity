@@ -32,7 +32,6 @@ class Stronghold(Persistent):
                 return field.stronghold
 
     def __init__(self, field):
-        self.max_occupancy = 32
         self._defenders = None
         self.field = field
         self.silo = Silo()
@@ -69,6 +68,14 @@ class Stronghold(Persistent):
         """ Returns spaces used by occupying units """
         sizes = [sq.size for sq in self.squads]
         return sum(sizes) + self.free_units.size
+
+    @property
+    def max_occupancy(self):
+        base = self.field.grid.value() + 4
+        spaces = base // 64
+        if base % 64:
+            spaces += 1
+        return spaces * 8
 
     @property
     def garrisoned(self):
@@ -158,7 +165,8 @@ class Stronghold(Persistent):
         """ Move foreign squad into here """
         if squad.size + self.occupancy > self.max_occupancy:
             raise ValueError("Not enough room in stronghold for squad")
-        squad.stronghold.remove_squad(squad.stronghold_pos)
+        if squad.stronghold is not None:
+            squad.stronghold.remove_squad(squad.stronghold_pos)
         self._add_squad(squad)
 
     def form_squad(self, unit_ids=tuple(), name=None):
@@ -528,6 +536,7 @@ class SparseList(Persistent):
         while self.index in self.items:
             self.index += 1
         self.items[self.index] = item
+        self._p_changed = 1
         return self.index
 
     def __len__(self):
@@ -538,9 +547,11 @@ class SparseList(Persistent):
 
     def __setitem__(self, pos, item):
         self.items[pos] = item
+        self._p_changed = 1
 
     def __delitem__(self, pos):
         del self.items[pos]
+        self._p_changed = 1
 
     def __iter__(self):
         return self.items.itervalues()
@@ -552,6 +563,7 @@ class SparseList(Persistent):
         return self.items.get(key, default)
 
     def pop(self, key):
+        self._p_changed = 1
         return self.items.pop(key)
 
 

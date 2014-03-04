@@ -28,7 +28,7 @@ class ArgsTest(TestCase):
                              params=['[0, 0]', '0', '"mysquad"'])
         process_args(args)
         mock_login.assert_called_with(args.username, args.password)
-        mock_rpc.assert_called_with(args.method, args.params)
+        mock_rpc.assert_called_with(args.method, *args.params)
 
     def test_get_args(self):
         try:
