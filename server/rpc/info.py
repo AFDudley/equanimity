@@ -2,8 +2,8 @@ from flask import Blueprint
 from flask.ext.login import current_user
 from server import jsonrpc
 from server.decorators import require_login
-from server.rpc.common import (get_field, get_unit, get_battle, get_stronghold,
-                               get_world)
+from server.rpc.common import (get_field, get_unit, get_stronghold, get_world,
+                               get_battle_by_id, get_battle)
 
 
 info = Blueprint('info', __name__, url_prefix='/api/info')
@@ -29,18 +29,25 @@ def field_info(world_id, field_loc):
     return dict(field=data)
 
 
-@jsonrpc.method('info.battle(int, list) -> dict', validate=True)
+@jsonrpc.method('info.field_battle(int, list) -> dict', validate=True)
 @require_login
-def battle_info(world_id, field_loc):
+def field_battle_info(world_id, field_loc):
     battle = get_battle(world_id, field_loc)
     return dict(battle=battle.api_view())
 
 
-@jsonrpc.method('info.battle_timer(int, list) -> dict', validate=True)
+@jsonrpc.method('info.battle(int) -> dict', validate=True)
 @require_login
-def battle_timer_info(world_id, field_loc):
-    battle = get_battle(world_id, field_loc)
-    return dict(battle=dict(timer=battle.timer_view()))
+def battle_info(battle_id):
+    battle = get_battle_by_id(battle_id)
+    return dict(battle=battle.api_view())
+
+
+@jsonrpc.method('info.battle_timer(int) -> dict', validate=True)
+@require_login
+def battle_timer_info(battle_id):
+    battle = get_battle_by_id(battle_id)
+    return dict(battle=dict(uid=battle.uid, timer=battle.timer_view()))
 
 
 @jsonrpc.method('info.unit(int) -> dict', validate=True)

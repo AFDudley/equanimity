@@ -14,7 +14,7 @@ from equanimity.stone import Stone
 from equanimity.player import Player
 from equanimity.unit_container import Squad, rand_squad
 from equanimity.battle import (now, Action, Message, ChangeList, BattleChanges,
-                               InitialState, Log, State, Game, BattleError)
+                               InitialState, Log, State, Battle, BattleError)
 
 
 class ActionTest(TestCase):
@@ -69,30 +69,30 @@ class InitialStateTest(TestCase):
                 self.assertEqual(i[k], v)
 
 
-class BattleTestBase(FlaskTestDBWorld):
+class BattleModuleTestBase(FlaskTestDBWorld):
 
     def assertGameOver(self, winner, condition):
-        self.assertTrue(self.game.state['game_over'])
-        self.assertEqual(self.game.winner, winner)
-        self.assertEqual(self.game.log['condition'], condition)
+        self.assertTrue(self.battle.state['game_over'])
+        self.assertEqual(self.battle.winner, winner)
+        self.assertEqual(self.battle.log['condition'], condition)
 
     def _add_action(self, **action_kwargs):
-        self.game.log['actions'].append(Action(**action_kwargs))
+        self.battle.log['actions'].append(Action(**action_kwargs))
 
     def _add_actions(self, count, **action_kwargs):
         [self._add_action(**action_kwargs) for i in xrange(count)]
 
     def _check(self):
-        self.s.check(self.game)
+        self.s.check(self.battle)
 
 
-class GameTestBase(BattleTestBase):
+class BattleTestBase(BattleModuleTestBase):
 
     def setUp(self):
-        super(GameTestBase, self).setUp()
-        self._setup_game()
+        super(BattleTestBase, self).setUp()
+        self._setup_battle()
 
-    def _setup_game(self, atksquad=None, defsquad=None, element=None):
+    def _setup_battle(self, atksquad=None, defsquad=None, element=None):
         if atksquad is None:
             atksquad = rand_squad(element=E, size=5)
         if defsquad is None:
@@ -109,16 +109,16 @@ class GameTestBase(BattleTestBase):
         f = self.world.fields[(0, 1)]
         f.owner = self.attacker
         f.stronghold._add_squad(atksquad)
-        self.game = Game(self.field, atksquad)
+        self.battle = Battle(self.field, atksquad)
         self.commit()
 
     @property
     def bf(self):
-        return self.game.battlefield
+        return self.battle.battlefield
 
     @property
     def f(self):
-        return self.game.field
+        return self.battle.field
 
     @property
     def units(self):
@@ -130,7 +130,7 @@ class GameTestBase(BattleTestBase):
     def _place_squads(self):
         self.f.rand_place_squad(self.attacker.get_squads(self.world.uid)[0])
         self.f.rand_place_squad(self.defender.get_squads(self.world.uid)[0])
-        self.game.start()
+        self.battle.start()
 
 
 class LogTest(FlaskTestDB):
@@ -186,23 +186,23 @@ class LogTest(FlaskTestDB):
         self.assertEqual(log.get_time_remaining_for_action().seconds, 0)
 
 
-class LogTestAdvanced(GameTestBase):
+class LogTestAdvanced(BattleTestBase):
 
     def test_last_message(self):
         self._place_squads()
         none = ['There was no message.']
         # No messages in log, at all
-        self.assertEqual(self.game.log.last_message(), none)
+        self.assertEqual(self.battle.log.last_message(), none)
         # No result in last message
-        self.game.log['messages'].append(AttributeDict(result=None))
-        self.assertEqual(self.game.log.last_message(), none)
+        self.battle.log['messages'].append(AttributeDict(result=None))
+        self.assertEqual(self.battle.log.last_message(), none)
         # A result in last message
         res = ['A message']
-        self.game.log['messages'].append(AttributeDict(result=res))
-        self.assertEqual(self.game.log.last_message(), res)
+        self.battle.log['messages'].append(AttributeDict(result=res))
+        self.assertEqual(self.battle.log.last_message(), res)
 
 
-class StateTest(BattleTestBase):
+class StateTest(BattleModuleTestBase):
 
     def setUp(self):
         super(StateTest, self).setUp()
@@ -218,8 +218,8 @@ class StateTest(BattleTestBase):
         f = self.world.fields[(0, 1)]
         f.owner = self.attacker
         f.stronghold._add_squad(atksquad)
-        self.game = Game(self.field, atksquad)
-        self.s = State(self.game)
+        self.battle = Battle(self.field, atksquad)
+        self.s = State(self.battle)
         self.s['old_defsquad_hp'] = defsquad.hp()
 
     def test_create(self):
@@ -240,13 +240,13 @@ class StateTest(BattleTestBase):
 
     def test_complete_turn_no_defender_damage(self):
         self.s['num'] = 4
-        self.s['old_defsquad_hp'] = self.game.battlefield.defsquad.hp() - 1
+        self.s['old_defsquad_hp'] = self.battle.battlefield.defsquad.hp() - 1
         self._add_actions(4)
         self._check()
         self.assertEqual(self.s['hp_count'], 0)
 
     def test_complete_turn_defender_took_damage(self):
-        self.game.battlefield.defsquad[0].hp = 0
+        self.battle.battlefield.defsquad[0].hp = 0
         self._add_actions(4)
         self.s['num'] = 4
         self._check()
@@ -292,49 +292,51 @@ class StateTest(BattleTestBase):
         self.assertGameOver(self.defender, 'Both sides passed')
 
 
-class GameTest(GameTestBase):
+class GameTest(BattleTestBase):
 
     def setUp(self):
         super(GameTest, self).setUp()
 
     def test_create(self):
-        self.assertEqual(self.game.attacker, self.attacker)
-        self.assertEqual(self.game.defender, self.defender)
-        self.assertEqual(sorted(set(self.game.log['owners'].values())),
+        self.assertEqual(self.battle.attacker, self.attacker)
+        self.assertEqual(self.battle.defender, self.defender)
+        self.assertEqual(sorted(set(self.battle.log['owners'].values())),
                          sorted(['Atk', 'Def']))
 
     def test_put_squads_on_field(self):
         self._place_squads()
-        self.assertTrue(self.game.log['init_locs'])
+        self.assertTrue(self.battle.log['init_locs'])
         for unit in self.units:
             self.assertIsNot(unit.location, None)
             self.assertNotEqual(unit.location, Hex.null)
 
     def test_map_locs(self):
         self._place_squads()
-        locs = self.game.map_locs()
-        self.assertEqual(sorted(locs.keys()), sorted(self.game.units.values()))
+        locs = self.battle.map_locs()
+        self.assertEqual(
+            sorted(locs.keys()), sorted(self.battle.units.values()))
         self.assertEqual(sorted(locs.values()),
                          sorted([u.location for u in self.units]))
 
     def test_hps(self):
         self._place_squads()
-        hps = self.game.HPs()
-        self.assertEqual(sorted(hps.keys()), sorted(self.game.units.values()))
+        hps = self.battle.HPs()
+        self.assertEqual(
+            sorted(hps.keys()), sorted(self.battle.units.values()))
         self.assertEqual(sorted(hps.values()),
                          sorted([u.hp for u in self.units]))
 
     def test_update_unit_info(self):
         self._place_squads()
-        hps, locs = self.game.update_unit_info()
-        self.assertEqual(hps, self.game.HPs())
-        self.assertEqual(locs, self.game.map_locs())
+        hps, locs = self.battle.update_unit_info()
+        self.assertEqual(hps, self.battle.HPs())
+        self.assertEqual(locs, self.battle.map_locs())
 
     def test_map_queue(self):
         self._place_squads()
         dfdr = self.defender.get_squads(self.world.uid)[0][0]
         self.bf.dmg_queue[dfdr].append([100, 2])
-        dmg_q = self.game.map_queue()
+        dmg_q = self.battle.map_queue()
         self.assertTrue(dmg_q)
         self.assertIn(dfdr.uid, dmg_q)
         for uid, dmg in dmg_q.iteritems():
@@ -348,11 +350,11 @@ class GameTest(GameTestBase):
         dfdr = self.defender.get_squads(self.world.uid)[0][0]
         self.bf.dmg_queue[dfdr].append([1, 2])
         qd = self.bf.apply_queued()
-        self.assertEqual(self.game.map_result(qd), [[dfdr.uid, 1]])
+        self.assertEqual(self.battle.map_result(qd), [[dfdr.uid, 1]])
 
     def test_map_action(self):
         d = self.defender.get_squads(self.world.uid)[0][0]
-        act = self.game.map_action(unit=d)
+        act = self.battle.map_action(unit=d)
         self.assertEqual(act['unit'], d.uid)
 
     def test_apply_queued(self):
@@ -360,26 +362,26 @@ class GameTest(GameTestBase):
         self._add_actions(4)
         dfdr = self.defender.get_squads(self.world.uid)[0][0]
         self.bf.dmg_queue[dfdr].append([1, 2])
-        self.assertFalse(self.game.log['applied'])
-        self.game.apply_queued()
-        self.assertTrue(self.game.log['applied'])
+        self.assertFalse(self.battle.log['applied'])
+        self.battle.apply_queued()
+        self.assertTrue(self.battle.log['applied'])
 
     def test_get_last_state(self):
-        self.game.log['states'] = [1]
-        self.assertEqual(self.game.get_last_state(), 1)
-        self.game.log['states'] = []
-        self.assertIs(self.game.get_last_state(), None)
-        del self.game.log['states']
-        self.assertIs(self.game.get_last_state(), None)
+        self.battle.log['states'] = [1]
+        self.assertEqual(self.battle.get_last_state(), 1)
+        self.battle.log['states'] = []
+        self.assertIs(self.battle.get_last_state(), None)
+        del self.battle.log['states']
+        self.assertIs(self.battle.get_last_state(), None)
 
     def test_get_states(self):
-        self.game.log['states'] = [1]
-        self.assertEqual(self.game.get_states(), [1])
-        del self.game.log['states']
-        self.assertIs(self.game.get_states(), None)
+        self.battle.log['states'] = [1]
+        self.assertEqual(self.battle.get_states(), [1])
+        del self.battle.log['states']
+        self.assertIs(self.battle.get_states(), None)
 
     def test_initial_state(self):
-        init_state = self.game.initial_state()
+        init_state = self.battle.initial_state()
         self.assertTrue(isinstance(init_state, InitialState))
 
     def test_compute_award(self):
@@ -389,13 +391,13 @@ class GameTest(GameTestBase):
         weapon = Sword(E, wep_comp)
         wep_comp = wep_comp.copy().extract_award()
         self.defender.get_squads(self.world.uid)[0][0].equip(weapon)
-        awards = self.game.compute_awards(self.game.battlefield.squads)
+        awards = self.battle.compute_awards(self.battle.battlefield.squads)
         comp = comp.extract_award()
         self.assertEqual(awards, [comp, wep_comp])
 
     def test_clean_up_dead_units(self):
         # Set some hps to <= 0, and check that are removed from the stronghold
-        self.game.battlefield.squads[:]
+        self.battle.battlefield.squads[:]
         defsquad = self.defender.get_squads(self.world.uid)[0]
         atksquad = self.attacker.get_squads(self.world.uid)[0]
         self.assertEqual(defsquad,
@@ -409,7 +411,7 @@ class GameTest(GameTestBase):
         strongholdlen = len(defsquad.stronghold.squads)
         defstronghold = defsquad.stronghold
         defstronghold_pos = defsquad.stronghold_pos
-        self.game.clean_up_dead_units(self.game.battlefield.squads)
+        self.battle.clean_up_dead_units(self.battle.battlefield.squads)
         self.assertEqual(len(defsquad), defsquadlen - 1)
         self.assertEqual(len(atksquad), atksquadlen - 1)
         self.assertEqual(defsquad,
@@ -421,10 +423,10 @@ class GameTest(GameTestBase):
         self.assertNotEqual(len(defsquad), 0)
         for u in defsquad:
             u.hp = 0
-        self.assertEqual(defsquad, self.game.battlefield.defsquad)
-        self.assertIn(defsquad, self.game.battlefield.squads)
+        self.assertEqual(defsquad, self.battle.battlefield.defsquad)
+        self.assertIn(defsquad, self.battle.battlefield.squads)
         self.assertFalse(filter(lambda x: x.hp > 0, defsquad))
-        self.game.clean_up_dead_units(self.game.battlefield.squads)
+        self.battle.clean_up_dead_units(self.battle.battlefield.squads)
         self.assertIsNone(defsquad.stronghold)
         self.assertIsNone(defsquad.stronghold_pos)
         self.assertEqual(strongholdlen - 1, len(defstronghold.squads))
@@ -432,16 +434,16 @@ class GameTest(GameTestBase):
             defstronghold.squads.get(defstronghold_pos))
 
     def test_get_victors_and_prisoners(self):
-        self.game.winner = self.attacker
-        v, p = self.game.get_victors_and_prisoners()
-        self.assertEqual(list(v), list(self.game.battlefield.atksquad))
-        self.assertEqual(list(p), list(self.game.battlefield.defsquad))
-        self.game.winner = self.defender
-        v, p = self.game.get_victors_and_prisoners()
-        self.assertEqual(list(v), list(self.game.battlefield.defsquad))
-        self.assertEqual(list(p), list(self.game.battlefield.atksquad))
+        self.battle.winner = self.attacker
+        v, p = self.battle.get_victors_and_prisoners()
+        self.assertEqual(list(v), list(self.battle.battlefield.atksquad))
+        self.assertEqual(list(p), list(self.battle.battlefield.defsquad))
+        self.battle.winner = self.defender
+        v, p = self.battle.get_victors_and_prisoners()
+        self.assertEqual(list(v), list(self.battle.battlefield.defsquad))
+        self.assertEqual(list(p), list(self.battle.battlefield.atksquad))
 
-    @patch('equanimity.battle.Game.clean_up_dead_units')
+    @patch('equanimity.battle.Battle.clean_up_dead_units')
     @patch('equanimity.silo.Silo.imbue_list')
     @patch('equanimity.field.Field.get_taken_over')
     @patch('equanimity.stronghold.Stronghold.add_free_unit')
@@ -449,19 +451,19 @@ class GameTest(GameTestBase):
     def test_update_field_attacker_wins(self, mock_garr, mock_add, mock_taken,
                                         mock_imbue, mock_clean):
         # Update with attacker wins
-        self.game.winner = self.attacker
-        atksquad = self.game.battlefield.atksquad
-        defsquad = self.game.battlefield.defsquad
+        self.battle.winner = self.attacker
+        atksquad = self.battle.battlefield.atksquad
+        defsquad = self.battle.battlefield.defsquad
         prisoners = [u for u in defsquad]
         awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
-        self.game.update_field(atksquad, defsquad, awards, prisoners)
+        self.battle.update_field(atksquad, defsquad, awards, prisoners)
         mock_garr.assert_called_once_with()
         mock_add.assert_not_called()
         mock_clean.assert_called_once_with([atksquad, defsquad])
         mock_taken.assert_called_once_with(atksquad)
         mock_imbue.assert_called_once_with(awards)
 
-    @patch('equanimity.battle.Game.clean_up_dead_units')
+    @patch('equanimity.battle.Battle.clean_up_dead_units')
     @patch('equanimity.silo.Silo.imbue_list')
     @patch('equanimity.field.Field.get_taken_over')
     @patch('equanimity.stronghold.Stronghold.add_free_unit')
@@ -469,12 +471,12 @@ class GameTest(GameTestBase):
     def test_update_field_defender_wins(self, mock_garr, mock_add, mock_taken,
                                         mock_imbue, mock_clean):
         # Update with defender wins
-        self.game.winner = self.defender
-        atksquad = self.game.battlefield.atksquad
-        defsquad = self.game.battlefield.defsquad
+        self.battle.winner = self.defender
+        atksquad = self.battle.battlefield.atksquad
+        defsquad = self.battle.battlefield.defsquad
         prisoners = [u for u in atksquad]
         awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
-        self.game.update_field(atksquad, defsquad, awards, prisoners)
+        self.battle.update_field(atksquad, defsquad, awards, prisoners)
         mock_garr.assert_called_once_with()
         prisoners = sorted(prisoners, key=attrgetter('value'),
                            reverse=True)
@@ -483,7 +485,7 @@ class GameTest(GameTestBase):
         mock_taken.assert_not_called()
         mock_imbue.assert_called_once_with(awards)
 
-    @patch('equanimity.battle.Game.clean_up_dead_units')
+    @patch('equanimity.battle.Battle.clean_up_dead_units')
     @patch('equanimity.silo.Silo.imbue_list')
     @patch('equanimity.field.Field.get_taken_over')
     @patch('equanimity.stronghold.Stronghold.add_free_unit')
@@ -492,12 +494,12 @@ class GameTest(GameTestBase):
             self, mock_garr, mock_add, mock_taken, mock_imbue, mock_clean):
         # Update with defender wins
         mock_add.side_effect = ValueError
-        self.game.winner = self.defender
-        atksquad = self.game.battlefield.atksquad
-        defsquad = self.game.battlefield.defsquad
+        self.battle.winner = self.defender
+        atksquad = self.battle.battlefield.atksquad
+        defsquad = self.battle.battlefield.defsquad
         prisoners = [u for u in atksquad]
         awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
-        self.game.update_field(atksquad, defsquad, awards, prisoners)
+        self.battle.update_field(atksquad, defsquad, awards, prisoners)
         mock_garr.assert_called_once_with()
         prisoner = None
         for p in prisoners:
@@ -510,12 +512,12 @@ class GameTest(GameTestBase):
         mock_imbue.assert_called_once_with(awards)
 
     @patch('equanimity.silo.Silo.imbue_list')
-    @patch.object(Game, 'compute_awards')
+    @patch.object(Battle, 'compute_awards')
     def test_end(self, mock_compute_awards, mock_imbue):
         awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
         mock_compute_awards.return_value = awards
         self._place_squads()
-        self.game.winner = self.defender
+        self.battle.winner = self.defender
         defsquad = self.defender.get_squads(self.world.uid)[0]
         for u in defsquad[2:]:
             u.hp = 0
@@ -524,22 +526,22 @@ class GameTest(GameTestBase):
             u.hp = -1
         def_survivors = defsquad[:2]
         atk_survivors = atksquad[:1]
-        self.game.end('Defender won')
+        self.battle.end('Defender won')
         self.assertGameOver(self.defender, 'Defender won')
-        for u in self.game.log['change_list']['victors']:
+        for u in self.battle.log['change_list']['victors']:
             self.assertGreater(u.hp, 0)
-        for u in self.game.log['change_list']['prisoners']:
+        for u in self.battle.log['change_list']['prisoners']:
             self.assertGreater(u.hp, 0)
         self.assertEqual(sorted(def_survivors),
-                         sorted(self.game.log['change_list']['victors']))
+                         sorted(self.battle.log['change_list']['victors']))
         self.assertEqual(sorted(atk_survivors),
-                         sorted(self.game.log['change_list']['prisoners']))
+                         sorted(self.battle.log['change_list']['prisoners']))
         mock_compute_awards.assert_called_once_with(
-            self.game.battlefield.squads)
+            self.battle.battlefield.squads)
         mock_imbue.assert_called_once_with(awards)
 
 
-class BattleProcessActionTest(GameTestBase):
+class BattleProcessActionTest(BattleTestBase):
 
     def setUp(self):
         super(BattleProcessActionTest, self).setUp()
@@ -557,7 +559,7 @@ class BattleProcessActionTest(GameTestBase):
         return datetime.utcnow() - PLY_TIME - timedelta(minutes=5)
 
     def unit(self, num):
-        return self.game.action_queue.get_unit_for_action(num)
+        return self.battle.action_queue.get_unit_for_action(num)
 
     def assertActionResult(self, result, num, type, msg=None, target=Hex.null,
                            unit=None):
@@ -576,61 +578,62 @@ class BattleProcessActionTest(GameTestBase):
     def test_doing_nothing(self):
         # with no unit, no prev_unit, no prev_act, passing
         act = Action()
-        self.game.state = State(self.game, num=1)
-        ret = self.game.process_action(act)
+        self.battle.state = State(self.battle, num=1)
+        ret = self.battle.process_action(act)
         self.assertActionResult(ret, 1, 'pass', 'Action Passed.')
 
     def test_timeout_first_action_start_time(self):
-        self.game.log['start_time'] = self.past
+        self.battle.log['start_time'] = self.past
         act = Action(type='move', num=1, unit=self.unit(1))
-        self.game.state = State(self.game, num=1)
-        ret = self.game._process_action(act)
+        self.battle.state = State(self.battle, num=1)
+        ret = self.battle._process_action(act)
         self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.',
                                 unit=self.unit(1).uid)
 
     def test_timeout_second_action_start_time(self):
-        self.game.log['start_time'] = self.past
+        self.battle.log['start_time'] = self.past
         act = Action(type='move', unit=self.unit(2))
-        self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(num=1, unit=self.unit(1))]
-        ret = self.game._process_action(act)
+        self.battle.state = State(self.battle, num=2)
+        self.battle.log['actions'] = [Action(num=1, unit=self.unit(1))]
+        ret = self.battle._process_action(act)
         self.assertActionResult(ret, 2, 'timed_out', 'Failed to act.',
                                 unit=self.unit(2).uid)
 
     def test_timeout_first_action_after_other_action(self):
         act = Action(type='move', unit=self.unit(3))
-        self.game.state = State(self.game, num=3)
-        self.game.log['actions'] = [Action(unit=self.unit(1), when=self.past),
-                                    Action(unit=self.unit(2), when=self.past)]
-        ret = self.game._process_action(act)
+        self.battle.state = State(self.battle, num=3)
+        self.battle.log[
+            'actions'] = [Action(unit=self.unit(1), when=self.past),
+                          Action(unit=self.unit(2), when=self.past)]
+        ret = self.battle._process_action(act)
         self.assertActionResult(ret, 3, 'timed_out', 'Failed to act.',
                                 unit=self.unit(3).uid)
 
     def test_timeout_second_action_after_other_action(self):
         act = Action(type='move', num=4, unit=self.unit(4))
-        self.game.state = State(self.game, num=4)
-        self.game.log['actions'] = [Action(unit=self.unit(1), num=1,
-                                           when=self.past),
-                                    Action(unit=self.unit(2), num=2,
-                                           when=self.past),
-                                    Action(unit=self.unit(3), num=3)]
-        ret = self.game._process_action(act)
+        self.battle.state = State(self.battle, num=4)
+        self.battle.log['actions'] = [Action(unit=self.unit(1), num=1,
+                                             when=self.past),
+                                      Action(unit=self.unit(2), num=2,
+                                             when=self.past),
+                                      Action(unit=self.unit(3), num=3)]
+        ret = self.battle._process_action(act)
         self.assertActionResult(ret, 4, 'timed_out', 'Failed to act.',
                                 unit=self.unit(4).uid)
 
     def test_timed_out_action(self):
         act = Action(type='timed_out')
-        self.game.state = State(self.game, num=1)
-        ret = self.game.process_action(act)
+        self.battle.state = State(self.battle, num=1)
+        ret = self.battle.process_action(act)
         self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.')
 
     def test_fill_timed_out_actions(self):
-        start = self.game.log['start_time']
-        self.game.log['start_time'] = start - PLY_TIME * 3 - PLY_TIME / 2
-        self.game._fill_timed_out_actions()
-        actions = self.game.log['actions']
+        start = self.battle.log['start_time']
+        self.battle.log['start_time'] = start - PLY_TIME * 3 - PLY_TIME / 2
+        self.battle._fill_timed_out_actions()
+        actions = self.battle.log['actions']
         n = 6
-        self.assertEqual(self.game.state['num'], n + 1)
+        self.assertEqual(self.battle.state['num'], n + 1)
         self.assertEqual(len(actions), n)
         # All numbers should be in sequence
         for n, act in enumerate(actions):
@@ -647,18 +650,18 @@ class BattleProcessActionTest(GameTestBase):
             self.assertGreater(actions[i]['when'], actions[i - 2]['when'])
         # Processing an action should work as expected
         act = Action(type='pass', unit=self.unit(7))
-        ret = self.game.process_action(act)
+        ret = self.battle.process_action(act)
         self.assertActionResult(ret, 7, 'pass', 'Action Passed.',
                                 unit=self.unit(7).uid)
 
     def test_using_different_units(self):
         # get a ValueError by using two different units in a row
         act = Action(type='move', num=2, unit=self.unit(2))
-        self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(num=4, unit=self.unit(4))]
+        self.battle.state = State(self.battle, num=2)
+        self.battle.log['actions'] = [Action(num=4, unit=self.unit(4))]
         self.assertExceptionContains(BattleError,
                                      'Unit from the previous action',
-                                     self.game.process_action, act)
+                                     self.battle.process_action, act)
 
     def test_first_movement(self):
         # do a legitimate movement, on a first action
@@ -667,12 +670,13 @@ class BattleProcessActionTest(GameTestBase):
         self.bf.place_object(d)
         loc = Hex(0, 1)
         act = Action(type='move', unit=d, target=loc)
-        self.game.state = State(self.game, num=1)
-        self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        ret = self.game.process_action(act)
-        self.assertTrue(self.game.log['actions'])
-        self.assertTrue(self.game.log['messages'])
-        self.game.state.check.assert_called_with(self.game)
+        self.battle.state = State(self.battle, num=1)
+        self.battle.state.check = MagicMock(
+            side_effect=self.battle.state.check)
+        ret = self.battle.process_action(act)
+        self.assertTrue(self.battle.log['actions'])
+        self.assertTrue(self.battle.log['messages'])
+        self.battle.state.check.assert_called_with(self.battle)
         self.assertActionResult(ret, 1, 'move', target=loc, unit=d.uid)
 
     def test_second_movement(self):
@@ -682,30 +686,31 @@ class BattleProcessActionTest(GameTestBase):
         self.bf.place_object(d)
         loc = Hex(0, 1)
         act = Action(type='move', unit=d, target=loc)
-        self.game.state = State(self.game, num=2)
-        self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        self.game.log['actions'] = [Action(num=2, unit=d, type='pass')]
-        ret = self.game.process_action(act)
-        self.assertTrue(self.game.log['actions'])
-        self.assertTrue(self.game.log['messages'])
-        self.game.state.check.assert_called_with(self.game)
+        self.battle.state = State(self.battle, num=2)
+        self.battle.state.check = MagicMock(
+            side_effect=self.battle.state.check)
+        self.battle.log['actions'] = [Action(num=2, unit=d, type='pass')]
+        ret = self.battle.process_action(act)
+        self.assertTrue(self.battle.log['actions'])
+        self.assertTrue(self.battle.log['messages'])
+        self.battle.state.check.assert_called_with(self.battle)
         self.assertActionResult(ret, 2, 'move', unit=d.uid, target=loc)
 
     def test_double_movement(self):
         # cause an Exception by doing two sequential movements
         d = self.unit(2)
         act = Action(type='move', unit=d)
-        self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(num=2, unit=d, type='move')]
+        self.battle.state = State(self.battle, num=2)
+        self.battle.log['actions'] = [Action(num=2, unit=d, type='move')]
         self.assertExceptionContains(BattleError,
                                      'Second action in ply must be',
-                                     self.game.process_action, act)
+                                     self.battle.process_action, act)
 
     def test_unknown(self):
         # cause an Exception by doing an unknown action
         act = Action(type='xxx')
-        self.game.state = State(self.game, num=1)
-        self.assertRaises(BattleError, self.game.process_action, act)
+        self.battle.state = State(self.battle, num=1)
+        self.assertRaises(BattleError, self.battle.process_action, act)
 
     def test_first_attack(self):
         d = self.unit(1)
@@ -718,10 +723,11 @@ class BattleProcessActionTest(GameTestBase):
         d.equip(wep)
         loc = Hex(0, 1)
         act = Action(unit=d, type='attack', target=loc)
-        self.game.state = State(self.game, num=1)
-        self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        ret = self.game.process_action(act)
-        self.game.state.check.assert_called_with(self.game)
+        self.battle.state = State(self.battle, num=1)
+        self.battle.state.check = MagicMock(
+            side_effect=self.battle.state.check)
+        ret = self.battle.process_action(act)
+        self.battle.state.check.assert_called_with(self.battle)
         self.assertActionResult(ret, 1, type='attack', unit=d.uid, target=loc)
 
     def test_second_attack(self):
@@ -735,50 +741,52 @@ class BattleProcessActionTest(GameTestBase):
         d.equip(wep)
         loc = Hex(0, 1)
         act = Action(unit=d, num=2, type='attack', target=loc)
-        self.game.state = State(self.game, num=2)
-        self.game.state.check = MagicMock(side_effect=self.game.state.check)
-        self.game.log['actions'] = [Action(num=2, unit=d, type='pass')]
-        ret = self.game.process_action(act)
-        self.game.state.check.assert_called_with(self.game)
+        self.battle.state = State(self.battle, num=2)
+        self.battle.state.check = MagicMock(
+            side_effect=self.battle.state.check)
+        self.battle.log['actions'] = [Action(num=2, unit=d, type='pass')]
+        ret = self.battle.process_action(act)
+        self.battle.state.check.assert_called_with(self.battle)
         self.assertActionResult(ret, 2, type='attack', unit=d.uid, target=loc)
 
     def test_double_attack(self):
         d = self.unit(2)
         act = Action(type='attack', unit=d)
-        self.game.state = State(self.game, num=2)
-        self.game.log['actions'] = [Action(unit=d, num=2, type='attack')]
+        self.battle.state = State(self.battle, num=2)
+        self.battle.log['actions'] = [Action(unit=d, num=2, type='attack')]
         self.assertExceptionContains(BattleError,
                                      'Second action in ply must be',
-                                     self.game.process_action, act)
+                                     self.battle.process_action, act)
 
     def test_final_action(self):
-        self.game.apply_queued = MagicMock(side_effect=self.game.apply_queued)
-        self.game.state = State(self.game, num=4)
-        self.game.log['actions'] = [Action(num=i + 1, unit=self.unit(i + 1),
-                                           type='pass') for i in range(3)]
+        self.battle.apply_queued = MagicMock(
+            side_effect=self.battle.apply_queued)
+        self.battle.state = State(self.battle, num=4)
+        self.battle.log['actions'] = [Action(num=i + 1, unit=self.unit(i + 1),
+                                             type='pass') for i in range(3)]
         act = Action(type='pass', unit=self.unit(4))
-        ret = self.game.process_action(act)
-        self.game.apply_queued.assert_called_with()
+        ret = self.battle.process_action(act)
+        self.battle.apply_queued.assert_called_with()
         self.assertActionResult(ret, 4, type='pass', unit=self.unit(4).uid)
 
     def test_unexpected_unit(self):
         d = self.unit(6)
         act = Action(type='pass', unit=d)
         self.assertExceptionContains(BattleError, 'not the expected unit',
-                                     self.game.process_action, act)
+                                     self.battle.process_action, act)
 
 
-class ActionQueueTest(GameTestBase):
+class ActionQueueTest(BattleTestBase):
 
     def setUp(self):
         super(ActionQueueTest, self).setUp()
 
     @property
     def aq(self):
-        return self.game.action_queue
+        return self.battle.action_queue
 
     def test_create(self):
-        self.assertEqual(self.aq.game, self.game)
+        self.assertEqual(self.aq.battle, self.battle)
         self.assertEqual(len(self.aq.units), 10)
 
     def test_get_unit_for_action(self):
@@ -859,7 +867,7 @@ class ActionQueueTest(GameTestBase):
         # Different value tests value check
         atksquad.append(Scient(E, create_comp(earth=1)))
         defsquad.append(Scient(E, create_comp(earth=2)))
-        self._setup_game(atksquad=atksquad, defsquad=defsquad, element=E)
+        self._setup_battle(atksquad=atksquad, defsquad=defsquad, element=E)
         self.assertQueueOrder(require_all=True)
 
     def test_get_unit_key_bad_unit(self):

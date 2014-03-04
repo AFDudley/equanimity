@@ -12,7 +12,7 @@ from worldtools import get_world
 from stone import Stone, get_element
 from grid import Grid, Hex
 from player import WorldPlayer
-from battle import Game
+from battle import Battle
 from stronghold import Stronghold
 from clock import FieldClock
 from unit_container import Squad
@@ -77,7 +77,7 @@ class Field(Persistent):
         self.stronghold = Stronghold(self)
         self.queue = FieldQueue()
         self.plantings = {}
-        self.game = None
+        self.battle = None
         self._owner = None
         if owner is None:
             owner = WorldPlayer.get()
@@ -94,11 +94,12 @@ class Field(Persistent):
                     coordinate=self.world_coord,
                     state=self.state,
                     clock=self.clock.api_view(),
-                    queue=self.queue.as_array())
+                    queue=self.queue.as_array(),
+                    battle=getattr(self.battle, 'uid', None))
 
     @property
     def in_battle(self):
-        return (self.game is not None and not self.game.state['game_over'])
+        return (self.battle is not None and not self.battle.state['game_over'])
 
     @property
     def state(self):
@@ -130,29 +131,23 @@ class Field(Persistent):
         """ Starts a battle if an attacker is available, otherwise moves
         a friendly squad into the stronghold if available """
         # First, check if there was a previous battle and if it is over
-        if self.game is not None and self.game.state['game_over']:
+        if self.battle is not None and self.battle.state['game_over']:
             # If the winner is not the owner, that means the stronghold was
             # still garrisoned, and we must start a new battle
-            print 'Have a game, and its over'
-            if self.game.winner != self.owner:
-                print 'Restarting last battle'
-                self.start_battle(self.game.battlefield.atksquad)
+            if self.battle.winner != self.owner:
+                self.start_battle(self.battle.battlefield.atksquad)
         else:
-            print 'Getting next squad'
             next_squad = self.queue.pop()
-            if next_squad is None:
-                print 'Nothing in the field queue'
             if next_squad is not None:
                 if next_squad.owner == self.owner:
-                    print 'Moving friendly squad in'
                     self.stronghold.move_squad_in(next_squad)
                 else:
-                    print 'Starting new battle'
                     self.start_battle(next_squad)
 
     def start_battle(self, attacking_squad):
-        self.game = Game(self, attacking_squad)
-        self.game.start()
+        self.battle = Battle(self, attacking_squad)
+        self.battle.persist()
+        self.battle.start()
 
     def check_ungarrisoned(self):
         """ Reverts ownership to the WorldPlayer if unoccupied """

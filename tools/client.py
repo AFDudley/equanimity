@@ -90,16 +90,17 @@ class EquanimityClient(object):
         self.player = None
         return r
 
-    def rpc(self, method, *params):
+    def rpc(self, method, *params, **kwargs):
         methods = method.split('.')
         action = self.proxy
         for m in methods:
             action = getattr(action, m)
-        return action(params, cookies=self.cookies)
+        kwargs['cookies'] = self.cookies
+        return action(params, **kwargs)
 
-    def must_rpc(self, method, *params):
+    def must_rpc(self, method, *params, **kwargs):
         """ Raises an exception if the rpc had error """
-        r = self.rpc(method, *params)
+        r = self.rpc(method, *params, **kwargs)
         err = r.get('error')
         if err is not None:
             raise ValueError(err)

@@ -44,6 +44,8 @@ def init_db(reset=False, verbose=False, grid_radius=8, square_grid=False):
                  worlds=lambda: IOBTree(),
                  rate_limit=lambda: defaultdict(AutoID),
                  weapons=lambda: IOBTree(),
+                 battles=lambda: IOBTree(),
+                 battle_uid=lambda: AutoID('battle'),
                  vestibules=lambda: IOBTree(),
                  vestibule_uid=lambda: AutoID('vestibule'),
                  grid=grid)

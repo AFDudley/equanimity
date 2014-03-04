@@ -2,15 +2,15 @@ from functools import wraps
 from flask.ext.login import current_user
 from equanimity.stronghold import Stronghold
 from equanimity.units import Unit
-from equanimity.battle import Game
+from equanimity.battle import Battle
 from equanimity.field import Field
 from equanimity.worldtools import get_world as _get_world
 
 
-def get_thing(cls, ids, name=None, check_owner=True):
+def get_thing(cls, ids, name=None, check_owner=True, getter='get'):
     if name is None:
         name = cls.__name__
-    thing = cls.get(*ids)
+    thing = getattr(cls, getter)(*ids)
     if thing is None:
         ids = [getattr(id, 'uid', id) for id in ids]
         raise ValueError('Invalid {name} {ids}'.format(name=name, ids=ids))
@@ -47,14 +47,26 @@ def get_stronghold(world, field_location, **kwargs):
     return get_thing(Stronghold, (world, field_location), **kwargs)
 
 
-@unpack_world
-def get_battle(world, field_location, check_owner=True, **kwargs):
-    kwargs['check_owner'] = False
-    battle = get_thing(Game, (world, field_location), **kwargs)
+def _check_battle_participants(battle, check_owner=True):
     user = current_user._get_current_object()
     if (battle is not None and battle.defender != user and check_owner and
             battle.attacker != user):
         raise ValueError('You are not involved this battle')
+
+
+@unpack_world
+def get_battle(world, field_location, check_owner=True, **kwargs):
+    kwargs['check_owner'] = False
+    battle = get_thing(Battle, (world, field_location), **kwargs)
+    _check_battle_participants(battle, check_owner=check_owner)
+    return battle
+
+
+def get_battle_by_id(uid, check_owner=True, **kwargs):
+    kwargs['check_owner'] = False
+    kwargs['getter'] = 'get_by_uid'
+    battle = get_thing(Battle, (uid,), **kwargs)
+    _check_battle_participants(battle, check_owner=check_owner)
     return battle
 
 

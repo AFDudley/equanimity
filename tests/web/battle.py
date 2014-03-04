@@ -1,4 +1,4 @@
-from equanimity.battle import Game
+from equanimity.battle import Battle
 from equanimity.units import Scient
 from equanimity.unit_container import Squad
 from equanimity.weapons import Bow
@@ -27,8 +27,9 @@ class BattleTestBase(RPCTestBase):
     def _setup_game(self, atksquad, defsquad):
         atksquad.owner = self.attacker
         defsquad.owner = self.defender
-        self.game = Game(self.f, atksquad)
-        self.f.game = self.game
+        self.battle = Battle(self.f, atksquad)
+        self.battle.persist()
+        self.f.battle = self.battle
 
     def _start_battle(self):
         s, t, atks, defs = self._create_units()
@@ -47,12 +48,12 @@ class BattleTest(BattleTestBase):
     def test_field_not_in_battle_game_over(self):
         s, t, atksquad, defsquad = self._create_units()
         self._setup_game(atksquad, defsquad)
-        self.f.game.state['game_over'] = True
+        self.f.battle.state['game_over'] = True
         r = getattr(self.proxy, 'pass')(self.world.uid, self.loc, 1)
         self.assertError(r, 'No game is active for this field')
 
     def test_field_not_in_battle_not_started(self):
-        self.f.game = None
+        self.f.battle = None
         r = getattr(self.proxy, 'pass')(self.world.uid, self.loc, 1)
         self.assertError(r, 'No game is active for this field')
 
@@ -61,7 +62,7 @@ class BattleTest(BattleTestBase):
         self._setup_game(atksquad, defsquad)
         self.f.place_scient(s, Hex(1, 0))
         self.f.place_scient(t, Hex(1, 0))
-        self.game.start()
+        self.battle.start()
         r = getattr(self.proxy, 'pass')(self.world.uid, self.loc, t.uid)
         self.assertNoError(r)
 
@@ -70,7 +71,7 @@ class BattleTest(BattleTestBase):
         self._setup_game(atksquad, defsquad)
         self.f.place_scient(s, Hex(1, 0))
         self.f.place_scient(t, Hex(1, 0))
-        self.game.start()
+        self.battle.start()
         self._setup_game(atksquad, defsquad)
         r = self.proxy.move(self.world.uid, self.loc, t.uid, Hex(2, 0))
         self.assertNoError(r)
@@ -91,7 +92,7 @@ class BattleTestBiggerGrid(BattleTestBase):
         print 'Radius:', self.f.grid.radius
         self.f.place_scient(s, Hex(2, 4))
         self.f.place_scient(t, Hex(1, 1))
-        self.game.start()
+        self.battle.start()
         self._setup_game(atksquad, defsquad)
         r = self.proxy.attack(self.world.uid, self.loc, t.uid, Hex(-2, -4))
         self.assertNoError(r)

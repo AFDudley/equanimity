@@ -40,7 +40,7 @@ def start_game(p, q):
     print 'Join vestibule'
     q.rpc('vestibule.join', id)
     print 'Start vestibule'
-    world = p.must_rpc('vestibule.start', id)
+    world = p.must_rpc('vestibule.start', id, timeout=60)
     return world['result']['world']
 
 
@@ -193,7 +193,7 @@ def _battle(world, df, p, q, battle):
     au = asq['units'][0]
     du = dsq['units'][0]
 
-    t = p.must_rpc('info.battle_timer', world['uid'], df['coordinate'])
+    t = p.must_rpc('info.battle_timer', battle['uid'])
     t = t['result']['battle']['timer']
 
     actions = [
@@ -208,10 +208,10 @@ def _battle(world, df, p, q, battle):
         for a in actions:
             a()
         print 'Checking battle status'
-        r = p.must_rpc('info.battle', world['uid'], df['coordinate'])
+        r = p.must_rpc('info.battle', battle['uid'])
         battle = r['result']['battle']
         if battle['game_over']:
-            print 'Game is over'
+            print 'Battle is over'
             print battle
             break
 
@@ -225,7 +225,7 @@ def battle(world, df, p, q):
     # Once we've won, we should own the stronghold
 
     print 'Getting battle info'
-    battle = p.must_rpc('info.battle', world['uid'], df['coordinate'])
+    battle = p.must_rpc('info.field_battle', world['uid'], df['coordinate'])
     battle = battle['result']['battle']
     print battle
     print 'Attacker unit count:', len(battle['attacker']['squad']['units'])

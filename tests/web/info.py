@@ -18,6 +18,7 @@ class InfoTest(BattleTestBase):
         self._field_schema = dict(
             owner=int, element=unicode, coordinate=[int, int], state=unicode,
             clock=self._field_clock_schema, queue=[self._queue_schema],
+            battle=Any(None, int),
         )
         self.field_schema = Schema(dict(field=self._field_schema))
         self.world_schema = Schema(dict(
@@ -28,7 +29,7 @@ class InfoTest(BattleTestBase):
             time_remaining=int
         )
         self.battle_timer_schema = Schema(dict(
-            battle=dict(timer=self._battle_timer_schema)
+            battle=dict(uid=int, timer=self._battle_timer_schema),
         ))
         self._unit_schema = dict(
             comp=dict, element=unicode, name=unicode, location=list,
@@ -46,8 +47,9 @@ class InfoTest(BattleTestBase):
         self.battle_schema = Schema(dict(battle=dict(
             timer=self._battle_timer_schema, defender=self.combatant_schema,
             attacker=self.combatant_schema, action_num=int, game_over=bool,
-            winner=Any(None, self.combatant_schema),
+            winner=Any(None, self.combatant_schema), uid=int,
         )))
+        self.field_battle_schema = self.battle_schema
         self._squad_schema = Schema(dict(
             name=unicode, units=[int], stronghold=list,
             stronghold_pos=Any(None, int), queued_field=Any(None, int)
@@ -101,17 +103,22 @@ class InfoTest(BattleTestBase):
     def test_clock_info(self):
         self._test('clock', self.world.uid)
 
-    def test_battle_info(self):
-        self.maxDiff = None
+    def test_field_battle_info(self):
         self._start_battle()
-        data = self._test('battle', self.world.uid, self.loc)
-        expect = self._coerce(self.field.game.api_view())
+        data = self._test('field_battle', self.world.uid, self.loc)
+        expect = self._coerce(self.field.battle.api_view())
+        self.assertEqual(expect, data['battle'])
+
+    def test_battle_info(self):
+        self._start_battle()
+        data = self._test('battle', self.battle.uid)
+        expect = self._coerce(self.field.battle.api_view())
         self.assertEqual(expect, data['battle'])
 
     def test_battle_timer_info(self):
         self._start_battle()
-        data = self._test('battle_timer', self.world.uid, self.loc)
-        expect = self._coerce(self.field.game.timer_view())
+        data = self._test('battle_timer', self.battle.uid)
+        expect = self._coerce(self.field.battle.timer_view())
         self.assertEqual(expect, data['battle']['timer'])
 
     def test_unit_info(self):

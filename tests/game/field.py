@@ -1,11 +1,11 @@
 from mock import MagicMock, Mock, patch
 from unittest import TestCase
-from voluptuous import Schema
+from voluptuous import Schema, Any
 from equanimity.field import FieldQueue, Field
 from equanimity.unit_container import Squad
 from equanimity.player import Player
 from equanimity.grid import Grid, Hex
-from equanimity.battle import Game
+from equanimity.battle import Battle
 from equanimity.units import Scient
 from equanimity.world import World
 from equanimity.const import FIELD_PRODUCE, FIELD_YIELD, FIELD_BATTLE, E, I
@@ -108,7 +108,7 @@ class FieldTest(FlaskTestDB):
         self.assertEqual(self.f.owner, self.player)
         self.assertEqual(self.f.element, 'Ice')
         self.assertFalse(self.f.plantings)
-        self.assertIs(self.f.game, None)
+        self.assertIs(self.f.battle, None)
         for x in ['grid', 'clock', 'stronghold', 'queue']:
             self.assertTrue(hasattr(self.f, x))
 
@@ -116,6 +116,7 @@ class FieldTest(FlaskTestDB):
         schema = Schema(dict(
             owner=int, element=str, coordinate=Hex, state=str,
             clock=dict, queue=[dict(uid=int, slot=[int, int])],
+            battle=Any(None, int),
         ))
         self.assertValidSchema(self.f.api_view(), schema)
 
@@ -131,9 +132,9 @@ class FieldTest(FlaskTestDB):
 
     def test_in_battle(self):
         self.assertFalse(self.f.in_battle)
-        self.f.game = AttributeDict(state=dict(game_over=False))
+        self.f.battle = AttributeDict(state=dict(game_over=False))
         self.assertTrue(self.f.in_battle)
-        self.f.game = AttributeDict(state=dict(game_over=True))
+        self.f.battle = AttributeDict(state=dict(game_over=True))
         self.assertFalse(self.f.in_battle)
 
     def test_state(self):
@@ -141,7 +142,7 @@ class FieldTest(FlaskTestDB):
         self.assertEqual(self.f.state, FIELD_PRODUCE)
         self.f.element = E
         self.assertEqual(self.f.state, FIELD_YIELD)
-        self.f.game = AttributeDict(state=dict(game_over=False))
+        self.f.battle = AttributeDict(state=dict(game_over=False))
         self.assertEqual(self.f.state, FIELD_BATTLE)
 
     @patch('equanimity.player.get_world')
@@ -188,7 +189,7 @@ class FieldTest(FlaskTestDB):
         sq = k.stronghold.form_squad(unit_ids=(t.uid,))
         self.s.silo.imbue(create_comp(earth=100))
         self.s.form_scient(E, create_comp(earth=1))
-        g = self.f.game = Game(self.f, sq)
+        g = self.f.battle = Battle(self.f, sq)
         g.state['game_over'] = True
         self.f.process_battle_and_movement()
         mock_move.assert_not_called()
@@ -210,14 +211,14 @@ class FieldTest(FlaskTestDB):
         self.f.process_battle_and_movement()
         mock_start.assert_called_once_with(s)
 
-    @patch('equanimity.field.Game.start')
+    @patch('equanimity.field.Battle.start')
     def test_start_battle(self, mock_start):
         sq = Squad()
         sq.owner = Player('t', 't@gmail.com', 'tttt')
-        self.assertIs(self.f.game, None)
+        self.assertIs(self.f.battle, None)
         self.f.stronghold._setup_default_defenders()
         self.f.start_battle(sq)
-        self.assertIsNot(self.f.game, None)
+        self.assertIsNot(self.f.battle, None)
         mock_start.assert_called_once_with()
 
     def test_place_scient_not_scient(self):

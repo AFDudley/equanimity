@@ -16,6 +16,7 @@ from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
 from operator import attrgetter
 
+from server import db
 from battlefield import Battlefield
 from units import Unit
 from grid import Hex
@@ -30,7 +31,7 @@ class BattleError(Exception):
 
 class Action(PersistentMapping):
 
-    """In a two player game, two actions from a single player make a ply and
+    """In a two player battle, two actions from a single player make a ply and
        a ply from each player makes a turn. """
 
     def __init__(self, unit=None, type='pass', target=Hex.null, when=None,
@@ -78,7 +79,7 @@ class InitialState(PersistentMapping):
 class Log(PersistentMapping):
 
     def __init__(self, players, units, grid):
-        """Records initial game state, timestamps log."""
+        """Records initial battle state, timestamps log."""
         super(Log, self).__init__(players=players, units=units, grid=grid)
         self['actions'] = PersistentList()
         self['applied'] = PersistentList()
@@ -99,7 +100,7 @@ class Log(PersistentMapping):
         self['init_locs'] = {unit.uid: unit.location for unit in self['units']}
 
     def close(self, winner, condition):
-        """Writes final timestamp, called when game is over."""
+        """Writes final timestamp, called when battle is over."""
         self['end_time'] = now()
         self['winner'] = winner
         self['condition'] = condition
@@ -160,30 +161,30 @@ class Log(PersistentMapping):
 
 class State(PersistentMapping):
 
-    """A dictionary containing the current game state."""
+    """A dictionary containing the current battle state."""
 
-    def __init__(self, game, num=1, pass_count=0, hp_count=0,
+    def __init__(self, battle, num=1, pass_count=0, hp_count=0,
                  old_defsquad_hp=0, queued=None, locs=None, HPs=None,
                  game_over=False, **_):
-        self.game = game
+        self.battle = battle
         if HPs is None:
             HPs = PersistentMapping()
         if queued is None:
             queued = PersistentMapping()
         if locs is None:
             locs = PersistentMapping()
-        whose_action = self.game.action_queue.get_player_for_action(num).uid
+        whose_action = self.battle.action_queue.get_player_for_action(num).uid
         super(State, self).__init__(num=num, pass_count=pass_count,
                                     hp_count=hp_count, queued=queued,
                                     old_defsquad_hp=old_defsquad_hp,
                                     locs=locs, HPs=HPs, game_over=game_over,
                                     whose_action=whose_action)
 
-    def check(self, game):
-        """Checks for game ending conditions.
+    def check(self, battle):
+        """Checks for battle ending conditions.
         (Assumes two players and no ActionQueue.)"""
         num = self['num']
-        last_type = game.log['actions'][num - 1]['type']
+        last_type = battle.log['actions'][num - 1]['type']
         if last_type == 'pass' or last_type == 'timed_out':
             self['pass_count'] += 1
         else:
@@ -191,49 +192,49 @@ class State(PersistentMapping):
 
         if not num % 4:  # There are 4 actions in a turn.
             # This calcuates hp_count
-            defsquad_hp = game.battlefield.defsquad.hp()
+            defsquad_hp = battle.battlefield.defsquad.hp()
             if self['old_defsquad_hp'] >= defsquad_hp:
                 self['hp_count'] += 1
             else:
                 self['hp_count'] = 0
 
-            # game over check:
+            # battle over check:
             if self['hp_count'] == 4:
-                game.winner = game.defender
-                return game.end("Attacker failed to deal sufficent damage.")
+                battle.winner = battle.defender
+                return battle.end("Attacker failed to deal sufficent damage.")
             else:
                 self['old_defsquad_hp'] = defsquad_hp
 
-        # check if game is over.
-        if game.battlefield.defsquad.hp() == 0:
-            game.winner = game.attacker
-            return game.end("Defender's squad is dead")
+        # check if battle is over.
+        if battle.battlefield.defsquad.hp() == 0:
+            battle.winner = battle.attacker
+            return battle.end("Defender's squad is dead")
 
-        if game.battlefield.atksquad.hp() == 0:
-            game.winner = game.defender
-            return game.end("Attacker's squad is dead")
+        if battle.battlefield.atksquad.hp() == 0:
+            battle.winner = battle.defender
+            return battle.end("Attacker's squad is dead")
 
         if self['pass_count'] >= 8:
-            game.winner = game.defender
-            return game.end("Both sides passed")
+            battle.winner = battle.defender
+            return battle.end("Both sides passed")
 
-        self['queued'] = game.map_queue()
-        self['HPs'], self['locs'] = game.update_unit_info()
+        self['queued'] = battle.map_queue()
+        self['HPs'], self['locs'] = battle.update_unit_info()
 
-        game.log['states'].append(State(game=self.game, **self))
+        battle.log['states'].append(State(battle=self.battle, **self))
 
-        # game is not over, state is stored, update state.
+        # battle is not over, state is stored, update state.
         self['num'] += 1
-        aq = self.game.action_queue
+        aq = self.battle.action_queue
         self['whose_action'] = aq.get_player_for_action(self['num']).uid
 
 
-class Game(Persistent):
+class Battle(Persistent):
 
-    """Almost-state-machine that maintains game state."""
+    """Almost-state-machine that maintains battle state."""
 
     def __init__(self, field, attacker):
-        super(Game, self).__init__()
+        super(Battle, self).__init__()
         self.field = field
         self.grid = field.grid
         self.defender = field.stronghold.defenders.owner
@@ -248,6 +249,10 @@ class Game(Persistent):
         self.action_queue = ActionQueue(self)
         self.state = State(self)
         self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
+        self.uid = db['battle_uid'].get_next_id()
+
+    def persist(self):
+        db['battles'][self.uid] = self
 
     @classmethod
     def get(self, world, field_loc):
@@ -255,7 +260,11 @@ class Game(Persistent):
         if world is not None:
             field = world.fields.get(tuple(field_loc))
             if field is not None:
-                return field.game
+                return field.battle
+
+    @classmethod
+    def get_by_uid(self, id):
+        return db['battles'].get(id)
 
     @property
     def players(self):
@@ -277,6 +286,7 @@ class Game(Persistent):
 
     def api_view(self):
         return dict(
+            uid=self.uid,
             timer=self.timer_view(),
             defender=self.defender.combatant_view(self.battlefield.defsquad),
             attacker=self.attacker.combatant_view(self.battlefield.atksquad),
@@ -444,7 +454,7 @@ class Game(Persistent):
         return result
 
     def process_action(self, action):
-        """Processes actions sent from game clients."""
+        """Processes actions sent from battle clients."""
         self._fill_timed_out_actions()
         return self._process_action(action)
 
@@ -470,7 +480,7 @@ class Game(Persistent):
             return
 
     def initial_state(self):
-        """Returns stuff to create the client side of the game"""
+        """Returns stuff to create the client side of the battle"""
         return InitialState(self.log)
 
     def compute_awards(self, squads):
@@ -551,10 +561,10 @@ class Game(Persistent):
 
 class ActionQueue(Persistent):
 
-    def __init__(self, game):
+    def __init__(self, battle):
         super(ActionQueue, self).__init__()
-        self.game = game
-        self.units = self._get_unit_queue(self.game.battlefield.units)
+        self.battle = battle
+        self.units = self._get_unit_queue(self.battle.battlefield.units)
 
     def get_player_for_action(self, num):
         return self.get_unit_for_action(num).container.owner
@@ -577,7 +587,7 @@ class ActionQueue(Persistent):
         # Sanity checking
         if unit.container is None or unit.container_pos is None:
             raise ValueError('Unit {0} is not in a squad'.format(unit))
-        if unit.container not in self.game.battlefield.squads:
+        if unit.container not in self.battle.battlefield.squads:
             msg = 'Unit {0} is not in a battling squad'
             raise ValueError(msg.format(unit))
         # Lower valued units go first
@@ -585,11 +595,11 @@ class ActionQueue(Persistent):
         # Higher counts of the field's primary element go first
         # We invert the value from the max so that a lower value appears
         # in the comparison key
-        prime_element_val = 255 - unit.comp[self.game.battlefield.element]
+        prime_element_val = 255 - unit.comp[self.battle.battlefield.element]
         # Earlier placed units in squad go first
         squad_pos = unit.container_pos
         # Attackers go first.  We check is_defender, because False < True
-        is_defender = (unit.container == self.game.battlefield.defsquad)
+        is_defender = (unit.container == self.battle.battlefield.defsquad)
         return (val, prime_element_val, squad_pos, is_defender)
 
     def _get_unit_queue(self, units):

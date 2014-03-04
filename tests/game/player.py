@@ -131,10 +131,13 @@ class PlayerGroupTest(FlaskTestDB):
         self.pg.add(self.p)
         self.assertTrue(self.pg.has(self.p))
         self.assertEqual(self.pg._leader, self.p)
+        self.assertEqual(len(self.pg.players), 1)
         self.pg.add(self.q)
+        self.assertEqual(len(self.pg.players), 2)
         self.assertEqual(self.pg._leader, self.p)
         self.assertExceptionContains(ValueError, 'Not a player', self.pg.add,
                                      AttributeDict(uid=7))
+        self.assertEqual(len(self.pg.players), 2)
 
     def test_remove(self):
         self.test_add()
