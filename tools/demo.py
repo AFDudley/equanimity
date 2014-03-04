@@ -249,7 +249,7 @@ def run_demo(config, url):
 
     # Update the world clock so that the battle starts
     print 'Forcing battle start'
-    script(config=config)(force_start_battle(world, df))()
+    script(config=config)(force_start_battle)(world, df)
 
     battle(world, df, p, q)
 
