@@ -5,11 +5,20 @@ hack_syspath(__file__)
 
 import transaction
 import random
+from argparse import ArgumentParser
 from itertools import ifilter
 from client import EquanimityClient
 from equanimity.grid import Grid, Hex
 from equanimity.field import Field
 from server.decorators import script
+
+
+def get_args():
+    p = ArgumentParser(prog='Equanimity Demo')
+    p.add_argument('--config', default='dev', help='Server config file to use')
+    p.add_argument('--url', default='http://127.0.0.1:5000/',
+                   help='URL of server')
+    return p.parse_args()
 
 
 def create_player(c, username, password, email):
@@ -35,7 +44,6 @@ def start_game(p, q):
     return world['result']['world']
 
 
-@script()
 def force_start_battle(world, df):
     # Field clock must tick.  There is no RPC to force the clock to tick,
     # so we import it here.  We also bypass the time counting, and forecfully
@@ -137,10 +145,6 @@ def setup_battle(world, p, q):
     if not df['queue']:
         raise ValueError("No attacking squad in defending field queue")
 
-    # Update the world clock so that the battle starts
-    print 'Forcing battle start'
-    force_start_battle(world, df)
-
     return af, df
 
 
@@ -231,9 +235,9 @@ def battle(world, df, p, q):
     _battle(world, df, p, q, battle)
 
 
-def run_demo():
-    p = EquanimityClient()
-    q = EquanimityClient()
+def run_demo(config, url):
+    p = EquanimityClient(url=url)
+    q = EquanimityClient(url=url)
     # Create two players
     create_player(p, 'atkr', 'atkrpassword', 'atkr@example.com')
     create_player(q, 'dfdr', 'dfdrpassword', 'dfdr@example.com')
@@ -241,11 +245,14 @@ def run_demo():
     world = start_game(p, q)
     print 'World', world
 
-    # How to initiate a battle?
-    # Move squad?
     _, df = setup_battle(world, p, q)
+
+    # Update the world clock so that the battle starts
+    print 'Forcing battle start'
+    script(config=config)(force_start_battle(world, df))()
 
     battle(world, df, p, q)
 
 if __name__ == '__main__':
-    run_demo()
+    args = get_args()
+    run_demo(args.config, args.url)
