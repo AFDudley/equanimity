@@ -196,6 +196,7 @@ class PlayerGroup(Persistent):
     """ Manager for a group of players """
 
     def __init__(self):
+        super(PlayerGroup, self).__init__()
         self.players = OrderedDict()
         self._leader = None
 
@@ -211,6 +212,8 @@ class PlayerGroup(Persistent):
             self.add(p)
 
     def add(self, player):
+        if not isinstance(player, Player):
+            raise ValueError('Not a player')
         self.players[player.uid] = player
         if self._leader is None:
             self._leader = player
