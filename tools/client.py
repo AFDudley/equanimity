@@ -149,7 +149,7 @@ def process_args(args):
             print c.signup(args.username, args.password, args.params[0]).json()
     else:
         c.login(args.username, args.password)
-        print_result(c.rpc(args.method, args.params))
+        print_result(c.rpc(args.method, *args.params))
 
 
 if __name__ == '__main__':
