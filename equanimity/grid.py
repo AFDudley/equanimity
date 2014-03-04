@@ -60,9 +60,15 @@ class Tile(Stone):
         else:
             self.crop = crop
 
-    def get_crops(self):
+    def harvest_crop(self):
         """returns crops to battle.py"""
-        return 
+        if self.has_crop():
+            crop = self.crop
+            self.crop = None
+            return crop
+        else:
+            return None
+        
     def move_contents_to(self, dest):
         if self == dest:
             raise ValueError('Can\'t move to the same loc {0}'.format(self))

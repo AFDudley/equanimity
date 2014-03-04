@@ -215,7 +215,15 @@ class State(PersistentMapping):
         #game is not over, state is stored, update state.
         self['num'] += 1
         self._whose_action()
-
+        
+    def _nescient_acts(self, nescient):
+        """eats food if crop/stone is under head, then calls nescient.act."""
+        tile = self.game.grid.get(nescient.body['head'])
+        if tile.crop:
+            nescient.ingest(tile.get_crop())
+        action = nescient.act(self.game._get_scents(nescient.location))
+        self.game.process_action(action)
+        
     def _whose_action(self):
         aq = self.game.action_queue
         num = self['num']
@@ -223,12 +231,12 @@ class State(PersistentMapping):
         if self['whose_action'] == 0:
             # It must be a Nescient, call AI.
             unit = aq.get_unit_for_action(num)
-            self.game.process_action(unit.act(self.game._get_object_info(unit.uid)))
+            self._nescient_acts(unit)
         else:
             unit = aq.get_unit_for_action(num)
             if unit.type == 'nescient':
                 # it must be a Nescient, call AI.
-                self.game.process_action(unit.act(self.game._get_object_info(unit.uid)))
+                self._nescient_acts(unit)
             else:
                 pass
 
@@ -336,20 +344,46 @@ class Game(Persistent):
             new['unit'] = new['unit'].uid
         return new
 
-    def _get_unit_smell(self, uid):
-        """Builds a model of the world for Nescients, excludes Nescient
-         and rider."""
-         unit_smells = {}
+    def _get_unit_scents(self, location):
+         unit_scents = {}
          for unit in self.units:
             if not unit.location.is_null():
-                unit_smells[unit.uid] = unit.smell()
-         del unit_smells[uid]
-         return unit_smells
+                unit_scents[unit.location] = unit.scent
+         del unit_scents[location]
          
-    def _get_crop_smells(self):
-        crop_smells = {}
+         if len(unit_scents) > 0:
+             return unit_scents
+         else:
+             return None
+         
+    def _get_crop_scents(self):
+        crop_scents = {}
         for tile in self.battlefield.grid.iter_tiles():
-            
+            if tile.has_crop():
+                crop = tile.crop
+                crop_scents[tile.location] = {'comp': crop.comp,
+                                              'value': crop.value()}
+        if len(crop_scents) > 0:
+            return crop_scents
+        else:
+            return None
+    
+    def _get_scents(self, location):
+        """Builds a model of the world for Nescients, excludes Nescient
+         and rider."""
+        scents = {'units': None, 'crops': None}
+        unit_scents = self._get_unit_scents(location)
+        crop_scents = self._get_crop_scents()
+        if unit_scents:
+            scents['units'] = unit_scents
+        if crop_scents:
+            scents['crops'] = crop_scents
+        
+        for v in scents.itervalues():
+            if v:
+                return scents
+        return None
+
     def get_time_remaining_for_action(self):
         self._fill_timed_out_actions()
         return self.log.get_time_remaining_for_action()

@@ -14,12 +14,25 @@ from helpers import validate_length, rand_string, rand_element
 
 
 UNIT_NAME_LEN = dict(max=64, min=1)
-
+SCENT = {'location': None, 'element': None, 'sex': None, 'comp': None, 'value': None, 'hp': None}
 
 class Unit(Stone):
     attrs = ['p', 'm', 'atk', 'defe', 'pdef', 'patk', 'mdef', 'matk', 'hp']
 
     type = 'unit'
+    
+    def set_scent(self):
+        """Sets the 'scent' of the unit."""
+        
+        """Scent is the information nescients use to determine their next target."""
+        scent = SCENT.copy()
+        scent['location'] = self.location
+        scent['element'] = self.element
+        scent['sex'] = self.sex
+        scent['comp'] = self.comp
+        scent['value'] = self.val
+        scent['hp'] = self.hp
+        return scent
 
     def __init__(self, element, comp, name=None, sex='female'):
         if not element in ELEMENTS:
@@ -45,6 +58,7 @@ class Unit(Stone):
         self.val = self.value()
         self.uid = db['unit_uid'].get_next_id()
         db['units'][self.uid] = self
+        self.scent = self.set_scent()
 
     def api_view(self):
         dod = self.dod
@@ -266,18 +280,48 @@ class Nescient(Unit):
         self.weapon = self  # hack for attack logic.
         # state machine first attempt
         self.afraid = False
-        self.hungry = False
+        self.stomach = Stone(comp) #  TODO: set limit.
+        self.colon = Stone()
+        self.stomach_full = self.set_stomach_full()
         self.in_season = False
         self.found_mate = False
         self.ready_to_mate = False
+    
+    def set_stomach_full(self):
+        """Determines if stomach is full or not."""
+        if self.stomach == self.comp:
+            return True
+        else:
+            return False
 
+    def check_stomach(self):
+        """checks the stomach every 60 days, feeds nescient, imbues surplus, 
+        discards what cannot be imbued."""
+        if self.stomach_full:
+            self.fed_on = datetime.utcnow()
+            self.colon.imbue(self.imbue(self.copy().split(self.stomach)))
+            
+    def ingest(self, stone):
+        """Eats stone"""
+        self.stomach.imbue(stone)
+        # TODO: Attempt to transmute return from imbue, return transmuation
+        #       remains
+        
+    def egest(self):
+        """returns colon contents"""
+        stone = self.colon.copy()
+        self.colon = Stone() #  This should be optimized.
+        return stone
+        
     def _generate_action(self, mood, gamestate):
         """generates actual action returned."""
         if mood == 'escape':
             # return action of me moving toward the field ahead of me.
             pass  # fake
+            
         elif mood == 'forage':
             # if: I am standing on food, eat it,
+            
             # else: Find tile closest to me with 'best food',
             # if 'best food' is unit, target it,
             # else: move toward it.
@@ -304,12 +348,10 @@ class Nescient(Unit):
         field state and internal state."""
         if self.afraid:
             return self._generate_action('escape', gamestate)
-        elif self.hungry:
-            return self._generate_action('forage', gamestate)
         elif gamestate.season == self.element:
             return self._generate_action('mate', gamestate)
         else:
-            return self._generate_action('wander', gamestate)
+            return self._generate_action('forage', gamestate)
 
     def take_body(self, new_body):
         """Takes locations from new_body and applies them to body."""
