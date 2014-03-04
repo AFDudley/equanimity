@@ -148,17 +148,7 @@ def attack_or_move(world, df, p, au, du):
     print 'Attacking or moving'
     r = p.rpc('battle.attack', world['uid'], df['coordinate'], au['uid'],
               du['location'])
-    if r.get('error') is None:
-        # Attack again
-        print 'Successful attack, doing it again'
-        r = p.rpc('battle.attack', world['uid'], df['coordinate'], au['uid'],
-                  du['location'])
-        if r.get('error') is None:
-            print 'Successful second attack'
-        else:
-            print 'Second attack failed:'
-            print r['error']
-    else:
+    if r.get('error') is not None:
         print 'Failed to attack:'
         print r['error']
         print 'Moving instead'
