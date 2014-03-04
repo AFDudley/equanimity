@@ -214,11 +214,13 @@ class PlayerGroup(object):
         self.players[player.uid] = player
         if self._leader is None:
             self._leader = player
+        self._p_changed = 1
 
     def remove(self, player):
         if self._leader == self.players[player.uid]:
             self._leader = None
         del self.players[player.uid]
+        self._p_changed = 1
 
     def get_leader(self, allow_world=True):
         if not allow_world:

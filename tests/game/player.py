@@ -4,6 +4,7 @@ from equanimity.unit_container import Squad
 from equanimity.player import Player, WorldPlayer, PlayerGroup
 from equanimity.const import WORLD_UID, E
 from equanimity.grid import Hex
+from server.utils import AttributeDict
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
 
@@ -114,6 +115,8 @@ class PlayerGroupTest(FlaskTestDB):
         self.pg.add(self.p)
         self.assertTrue(self.pg.has(self.p))
         self.assertTrue(self.pg.has(self.p.uid))
+        self.assertExceptionContains(ValueError, 'Not a player', self.pg.has,
+                                     AttributeDict(uid=7))
 
     def test_add_all(self):
         players = [self.p, self.q]
