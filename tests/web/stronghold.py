@@ -61,7 +61,7 @@ class StrongholdTest(RPCTestBase):
 
     def test_imbue_unit(self):
         scient = self.make_scient(E, create_comp(earth=1))
-        self.assertEqual(scient.value(), 1)
+        self.assertEqual(scient.value, 1)
         r = self.proxy.imbue_unit(self.world.uid, self.loc,
                                   create_comp(earth=1), scient.uid)
         self.assertNoError(r)
@@ -72,7 +72,7 @@ class StrongholdTest(RPCTestBase):
 
     def test_split_weapon(self):
         wep = self.make_weapon(E, create_comp(earth=2), 'Bow')
-        self.assertEqual(wep.value(), 2)
+        self.assertEqual(wep.value, 2)
         r = self.proxy.split_weapon(self.world.uid, self.loc,
                                     create_comp(earth=1), wep.stronghold_pos)
         self.assertNoError(r)
@@ -80,11 +80,11 @@ class StrongholdTest(RPCTestBase):
         self.assertIsNot(w, None)
         self.assertEqual(sum(w['comp'].values()), 1)
         self.assertEqual(w['comp'][E], 1)
-        self.assertEqual(wep.value(), 1)
+        self.assertEqual(wep.value, 1)
 
     def test_imbue_weapon(self):
         wep = self.make_weapon(E, create_comp(earth=1), 'Bow')
-        self.assertEqual(wep.value(), 1)
+        self.assertEqual(wep.value, 1)
         r = self.proxy.imbue_weapon(self.world.uid, self.loc,
                                     create_comp(earth=1), wep.stronghold_pos)
         self.assertNoError(r)
@@ -92,7 +92,7 @@ class StrongholdTest(RPCTestBase):
         self.assertIsNot(w, None)
         self.assertEqual(sum(w['comp'].values()), 2)
         self.assertEqual(w['comp'][E], 2)
-        self.assertEqual(wep.value(), 2)
+        self.assertEqual(wep.value, 2)
 
     def test_form_squad(self):
         s = self.make_scient(E, create_comp(earth=1), name='xxx')

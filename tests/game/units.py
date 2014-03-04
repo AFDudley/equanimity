@@ -116,8 +116,8 @@ class ScientTest(FlaskTestDB):
         s = Scient(E, create_comp(earth=128, fire=32))
         t = Stone(create_comp(ice=32, fire=32))
         self.assertIs(s.imbue(t), None)
-        self.assertEqual(t.value(), 0)
-        self.assertEqual(s.value(), 128 + 32 + 32 + 32)
+        self.assertEqual(t.value, 0)
+        self.assertEqual(s.value, 128 + 32 + 32 + 32)
         self.assertEqual(s.comp, create_comp(earth=128, ice=32, fire=64))
         self.assertEqual(t.comp, create_comp())
 

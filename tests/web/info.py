@@ -55,7 +55,7 @@ class InfoTest(BattleTestBase):
         self._silo_schema = Schema(dict(comp=dict, limit=dict))
         self.stronghold_schema = Schema(dict(stronghold=dict(
             field=list, silo=self._silo_schema, weapons=[dict],
-            free_units=[self._unit_schema], squads=[self._squad_schema],
+            free=[self._unit_schema], squads=[self._squad_schema],
             defenders=self._squad_schema
         )))
 

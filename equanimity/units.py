@@ -42,7 +42,6 @@ class Unit(Stone):
         self.dob = now
         self.dod = None
         self.fed_on = None
-        self.val = self.value()
         self.uid = db['unit_uid'].get_next_id()
         db['units'][self.uid] = self
 
@@ -92,7 +91,7 @@ class Unit(Stone):
         self.m = (2 * (self.comp[I] + self.comp[W]) + self.comp[F] +
                   self.comp[E])
         self.atk = (2 * (self.comp[F] + self.comp[I]) + self.comp[E] +
-                    self.comp[W]) + (2 * self.value())
+                    self.comp[W]) + (2 * self.value)
         self.defe = (2 * (self.comp[E] + self.comp[W]) + self.comp[F] +
                      self.comp[I])
 
@@ -101,7 +100,7 @@ class Unit(Stone):
         self.matk = self.m + self.atk + (2 * self.comp[I])
         self.mdef = self.m + self.defe + (2 * self.comp[W])
         # does this make sense? It was wrong for a long time.
-        self.hp = 4 * ((self.pdef + self.mdef) + self.value())
+        self.hp = 4 * ((self.pdef + self.mdef) + self.value)
 
     def stats(self):
         return dict(zip(self.attrs, [getattr(self, s) for s in self.attrs]))
@@ -325,7 +324,7 @@ class Nescient(Unit):
     def calcstats(self):
         super(Nescient, self).calcstats()
         self.atk = (2 * (self.comp[F] + self.comp[I]) + self.comp[E] +
-                    self.comp[W]) + (4 * self.value())
+                    self.comp[W]) + (4 * self.value)
         self.hp = self.hp * 4  # This is an open question.
 
 

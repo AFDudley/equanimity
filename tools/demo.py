@@ -83,8 +83,8 @@ def get_stronghold_squad(world, stronghold, p):
     if stronghold['squads']:
         squad = stronghold['squads'][0]
     else:
-        if stronghold['free_units']:
-            units = [u['uid'] for u in stronghold['free_units']]
+        if stronghold['free']:
+            units = [u['uid'] for u in stronghold['free']]
             sq = p.must_rpc('stronghold.form_squad', world['uid'],
                             stronghold['field'], units)
             squad = sq['result']['squad']

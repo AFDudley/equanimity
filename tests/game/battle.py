@@ -1,7 +1,7 @@
 import itertools
 from unittest import TestCase
 from mock import MagicMock, patch, call, Mock
-from operator import methodcaller
+from operator import attrgetter
 from datetime import timedelta, datetime
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
 from server.utils import AttributeDict
@@ -476,7 +476,7 @@ class GameTest(GameTestBase):
         awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
         self.game.update_field(atksquad, defsquad, awards, prisoners)
         mock_garr.assert_called_once_with()
-        prisoners = sorted(prisoners, key=methodcaller('value'),
+        prisoners = sorted(prisoners, key=attrgetter('value'),
                            reverse=True)
         mock_add.assert_has_calls([call(u) for u in prisoners])
         mock_clean.assert_called_once_with([atksquad, defsquad])
@@ -501,7 +501,7 @@ class GameTest(GameTestBase):
         mock_garr.assert_called_once_with()
         prisoner = None
         for p in prisoners:
-            if prisoner is None or p.value() > prisoner.value():
+            if prisoner is None or p.value > prisoner.value:
                 prisoner = p
         self.assertIsNotNone(prisoner)
         mock_add.assert_called_once_with(prisoner)
@@ -814,9 +814,9 @@ class ActionQueueTest(GameTestBase):
         for a, b in pairwise(self.aq.units):
             self.assertNotEqual(a, b)
             # Value <=
-            self.assertLessEqual(a.value(), b.value())
+            self.assertLessEqual(a.value, b.value)
             value_tested = True
-            if a.value() == b.value():
+            if a.value == b.value:
                 # Primary field element value >=
                 prime_a = a.comp[self.bf.element]
                 prime_b = b.comp[self.bf.element]

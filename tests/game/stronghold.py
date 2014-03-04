@@ -2,71 +2,11 @@ from mock import patch, Mock, MagicMock
 from voluptuous import Schema
 from equanimity.grid import Hex
 from equanimity.const import E, F, I
-from equanimity.stronghold import (Stronghold, MappedContainer, SparseList,
-                                   SparseStrongholdList)
+from equanimity.stronghold import Stronghold, SparseList, SparseStrongholdList
 from equanimity.unit_container import Squad
 from equanimity.units import Scient
 from equanimity.player import WorldPlayer, Player
-from server.utils import AttributeDict
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
-
-
-class MappedContainerTest(FlaskTestDB):
-
-    def setUp(self):
-        super(MappedContainerTest, self).setUp()
-        self.m = MappedContainer()
-
-    def _make_value(self, uid):
-
-        class AttributeDictUID(AttributeDict):
-
-            def __eq__(self, other):
-                return self.uid == other.uid
-
-            def __ne__(self, other):
-                return not self.__eq__(other)
-
-        return AttributeDictUID(uid=uid, size=1, value=lambda: 5,
-                                remove_from_container=lambda: True,
-                                add_to_container=lambda x, y: True)
-
-    def test_create(self):
-        self.assertEqual(self.m.name, 'stronghold')
-        self.assertTrue(hasattr(self.m, 'map'))
-
-    def test_setitem_getitem_delitem(self):
-        val = self._make_value(2)
-        self.m[2] = val
-        self.assertEqual(self.m[2], val)
-        del self.m[2]
-        self.assertRaises(KeyError, self.m.__getitem__, 2)
-
-    def test_setitem_bad(self):
-        self.assertRaises(KeyError, self.m.__setitem__, 2, self._make_value(3))
-
-    def test_contains(self):
-        val = self._make_value(7)
-        self.m[7] = val
-        self.assertIn(7, self.m)
-
-    def test_append(self):
-        val = self._make_value(7)
-        self.m.append(val)
-        self.assertIn(7, self.m)
-        # reappend overwrites
-        valx = self._make_value(7)
-        self.m.append(valx)
-        self.assertNotEqual(id(val), id(valx))
-        self.assertEqual(id(self.m[7]), id(valx))
-
-    def test_pop(self):
-        val = self._make_value(7)
-        self.m[7] = val
-        r = self.m.pop(7)
-        self.assertEqual(r, val)
-        self.assertNotIn(7, self.m)
-        self.assertNotIn(7, self.m.map)
 
 
 class SparseListTest(FlaskTestDB):
@@ -242,22 +182,22 @@ class StrongholdTest(FlaskTestDBWorld):
 
     @patch('equanimity.grid.Grid.value')
     def test_max_occupancy(self, mock_val):
-        mock_val.return_value = 0
+        mock_val.__get__ = Mock(return_value=0)
         self.assertEqual(self.s.max_occupancy, 8)
-        mock_val.return_value = 60
+        mock_val.__get__ = Mock(return_value=60)
         self.assertEqual(self.s.max_occupancy, 8)
-        mock_val.return_value = 61
+        mock_val.__get__ = Mock(return_value=61)
         self.assertEqual(self.s.max_occupancy, 16)
-        mock_val.return_value = 64
+        mock_val.__get__ = Mock(return_value=64)
         self.assertEqual(self.s.max_occupancy, 16)
-        mock_val.return_value = (64 * 100) - 4
+        mock_val.__get__ = Mock(return_value=(64 * 100) - 4)
         self.assertEqual(self.s.max_occupancy, 800)
-        mock_val.return_value = (64 * 100) - 4 + 1
+        mock_val.__get__ = Mock(return_value=(64 * 100) - 4 + 1)
         self.assertEqual(self.s.max_occupancy, 808)
-        mock_val.return_value = (64 * 100) - 4 - 1
+        mock_val.__get__ = Mock(return_value=(64 * 100) - 4 - 1)
         self.assertEqual(self.s.max_occupancy, 800)
         for i in range(101, 10111, 3):
-            mock_val.return_value = i
+            mock_val.__get__ = Mock(return_value=i)
             x = (i + 4) // 64
             x += 1 if (i + 4) % 64 else 0
             self.assertEqual(self.s.max_occupancy, x * 8)
@@ -315,36 +255,36 @@ class StrongholdTest(FlaskTestDBWorld):
         weapon = self.s.form_weapon(E, create_comp(earth=1), 'Sword')
         self.assertIn(weapon, self.s.weapons)
         self.assertEqual(weapon.type, 'Sword')
-        self.assertEqual(weapon.value(), 1)
-        self.assertEqual(self.s.silo.value(), 127)
+        self.assertEqual(weapon.value, 1)
+        self.assertEqual(self.s.silo.value, 127)
 
     def test_imbue_weapon(self):
         weapon = self.s.form_weapon(E, create_comp(earth=10), 'Sword')
-        self.assertEqual(self.s.silo.value(), 118)
-        self.assertEqual(weapon.value(), 10)
+        self.assertEqual(self.s.silo.value, 118)
+        self.assertEqual(weapon.value, 10)
         weapon = self.s.imbue_weapon(create_comp(earth=5),
                                      weapon.stronghold_pos)
-        self.assertEqual(weapon.value(), 15)
-        self.assertEqual(self.s.silo.value(), 113)
+        self.assertEqual(weapon.value, 15)
+        self.assertEqual(self.s.silo.value, 113)
 
     def test_split_weapon(self):
         weapon = self.s.form_weapon(E, create_comp(earth=10), 'Sword')
-        self.assertEqual(self.s.silo.value(), 118)
-        self.assertEqual(weapon.value(), 10)
+        self.assertEqual(self.s.silo.value, 118)
+        self.assertEqual(weapon.value, 10)
         weapon = self.s.split_weapon(create_comp(earth=1),
                                      weapon.stronghold_pos)
-        self.assertEqual(weapon.value(), 9)
-        self.assertEqual(self.s.silo.value(), 119)
+        self.assertEqual(weapon.value, 9)
+        self.assertEqual(self.s.silo.value, 119)
 
     def test_form_scient(self):
-        self.assertEqual(self.s.silo.value(), 128)
+        self.assertEqual(self.s.silo.value, 128)
         scient = self.s.form_scient(E, create_comp(earth=10), name='test')
-        self.assertEqual(scient.container, self.s.free_units)
+        self.assertEqual(scient.container, self.s.free)
         self.assertEqual(scient.name, 'test')
-        self.assertEqual(scient.value(), 10)
-        self.assertEqual(self.s.silo.value(), 128 - scient.value() * 2)
+        self.assertEqual(scient.value, 10)
+        self.assertEqual(self.s.silo.value, 128 - scient.value * 2)
         self.assertEqual(self.s.units[scient.uid], scient)
-        self.assertEqual(self.s.free_units[scient.uid], scient)
+        self.assertEqual(self.s.free[scient.uid], scient)
 
     @patch.object(Stronghold, 'max_occupancy')
     def test_form_scient_max_occupancy(self, mock_max):
@@ -361,19 +301,19 @@ class StrongholdTest(FlaskTestDBWorld):
 
     def test_imbue_unit(self):
         unit = self.s.form_scient(E, create_comp(earth=10))
-        self.assertEqual(unit.value(), 10)
+        self.assertEqual(unit.value, 10)
         self.assertIsNot(unit.container, None)
         unit = self.s.imbue_unit(create_comp(earth=1), unit.uid)
-        self.assertEqual(unit.value(), 11)
-        self.assertEqual(self.s.silo.value(), 128 - 21)
+        self.assertEqual(unit.value, 11)
+        self.assertEqual(self.s.silo.value, 128 - 21)
 
         # test with unit in a squad instead of free
         squad = self.s.form_squad(unit_ids=[unit.uid])
-        self.assertEqual(squad.value(), 11)
+        self.assertEqual(squad.value, 11)
         unit = self.s.imbue_unit(create_comp(earth=1), unit.uid)
-        self.assertEqual(unit.value(), 12)
-        self.assertEqual(squad.value(), 12)
-        self.assertEqual(self.s.silo.value(), 128 - 22)
+        self.assertEqual(unit.value, 12)
+        self.assertEqual(squad.value, 12)
+        self.assertEqual(self.s.silo.value, 128 - 22)
 
     def test_equip_scient(self):
         unit = self.s.form_scient(E, create_comp(earth=10))
@@ -410,8 +350,8 @@ class StrongholdTest(FlaskTestDBWorld):
     def test_form_squad(self):
         ua = self.s.form_scient(E, create_comp(earth=10))
         ub = self.s.form_scient(E, create_comp(earth=10))
-        self.assertIn(ua.uid, self.s.free_units)
-        self.assertIn(ub.uid, self.s.free_units)
+        self.assertIn(ua.uid, self.s.free)
+        self.assertIn(ub.uid, self.s.free)
         self.assertIn(ua.uid, self.s.units)
         self.assertIn(ub.uid, self.s.units)
         sq = self.s.form_squad(unit_ids=(ua.uid, ub.uid), name='sq')
@@ -419,8 +359,8 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertIn(ua, sq)
         self.assertIn(ub, sq)
         self.assertEqual(len(sq), 2)
-        self.assertNotIn(ua.uid, self.s.free_units)
-        self.assertNotIn(ub.uid, self.s.free_units)
+        self.assertNotIn(ua.uid, self.s.free)
+        self.assertNotIn(ub.uid, self.s.free)
         self.assertIn(ua.uid, self.s.units)
         self.assertIn(ub.uid, self.s.units)
         self.assertIn(sq, self.s.squads)
@@ -430,10 +370,8 @@ class StrongholdTest(FlaskTestDBWorld):
     @patch('equanimity.grid.Grid.value')
     def test_form_squad_error(self, mock_value):
         mock_value.return_value = 128
-        self.assertEqual(len(self.s.free_units), 0)
-        self.s.free_units.max_free_spaces = self.s.max_occupancy
-        self.s.free_units.free_spaces = self.s.max_occupancy
-        n_units = self.s.max_occupancy
+        self.assertEqual(len(self.s.free), 0)
+        n_units = 20
         self.assertGreater(n_units, 0)
         scients = [self.s.form_scient(E, create_comp(earth=1))
                    for i in range(n_units)]
@@ -441,9 +379,9 @@ class StrongholdTest(FlaskTestDBWorld):
         sq = self.s.form_squad(unit_ids=uids, name='sq')
         # Squad should not use all of the units, since there are more units
         # than can fit in the squad. This triggers the exception, which keeps
-        # the units in the free_units pool
+        # the units in the free pool
         self.assertLess(len(sq), n_units)
-        self.assertEqual(len(self.s.free_units), n_units - len(sq))
+        self.assertEqual(len(self.s.free), n_units - len(sq))
 
     def test_garrisoned(self):
         self.assertFalse(self.s.garrisoned)
@@ -484,7 +422,7 @@ class StrongholdTest(FlaskTestDBWorld):
         ub = self.s.form_scient(E, create_comp(earth=23))
         sqb = self.s.form_squad(unit_ids=(ua.uid, ub.uid), name='xxy')
         self.assertEqual(self.s.squads[0], sqa)
-        self.assertGreater(sqb.value(), self.s.squads[0].value())
+        self.assertGreater(sqb.value, self.s.squads[0].value)
         self.assertEqual(self.s.defenders, sqb)
 
     def test_get_defenders_automatic_creating_squad(self):
@@ -518,17 +456,17 @@ class StrongholdTest(FlaskTestDBWorld):
     def test_api_view(self):
         self.s._setup_default_defenders()
         schema = Schema(dict(field=tuple, silo=dict, weapons=[dict],
-                             free_units=[dict], squads=[dict], defenders=dict))
+                             free=[dict], squads=[dict], defenders=dict))
         data = self.s.api_view()
         self.assertNotEqual(data['defenders'], {})
         self.assertValidSchema(data, schema)
 
     def test_add_free_unit(self):
-        self.assertEqual(len(self.s.free_units), 0)
+        self.assertEqual(len(self.s.free), 0)
         unit = Scient(E, create_comp(earth=1))
         self.s.add_free_unit(unit)
-        self.assertEqual(len(self.s.free_units), 1)
-        self.assertEqual(self.s.free_units[unit.uid], unit)
+        self.assertEqual(len(self.s.free), 1)
+        self.assertEqual(self.s.free[unit.uid], unit)
         self.assertEqual(self.s.owner, unit.owner)
         # Already in free units
         self.assertExceptionContains(ValueError, 'already in free units',
@@ -621,19 +559,19 @@ class StrongholdTest(FlaskTestDBWorld):
 
     def test_disband_squad(self):
         self.s.silo.imbue(create_comp(earth=100, fire=100))
-        self.assertEqual(len(self.s.free_units), 0)
+        self.assertEqual(len(self.s.free), 0)
         s = self.s.form_scient(E, create_comp(earth=1))
         t = self.s.form_scient(F, create_comp(fire=1))
-        self.assertEqual(len(self.s.free_units), 2)
+        self.assertEqual(len(self.s.free), 2)
         sq = self.s.form_squad(unit_ids=(s.uid, t.uid), name='test')
         self.assertEqual(sq.stronghold, self.s)
         self.assertEqual(len(self.s.squads), 1)
-        self.assertEqual(len(self.s.free_units), 0)
+        self.assertEqual(len(self.s.free), 0)
         self.assertEqual(len(sq), 2)
         self.s.disband_squad(sq.stronghold_pos)
         self.assertEqual(len(sq), 0)
         self.assertIs(sq.stronghold, None)
-        self.assertEqual(len(self.s.free_units), 2)
+        self.assertEqual(len(self.s.free), 2)
 
     @patch.object(Stronghold, '_add_unit_to')
     def test_add_unit_to_squad(self, mock_add):
@@ -655,9 +593,9 @@ class StrongholdTest(FlaskTestDBWorld):
 
     def test_remove_unit_from_stronghold(self):
         s = self.s.form_scient(E, create_comp(earth=1))
-        self.assertEqual(self.s.free_units.map, {s.uid: s})
+        self.assertEqual(self.s.free.map, {s.uid: s})
         self.s._remove_unit_from(self.s, s.uid)
-        self.assertEqual(self.s.free_units.map, {})
+        self.assertEqual(self.s.free.map, {})
 
     def test_remove_unit_from_unrelated(self):
         s = Scient(E, create_comp(earth=1))

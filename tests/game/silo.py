@@ -41,6 +41,6 @@ class SiloTest(TestCase):
         nums = range(1, 10)
         comps = [Composition(x) for x in nums]
         s.imbue_list(comps)
-        self.assertEqual(s.value(), sum(nums) * 4)
+        self.assertEqual(s.value, sum(nums) * 4)
         for e in s:
             self.assertEqual(s[e], sum(nums))

@@ -4,6 +4,7 @@ factory.py
 Created by AFD on 2013-08-05.
 Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
+from persistent.mapping import PersistentMapping
 from const import OPPSEX
 from units import Scient, Nescient
 from unit_container import Container
@@ -13,8 +14,8 @@ from weapons import Sword, Bow, Wand, Glove
 class Factory(Container):
     """contains a number of Units. Takes a list of Units"""
     def __init__(self, data=None):
-        super(Factory, self).__init__(data=data, free_spaces=1)
-        self.produced = {}
+        super(Factory, self).__init__(data=data, max_size=1)
+        self.produced = PersistentMapping()
 
     def __setitem__(self, key, val):
         super(Factory, self).__setitem__(key, val)
@@ -29,7 +30,7 @@ class Factory(Container):
         self.produced.update({item.id: False})
 
     def upgrade(self):
-        self.free_spaces += 1
+        self.max_size += 1
 
     def reset(self):
         self.produced = {unit.id: False for unit in self.data}
@@ -60,7 +61,7 @@ class Stable(Factory):
                 if unit.element == season:
                     if OPPSEX[unit.sex] in sexes:
                         if not self.produced[unit.id]:
-                            c = {k: v/8 for k, v in unit.comp.iteritems()}
+                            c = {k: v / 8 for k, v in unit.comp.iteritems()}
                             stone = silo.get(c)
                             nescient = Nescient(unit.element, stone)
                             nescient_list.append(nescient)
@@ -79,7 +80,7 @@ class Armory(Factory):
         self.kind = 'Armory'
 
     def produce(self, silo):
-        #called every week?
+        # called every week?
         weapon_list = []
         for unit in self.data:
             if not self.produced[unit.id]:
@@ -115,7 +116,7 @@ class Home(Factory):
             raise Exception("Homes can only contain Scients.")
 
     def produce(self, silo):
-        #call once a year.
+        # call once a year.
         scient_list = []
         sexes = [unit.sex for unit in self.data]
         if len(self.data) > 1:  # It takes two to tango, baby.
@@ -136,15 +137,15 @@ class Home(Factory):
 
 class Farm(Factory):
     """Planting is done in the field."""
-    #called everyday
+    # called everyday
     def __init__(self):
         Factory.__init__(self)
         self.kind = 'Farm'
 
     def produce(self, tiles_comps):
         """returns True if all the stones can be planted."""
-        #tiles_comps is a dict.
-        #A tile_comp: {'(0, 0)': ({E:1,F:1,I:1,W:1}, 4)}
+        # tiles_comps is a dict.
+        # A tile_comp: {'(0, 0)': ({E:1,F:1,I:1,W:1}, 4)}
         size = 0
         workers = {}
         has_scient = False
@@ -158,16 +159,16 @@ class Farm(Factory):
             if len(tiles_comps) > size:
                 raise Exception("Tried planting too many stones.")
             else:
-                #sort workers highest to lowest value.
+                # sort workers highest to lowest value.
                 iv = [(k, v[1]) for k, v in workers.iteritems()]
                 sorted_workers = sorted(iv, key=lambda tup: tup[1],
                                         reverse=True)
 
-                #sort tiles_comps highest to lowest comp.
+                # sort tiles_comps highest to lowest comp.
                 sorted_tiles = sorted(tiles_comps.iteritems(),
                                       key=lambda tup: tup[1][1], reverse=True)
                 for n in xrange(len(sorted_workers)):
-                    #can the unit lift the stone?
+                    # can the unit lift the stone?
                     if sorted_workers[n][1] < sorted_tiles[1][1]:
                         msg = "comp: {0} could not be planted."
                         raise Exception(msg.format(sorted_tiles[1][0]))

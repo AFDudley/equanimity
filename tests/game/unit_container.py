@@ -1,6 +1,7 @@
-from equanimity.unit_container import Container, Squad
+from equanimity.unit_container import Container, Squad, MappedContainer
 from equanimity.units import Scient, Nescient
 from equanimity.const import E, F, I, W, WEP_LIST
+from server.utils import AttributeDict
 from ..base import create_comp, FlaskTestDB
 
 
@@ -10,58 +11,67 @@ class ContainerTest(FlaskTestDB):
         super(ContainerTest, self).setUp()
         self.c = Container()
         self.s = Scient(E, create_comp(earth=128, fire=32, ice=32))
+        self.t = Scient(E, create_comp(earth=64, fire=16, ice=16))
         self.nes = Nescient(E, create_comp(earth=128))
 
     def test_append(self):
         self.c.append(self.s)
         self.assertEqual(self.s.container, self.c)
-        self.assertEqual(self.c.free_spaces, 7)
+        self.assertEqual(self.c.size, 1)
         self.assertIn(self.s, self.c.units)
-        self.assertEqual(self.c.val, self.s.value())
+        self.assertEqual(self.s.value, self.s.value)
+        self.assertFalse(self.c.full)
 
     def test_append_no_room(self):
-        self.c.free_spaces = 0
-        self.assertRaises(Exception, self.c.append, self.s)
+        self.c.max_size = 1
+        self.c.append(self.s)
+        self.assertExceptionContains(ValueError, 'not enough space',
+                                     self.c.append, self.t)
+
+    def test_append_no_room_disabled(self):
+        self.c.max_size = 0
+        for i in range(100):
+            self.c.append(Scient(E, create_comp(earth=128, fire=32, ice=32)))
 
     def test_value(self):
-        self.assertEqual(self.c.value(), self.c.val)
-
-    def test_update_value(self):
+        self.assertEqual(self.c.value, 0)
         self.c.append(self.s)
-        val = self.c.val
-        self.assertNotEqual(val, 0)
-        self.c.val = 0
-        self.c._update_value()
-        self.assertEqual(self.c.val, val)
+        self.assertEqual(self.c.value, self.s.value)
+        self.c.append(self.t)
+        self.assertEqual(self.c.value, self.s.value + self.t.value)
 
     def test_setitem(self):
+        self.assertEqual(self.c.value, 0)
         self.c.append(self.nes)
+        self.assertEqual(self.c.value, self.nes.value)
+        self.assertEqual(self.c.size, self.nes.size)
         self.assertEqual(self.nes.container, self.c)
-        self.c[0] = self.s
-        self.assertEqual(self.c[0], self.s)
-        self.assertEqual(self.c.val, self.s.value())
-        self.assertEqual(self.c.free_spaces, 7)
-        self.assertEqual(self.s.container, self.c)
-        self.assertIs(self.nes.container, None)
+        self.c[self.nes.container_pos] = self.nes
+        self.assertEqual(len(self.c), 1)
+        self.assertEqual(self.c[self.nes.container_pos], self.nes)
+        self.assertEqual(self.c.value, self.nes.value)
+        self.assertEqual(self.c.size, self.nes.size)
+        self.assertEqual(self.nes.container, self.c)
 
-    def test_setitem_no_space(self):
-        self.c.free_spaces = 1
+    def test_setitem_no_overwrite(self):
         self.c.append(self.s)
-        self.assertEqual(self.c.free_spaces, 0)
-        self.assertRaises(Exception, self.c.__setitem__, 0, self.nes)
+        self.assertEqual(self.c.size, 1)
+        self.assertFalse(self.c.full)
+        self.assertExceptionContains(ValueError, 'Cannot overwrite existing',
+                                     self.c.__setitem__, 0, self.nes)
 
     def test_delitem(self):
         self.c.append(self.s)
         self.c.append(self.nes)
-        self.assertEqual(self.c.free_spaces, 5)
-        self.assertEqual(self.c.value(), self.s.value() + self.nes.value())
+        self.assertEqual(self.c.size, 3)
+        self.assertEqual(self.c.value, self.s.value + self.nes.value)
         self.assertEqual(self.s.container, self.c)
         self.assertEqual(self.nes.container, self.c)
         self.assertEqual(self.s.container_pos, 0)
         self.assertEqual(self.nes.container_pos, 1)
         del self.c[0]
-        self.assertEqual(self.c.free_spaces, 6)
-        self.assertEqual(self.c.value(), self.nes.value())
+        self.assertEqual(self.c.size, 2)
+        self.assertEqual(self.c.value, self.nes.value)
         self.assertIs(self.s.container, None)
         self.assertEqual(self.nes.container, self.c)
         self.assertEqual(self.nes.container_pos, 0)
@@ -69,15 +79,15 @@ class ContainerTest(FlaskTestDB):
     def test_remove(self):
         self.c.append(self.s)
         self.c.append(self.nes)
-        self.assertEqual(self.c.free_spaces, 5)
-        self.assertEqual(self.c.value(), self.s.value() + self.nes.value())
+        self.assertEqual(self.c.size, 3)
+        self.assertEqual(self.c.value, self.s.value + self.nes.value)
         self.assertEqual(self.s.container, self.c)
         self.assertEqual(self.nes.container, self.c)
         self.assertEqual(self.s.container_pos, 0)
         self.assertEqual(self.nes.container_pos, 1)
         self.c.remove(self.s)
-        self.assertEqual(self.c.free_spaces, 6)
-        self.assertEqual(self.c.value(), self.nes.value())
+        self.assertEqual(self.c.size, 2)
+        self.assertEqual(self.c.value, self.nes.value)
         self.assertIs(self.s.container, None)
         self.assertEqual(self.nes.container, self.c)
         self.assertEqual(self.nes.container_pos, 0)
@@ -89,16 +99,99 @@ class ContainerTest(FlaskTestDB):
     def test_extend(self):
         s = Scient(E, create_comp(earth=128))
         self.c.extend([self.nes, s])
-        self.assertEqual(self.c.free_spaces, 5)
-        self.assertEqual(self.c.val, 256)
+        self.assertEqual(self.c.size, 3)
+        self.assertEqual(self.c.value, 256)
         self.assertEqual(self.c.units, [self.nes, s])
+
+    def test_extend_no_room(self):
+        self.c.max_size = 1
+        s = Scient(E, create_comp(earth=128))
+        self.assertExceptionContains(ValueError, 'not enough space',
+                                     self.c.extend, [self.nes, s])
+        self.assertEqual(len(self.c), 0)
+        self.assertEqual(self.c.size, 0)
+        self.assertEqual(self.c.value, 0)
+
+    def test_extend_no_room_disabled(self):
+        self.c.max_size = 0
+        scients = [Scient(E, create_comp(earth=128)) for i in range(100)]
+        self.c.extend(scients)
+        self.assertEqual(self.c.size, len(scients) * Scient.size)
+        self.assertEqual(self.c.value, scients[0].value * len(scients))
+        self.assertEqual(self.c.units, scients)
 
     def test_iadd(self):
         s = Scient(E, create_comp(earth=128))
         self.c += [self.nes, s]
-        self.assertEqual(self.c.free_spaces, 5)
-        self.assertEqual(self.c.val, 256)
+        self.assertEqual(self.c.size, 3)
+        self.assertEqual(self.c.value, 256)
         self.assertEqual(self.c.units, [self.nes, s])
+
+
+class MappedContainerTest(FlaskTestDB):
+
+    def setUp(self):
+        super(MappedContainerTest, self).setUp()
+        self.m = MappedContainer()
+
+    def _make_value(self, uid):
+
+        class AttributeDictUID(AttributeDict):
+
+            def __eq__(self, other):
+                return self.uid == other.uid
+
+            def __ne__(self, other):
+                return not self.__eq__(other)
+
+        return AttributeDictUID(uid=uid, size=1, value=lambda: 5,
+                                remove_from_container=lambda: True,
+                                add_to_container=lambda x, y: True)
+
+    def test_create(self):
+        self.assertTrue(hasattr(self.m, 'map'))
+        self.assertEqual(len(self.m.map), len(self.m))
+
+    def test_setitem_getitem_delitem(self):
+        val = self._make_value(2)
+        self.m[2] = val
+        self.assertEqual(self.m[2], val)
+        del self.m[2]
+        self.assertRaises(KeyError, self.m.__getitem__, 2)
+
+    def test_setitem_bad(self):
+        self.assertRaises(KeyError, self.m.__setitem__, 2, self._make_value(3))
+
+    def test_contains(self):
+        val = self._make_value(7)
+        self.m[7] = val
+        self.assertIn(7, self.m)
+
+    def test_get(self):
+        val = self._make_value(7)
+        self.m[7] = val
+        self.assertIsNone(self.m.get(6))
+        self.assertIsNone(self.m.get(8))
+        self.assertEqual(self.m.get(8, default=0), 0)
+        self.assertEqual(self.m.get(7), val)
+
+    def test_append(self):
+        val = self._make_value(7)
+        self.m.append(val)
+        self.assertIn(7, self.m)
+        # reappend overwrites
+        valx = self._make_value(7)
+        self.m.append(valx)
+        self.assertNotEqual(id(val), id(valx))
+        self.assertEqual(id(self.m[7]), id(valx))
+
+    def test_pop(self):
+        val = self._make_value(7)
+        self.m[7] = val
+        r = self.m.pop(7)
+        self.assertEqual(r, val)
+        self.assertNotIn(7, self.m)
+        self.assertNotIn(7, self.m.map)
 
 
 class SquadTest(FlaskTestDB):
@@ -121,20 +214,21 @@ class SquadTest(FlaskTestDB):
     def test_create_single_unit(self):
         squad = Squad(name='x', data=self.s)
         self.assertEqual(squad.name, 'x')
-        self.assertEqual(squad.value(), self.s.value())
-        self.assertEqual(squad.free_spaces, 7)
+        self.assertEqual(squad.value, self.s.value)
+        self.assertEqual(squad.size, 1)
 
     def test_create_multiple_units(self):
         squad = Squad(name='x', data=[self.s, self._make_scient()])
         self.assertEqual(squad.name, 'x')
-        self.assertEqual(squad.value(), self.s.value() * 2)
-        self.assertEqual(squad.free_spaces, 6)
+        self.assertEqual(squad.value, self.s.value * 2)
+        self.assertEqual(squad.size, 2)
 
     def test_create_no_units_no_kind(self):
         squad = Squad(name='x')
         self.assertEqual(squad.name, 'x')
-        self.assertEqual(squad.value(), 0)
-        self.assertEqual(squad.free_spaces, 8)
+        self.assertEqual(squad.value, 0)
+        self.assertEqual(squad.size, 0)
+        self.assertFalse(squad.full)
 
     def test_create_no_units_kind_mins(self):
         self.assertRaises(Exception, Squad, kind='mins')
@@ -146,8 +240,8 @@ class SquadTest(FlaskTestDB):
         self.assertEqual(self.squad.hp(), self.s.hp)
 
     def test_repr(self):
-        msg = '<Squad x, Value: {0}, Free spaces: 7>'
-        msg = msg.format(self.s.value())
+        msg = '<Squad x, Value: {0}, Size: 1/8>'
+        msg = msg.format(self.s.value)
         self.assertEqual(str(self.squad), msg)
         self.assertEqual(self.squad(), msg)
 
@@ -155,8 +249,8 @@ class SquadTest(FlaskTestDB):
         names = ['{0}: {1}'.format(i, t.name)
                  for i, t in enumerate(self.squad)]
         names = '\n'.join(names)
-        msg = '<Squad x, Value: {val}, Free spaces: 7> \n{names}'
-        msg = msg.format(val=self.s.value(), names=names)
+        msg = '<Squad x, Value: {val}, Size: 1/8> \n{names}'
+        msg = msg.format(val=self.s.value, names=names)
         self.assertEqual(self.squad(more=True), msg)
 
     def test_add_to_stronghold(self):

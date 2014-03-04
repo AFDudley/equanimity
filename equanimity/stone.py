@@ -102,6 +102,7 @@ class Composition(dict):
             if self[e] < 0 or self[e] > 255:
                 raise ValueError('Element {0} is {1}'.format(e, self[e]))
 
+    @property
     def value(self):
         return sum(self.values())
 
@@ -147,7 +148,7 @@ class Stone(PersistentMapping):
                 stone[s] -= r
                 self.comp[s] += r
 
-        if stone.value():
+        if stone.value:
             return stone
 
     def split(self, comp):
@@ -189,8 +190,9 @@ class Stone(PersistentMapping):
             tup += (self.comp[key],)
         return tup
 
+    @property
     def value(self):
-        return self.comp.value()
+        return self.comp.value
 
     def __str__(self):
         return '<Stone: {comp}>'.format(comp=self.comp)
@@ -222,8 +224,8 @@ class Stone(PersistentMapping):
         return id(self)
 
     def __cmp__(self, other):
-        a = self.value()
-        b = other.value()
+        a = self.value
+        b = other.value
         if a < b:
             return -1
         elif a > b:

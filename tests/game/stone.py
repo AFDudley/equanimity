@@ -108,8 +108,8 @@ class StoneTest(TestCase):
         s = Stone(create_comp(earth=128, fire=128))
         t = Stone(create_comp(ice=128, fire=255))
         self.assertEqual(t, s.imbue(t))
-        self.assertEqual(t.value(), 128)
-        self.assertEqual(s.value(), 128 + 128 + 255)
+        self.assertEqual(t.value, 128)
+        self.assertEqual(s.value, 128 + 128 + 255)
         self.assertEqual(s.comp, create_comp(earth=128, ice=128, fire=255))
         self.assertEqual(t.comp, create_comp(fire=128))
 
@@ -122,7 +122,7 @@ class StoneTest(TestCase):
         s = Stone(create_comp(earth=64))
         t = Stone(create_comp(earth=32))
         self.assertIs(s.imbue(t), None)
-        self.assertEqual(t.value(), 0)
+        self.assertEqual(t.value, 0)
 
     def test_imbue_not_stone(self):
         s = Stone()
@@ -134,7 +134,7 @@ class StoneTest(TestCase):
 
     def test_value(self):
         s = Stone(create_comp(earth=128, fire=32))
-        self.assertEqual(s.value(), 160)
+        self.assertEqual(s.value, 160)
 
     def test_split(self):
         s = Stone(create_comp(earth=128))

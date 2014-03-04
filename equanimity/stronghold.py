@@ -6,15 +6,12 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from collections import OrderedDict
 from persistent import Persistent
-from persistent.mapping import PersistentMapping
-from operator import methodcaller
 
 from worldtools import get_world
 from stone import Stone
 from units import Scient
-from unit_container import Squad, rand_squad
+from unit_container import Squad, rand_squad, MappedContainer
 from weapons import weapons
-from unit_container import Container
 from const import ORTH, OPP, WEP_LIST, ELEMENTS
 from factory import Stable, Armory, Home, Farm
 from silo import Silo
@@ -36,7 +33,7 @@ class Stronghold(Persistent):
         self.field = field
         self.silo = Silo()
         self.weapons = SparseStrongholdList(self)
-        self.free_units = MappedContainer()
+        self.free = MappedContainer(max_size=0)
         self.squads = SparseStrongholdList(self)
         self.defenders = None
         self.stable = None
@@ -55,9 +52,9 @@ class Stronghold(Persistent):
 
     @property
     def units(self):
-        """ Returns the sum of free_units and squad units """
+        """ Returns the sum of free and squad units """
         units = {}
-        units.update(self.free_units.map)
+        units.update(self.free.map)
         for sq in self.squads:
             for u in sq:
                 units[u.uid] = u
@@ -67,11 +64,11 @@ class Stronghold(Persistent):
     def occupancy(self):
         """ Returns spaces used by occupying units """
         sizes = [sq.size for sq in self.squads]
-        return sum(sizes) + self.free_units.size
+        return sum(sizes) + self.free.size
 
     @property
     def max_occupancy(self):
-        base = self.field.grid.value() + 4
+        base = self.field.grid.value + 4
         spaces = base // 64
         if base % 64:
             spaces += 1
@@ -91,7 +88,7 @@ class Stronghold(Persistent):
             field=self.location,
             silo=self.silo.api_view(),
             weapons=[w.api_view() for w in self.weapons],
-            free_units=[u.api_view() for u in self.free_units],
+            free=[u.api_view() for u in self.free],
             squads=[s.api_view() for s in self.squads],
             defenders=defenders,
         )
@@ -101,7 +98,7 @@ class Stronghold(Persistent):
         if self.garrisoned:
             raise ValueError("Stronghold is already occupied")
         squad = rand_squad(owner=self.owner, element=self.field.element,
-                           max_value=self.field.grid.value(), size=size,
+                           max_value=self.field.grid.value, size=size,
                            kind=kind, equip=True)
         self._add_squad(squad)
 
@@ -109,12 +106,12 @@ class Stronghold(Persistent):
         """ Adds a unit to the free units """
         if self.occupancy + unit.size > self.max_occupancy:
             raise ValueError("Not enough room in stronghold to add unit")
-        if unit.uid in self.free_units:
+        if unit.uid in self.free:
             raise ValueError("Unit is already in free units")
         if unit.container is not None:
             unit.container.remove(unit)
         unit.owner = self.owner
-        self.free_units.append(unit)
+        self.free.append(unit)
 
     """ Defender management """
 
@@ -173,12 +170,12 @@ class Stronghold(Persistent):
         """Forms a squad and places it in the stronghold."""
         sq = Squad(owner=self.owner, name=name)
         for unit_id in unit_ids:
-            unit = self.free_units.pop(unit_id)
+            unit = self.free.pop(unit_id)
             try:
                 sq.append(unit)
-            except Exception:
+            except ValueError:
                 # Put it back in case there was error
-                self.free_units.append(unit)
+                self.free.append(unit)
         self.squads.append(sq)
         return sq
 
@@ -241,8 +238,6 @@ class Stronghold(Persistent):
         stone = self.silo.get(comp)
         unit = self.units[unit_id]
         unit.imbue(stone)
-        if unit.container.name != 'stronghold':
-            unit.container._update_value()
         return unit
 
     def add_unit_to_squad(self, squad_num, unit_id):
@@ -402,17 +397,17 @@ class Stronghold(Persistent):
         self.squads.append(squad)
 
     def _add_unit_to(self, container, unit_id):
-        """Add unit to a container from free_units"""
+        """Add unit to a container from free"""
         if container.stronghold != self:
             raise ValueError('Container is not related to stronghold')
-        unit = self.free_units.pop(unit_id)
+        unit = self.free.pop(unit_id)
         container.append(unit)
 
     def _remove_unit_from(self, container, unit_id):
         """remove unit from a container, either a stronghold or a squad. """
         if container == self:
             # If the unit is in free units, remove it from the stronghold
-            del self.free_units[unit_id]
+            del self.free[unit_id]
         else:
             # Otherwise, move the unit into the free units
             if container.stronghold != self:
@@ -421,7 +416,7 @@ class Stronghold(Persistent):
             if unit is None:
                 raise ValueError("Unit is not related to this container")
             container.remove(unit)
-            self.free_units.append(unit)
+            self.free.append(unit)
 
     def _get_automatic_defenders(self):
         """ Returns the highest valued squad, if one exists. Otherwise
@@ -439,17 +434,16 @@ class Stronghold(Persistent):
         highest = None
         highest_val = -1
         for s in self.squads:
-            if s.value() > highest_val:
+            if s.value > highest_val:
                 highest = s
-                highest_val = s.value()
+                highest_val = s.value
         return highest
 
     def _create_automatic_free_unit_squad(self):
         """ Create a squad from the highest valued free units """
-        units = sorted(self.free_units.units, key=methodcaller('value'),
-                       reverse=True)
-        if not units:
+        if not self.free:
             return
+        units = self.free.sorted_by_value(descending=True)
         units = [unit.uid for unit in units]
         return self.form_squad(unit_ids=units, name='Defenders')
 
@@ -479,48 +473,6 @@ class Stronghold(Persistent):
         s = self.form_squad(unit_ids=[u.uid for u in units], name=name)
         self.defenders = s
         return s
-
-
-class MappedContainer(Container):
-
-    def __init__(self):
-        super(MappedContainer, self).__init__(data=None)
-        # maybe map should actually return the key and method
-        # should be added instead of using .map
-        self.map = PersistentMapping()
-        self.name = 'stronghold'
-
-    def __getitem__(self, key):
-        return self.map[key]
-
-    def __setitem__(self, key, unit):
-        if key != unit.uid:
-            raise KeyError('Key must equal unit uid')
-        self.append(unit)
-
-    def __delitem__(self, key):
-        unit = self.map[key]
-        super(MappedContainer, self).__delitem__(self.units.index(unit))
-        del self.map[key]
-
-    def __contains__(self, key):
-        return (key in self.map)
-
-    def get(self, key, default=None):
-        return self.map.get(key, default)
-
-    def append(self, unit):
-        if unit.uid in self.map:
-            pos = self.units.index(unit)
-            super(MappedContainer, self).__setitem__(pos, unit)
-        else:
-            super(MappedContainer, self).append(unit)
-        self.map[unit.uid] = unit
-
-    def pop(self, unit_id):
-        unit = self.map[unit_id]
-        del self[unit_id]
-        return unit
 
 
 class SparseList(Persistent):

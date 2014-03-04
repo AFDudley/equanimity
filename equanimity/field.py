@@ -116,7 +116,7 @@ class Field(Persistent):
         self._owner = owner
         for s in self.stronghold.squads:
             s.owner = owner
-        for u in self.stronghold.free_units:
+        for u in self.stronghold.free:
             u.owner = owner
 
     def get_adjacent(self, direction):

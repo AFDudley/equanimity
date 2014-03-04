@@ -154,7 +154,7 @@ class FieldTest(FlaskTestDB):
         self.f.owner = p
         self.assertIn(self.f.world_coord, p.get_fields(0))
         self.assertNotIn(self.f.world_coord, wp.get_fields(0))
-        # make sure the free_units and squads and their units are updated
+        # make sure the free and squads and their units are updated
         self.s.silo.imbue(create_comp(earth=100))
         s = self.s.form_scient(E, create_comp(earth=1))
         t = self.s.form_scient(E, create_comp(earth=1))

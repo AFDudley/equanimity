@@ -13,7 +13,7 @@ class TileTest(FlaskTestDB):
         t = Tile()
         self.assertTrue(t.location.is_null())
         self.assertIs(t.contents, None)
-        self.assertEqual(t.value(), 0)
+        self.assertEqual(t.value, 0)
 
     def test_create_with_location(self):
         loc = Hex(0, 1)
@@ -24,13 +24,13 @@ class TileTest(FlaskTestDB):
         s = Scient(E, create_comp(earth=128))
         t = Tile(contents=s)
         self.assertEqual(t.contents, s)
-        self.assertEqual(t.value(), 0)
+        self.assertEqual(t.value, 0)
 
     def test_create_with_comp(self):
         t = Tile(comp=create_comp(earth=128))
         self.assertEqual(t.comp[E], 128)
         self.assertIs(t.contents, None)
-        self.assertEqual(t.value(), 128)
+        self.assertEqual(t.value, 128)
 
     def test_equality(self):
         t = Tile((0, 1))

@@ -14,7 +14,7 @@ from datetime import timedelta
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
-from operator import methodcaller
+from operator import attrgetter
 
 from battlefield import Battlefield
 from units import Unit
@@ -517,7 +517,7 @@ class Game(Persistent):
             # stronghold's free units.
             # If prisoners cannot fit they return to where they came from.
             # Highest valued units are captured first, in case they don't fit.
-            prisoners = sorted(prisoners, key=methodcaller('value'),
+            prisoners = sorted(prisoners, key=attrgetter('value'),
                                reverse=True)
             for u in prisoners:
                 try:
@@ -581,7 +581,7 @@ class ActionQueue(Persistent):
             msg = 'Unit {0} is not in a battling squad'
             raise ValueError(msg.format(unit))
         # Lower valued units go first
-        val = unit.value()
+        val = unit.value
         # Higher counts of the field's primary element go first
         # We invert the value from the max so that a lower value appears
         # in the comparison key

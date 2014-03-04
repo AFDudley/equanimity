@@ -168,7 +168,7 @@ class Grid(Stone):
             comp = Stone(comp)
         super(Grid, self).__init__(comp)
         self.radius = radius
-        if comp.value():
+        if comp.value:
             self._setup_tiles(comp)
         else:
             self._setup_fresh_tiles(tiles=tiles)

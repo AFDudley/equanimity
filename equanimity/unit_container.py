@@ -6,6 +6,9 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """
 from persistent import Persistent
 from persistent.list import PersistentList
+from persistent.mapping import PersistentMapping
+from operator import attrgetter
+
 from stone import Stone
 from const import ELEMENTS, WEP_LIST, OPP, ORTH
 from units import Scient, rand_unit
@@ -20,48 +23,40 @@ class Container(Persistent):
 
     """contains units"""
 
-    def __init__(self, data=None, free_spaces=8, owner=None):
+    def __init__(self, data=None, max_size=8, owner=None):
+        """ A max_size of <= 0 means unrestricted size """
         super(Container, self).__init__()
+        self.max_size = max_size
+        self.units = PersistentList()
         if data is None:
-            self.units = PersistentList()
+            data = []
         elif isinstance(data, Stone):
-            self.units = PersistentList(initlist=[data])
-        else:
-            self.units = PersistentList(initlist=data)
+            data = [data]
+        self.extend(data)
         self.owner = owner
-        self.max_free_spaces = free_spaces
-        self.free_spaces = free_spaces
-        self._update_value()
-        self._set_positions()
-        self._update_free_space()
 
+    @property
     def value(self):
-        return self.val
+        return sum([u.value for u in self.units])
 
     @property
     def size(self):
-        return self.max_free_spaces - self.free_spaces
+        return sum([u.size for u in self.units])
 
-    def _update_value(self):
-        self.val = sum([u.value() for u in self.units])
+    @property
+    def full(self):
+        return self.size >= self.max_size
 
-    def _set_positions(self):
-        for i, u in enumerate(self.units):
-            u.container_pos = i
-            u.container = self
-
-    def _update_free_space(self):
-        needed = sum([u.size for u in self.units])
-        if needed > self.max_free_spaces:
-            raise ValueError('Container {0} is overflowing'.format(self))
-        self.free_spaces = self.max_free_spaces - needed
-
-    """ List-like interface """
+    def sorted_by_value(self, descending=False):
+        return sorted(self.units, key=attrgetter('value'),
+                      reverse=descending)
 
     def get(self, unit_id):
         for u in self.units:
             if u.uid == unit_id:
                 return u
+
+    """ List-like interface """
 
     def remove(self, unit):
         if unit.container != self:
@@ -69,18 +64,18 @@ class Container(Persistent):
         del self[unit.container_pos]
 
     def append(self, unit):
-        if self.free_spaces < unit.size:
+        if self.max_size > 0 and self.size + unit.size > self.max_size:
             msg = "There is not enough space in this container for this unit"
-            raise Exception(msg)
-        unit.container_pos = len(self)
-        unit.container = self
-        self.units.append(unit)
-        self.val += unit.value()
-        self.free_spaces -= unit.size
+            raise ValueError(msg)
+        self._append(unit)
 
     def extend(self, units):
+        if (self.max_size > 0 and
+                sum([u.size for u in units]) + self.size > self.max_size):
+            m = "There is not enough space in this container for these units"
+            raise ValueError(m)
         for unit in units:
-            self.append(unit)
+            self._append(unit)
 
     def __iadd__(self, units):
         """ += operator """
@@ -95,25 +90,61 @@ class Container(Persistent):
 
     def __setitem__(self, pos, unit):
         old = self.units[pos]
-        if self.free_spaces + old.size < unit.size:
-            msg = "There is not enough space in this container for this unit"
-            raise Exception(msg)
+        if old != unit:
+            raise ValueError("Cannot overwrite existing container unit")
         self.units[pos] = unit
-        self.val += unit.value() - old.value()
-        self.free_spaces += old.size - unit.size
-        old.remove_from_container()
         unit.add_to_container(self, pos)
 
     def __delitem__(self, pos):
         self.units[pos].remove_from_container()
-        self.free_spaces += self.units[pos].size
-        self.val -= self.units[pos].value()
         del self.units[pos]
         for i, unit in enumerate(self.units[pos:]):
             unit.container_pos = pos + i
 
     def __iter__(self):
         return iter(self.units)
+
+    def _append(self, unit):
+        """ Appends without size checking. """
+        unit.add_to_container(self, len(self.units))
+        self.units.append(unit)
+
+
+class MappedContainer(Container):
+
+    def __init__(self, **kwargs):
+        super(MappedContainer, self).__init__(**kwargs)
+        self.map = PersistentMapping()
+
+    def __getitem__(self, key):
+        return self.map[key]
+
+    def __setitem__(self, key, unit):
+        if key != unit.uid:
+            raise KeyError('Key must equal unit uid')
+        self.append(unit)
+
+    def __delitem__(self, key):
+        self.pop(key)
+
+    def __contains__(self, key):
+        return (key in self.map)
+
+    def get(self, key, default=None):
+        return self.map.get(key, default)
+
+    def append(self, unit):
+        if unit.uid in self.map:
+            pos = self.units.index(unit)
+            super(MappedContainer, self).__setitem__(pos, unit)
+        else:
+            super(MappedContainer, self).append(unit)
+        self.map[unit.uid] = unit
+
+    def pop(self, unit_id):
+        unit = self.map.pop(unit_id)
+        super(MappedContainer, self).__delitem__(self.units.index(unit))
+        return unit
 
 
 class Squad(Container):
@@ -122,7 +153,7 @@ class Squad(Container):
 
     def __init__(self, data=None, name=None, kind=None, element=None,
                  owner=None):
-        super(Squad, self).__init__(data=data, free_spaces=8, owner=owner)
+        super(Squad, self).__init__(data=data, max_size=8, owner=owner)
         self.name = name
         if data is None and kind == 'mins':
             self._fill_default_units(element, set_name=(name is None))
@@ -209,15 +240,15 @@ class Squad(Container):
     def __repr__(self, more=None):
         """This could be done better..."""
         if more is None:
-            fmt = "<Squad {name}, Value: {value}, Free spaces: {space}>"
-            return fmt.format(name=self.name, value=self.val,
-                              space=self.free_spaces)
+            fmt = "<Squad {name}, Value: {value}, Size: {size}/{max_size}>"
+            return fmt.format(name=self.name, value=self.value,
+                              size=self.size, max_size=self.max_size)
         s = ['{0}: {1}'.format(i, t.name) for i, t in enumerate(self)]
         s = '\n'.join(s)
-        fmt = ("<Squad {name}, Value: {value}, Free spaces: {space}> \n"
+        fmt = ("<Squad {name}, Value: {value}, Size: {size}/{max_size}> \n"
                "{names}")
-        return fmt.format(name=self.name, value=self.val,
-                          space=self.free_spaces, names=s)
+        return fmt.format(name=self.name, value=self.value,
+                          size=self.size, max_size=self.max_size, names=s)
 
     def __call__(self, more=None):
         return self.__repr__(more=more)
@@ -237,15 +268,15 @@ def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8,
         squad = Squad(owner=owner, data=units)
     else:
         squad = Squad(owner=owner)
-        while squad.free_spaces >= 2:
+        while squad.max_size >= 2:
             squad.append(rand_unit(element=element, max_value=max_value))
-        if squad.free_spaces == 1:
+        if squad.max_size == 1:
             squad.append(rand_unit(element=element, kind='Scient',
                                    max_value=max_value))
     if equip:
         for unit in squad:
             if isinstance(unit, Scient):
-                wep = rand_weapon(element=element, max_value=unit.value() // 2)
+                wep = rand_weapon(element=element, max_value=unit.value // 2)
                 unit.equip(wep)
     return squad
 
