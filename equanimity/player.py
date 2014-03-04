@@ -191,7 +191,7 @@ class WorldPlayer(Player):
         return True
 
 
-class PlayerGroup(object):
+class PlayerGroup(Persistent):
 
     """ Manager for a group of players """
 
