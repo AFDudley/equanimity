@@ -14,6 +14,7 @@ from datetime import timedelta
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
+from operator import methodcaller
 
 from battlefield import Battlefield
 from units import Unit
@@ -513,11 +514,17 @@ class Game(Persistent):
             self.field.get_taken_over(atksquad)
         else:
             # Prisoners must be transferred from attacker to defender's
-            # stronghold's free units
-            # If prisoners cannot fit they return to where they came from
+            # stronghold's free units.
+            # If prisoners cannot fit they return to where they came from.
+            # Highest valued units are captured first, in case they don't fit.
+            prisoners = sorted(prisoners, key=methodcaller('value'),
+                               reverse=True)
             for u in prisoners:
-                # TODO -- handle stronghold capacity limits
-                self.field.stronghold.add_free_unit(u)
+                try:
+                    self.field.stronghold.add_free_unit(u)
+                except ValueError:
+                    # We've filled the stronghold
+                    break
         # Allow the world to take over if the defender is vacant
         self.field.check_ungarrisoned()
 

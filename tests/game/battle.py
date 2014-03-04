@@ -1,6 +1,7 @@
 import itertools
 from unittest import TestCase
 from mock import MagicMock, patch, call
+from operator import methodcaller
 from datetime import timedelta, datetime
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
 from server.utils import AttributeDict
@@ -475,7 +476,35 @@ class GameTest(GameTestBase):
         awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
         self.game.update_field(atksquad, defsquad, awards, prisoners)
         mock_garr.assert_called_once_with()
+        prisoners = sorted(prisoners, key=methodcaller('value'),
+                           reverse=True)
         mock_add.assert_has_calls([call(u) for u in prisoners])
+        mock_clean.assert_called_once_with([atksquad, defsquad])
+        mock_taken.assert_not_called()
+        mock_imbue.assert_called_once_with(awards)
+
+    @patch('equanimity.battle.Game.clean_up_dead_units')
+    @patch('equanimity.silo.Silo.imbue_list')
+    @patch('equanimity.field.Field.get_taken_over')
+    @patch('equanimity.stronghold.Stronghold.add_free_unit')
+    @patch('equanimity.field.Field.check_ungarrisoned')
+    def test_update_field_defender_wins_stronghold_full(
+            self, mock_garr, mock_add, mock_taken, mock_imbue, mock_clean):
+        # Update with defender wins
+        mock_add.side_effect = ValueError
+        self.game.winner = self.defender
+        atksquad = self.game.battlefield.atksquad
+        defsquad = self.game.battlefield.defsquad
+        prisoners = [u for u in atksquad]
+        awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
+        self.game.update_field(atksquad, defsquad, awards, prisoners)
+        mock_garr.assert_called_once_with()
+        prisoner = None
+        for p in prisoners:
+            if prisoner is None or p.value() > prisoner.value():
+                prisoner = p
+        self.assertIsNotNone(prisoner)
+        mock_add.assert_called_once_with(prisoner)
         mock_clean.assert_called_once_with([atksquad, defsquad])
         mock_taken.assert_not_called()
         mock_imbue.assert_called_once_with(awards)

@@ -1,7 +1,7 @@
 from mock import patch, Mock, MagicMock
 from voluptuous import Schema
 from equanimity.grid import Hex
-from equanimity.const import E, F
+from equanimity.const import E, F, I
 from equanimity.stronghold import (Stronghold, MappedContainer, SparseList,
                                    SparseStrongholdList)
 from equanimity.unit_container import Squad
@@ -215,6 +215,15 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertIs(self.s.farm, None)
         self.assertIs(self.s.home, None)
 
+    def test_populate(self):
+        self.assertEqual(len(self.s.squads), 0)
+        self.s.populate(kind='Scient', size=3)
+        self.assertEqual(len(self.s.squads), 1)
+        self.assertEqual(len(self.s.squads[0]), 3)
+        # Populate is only valid if empty
+        self.assertExceptionContains(ValueError, 'already occupied',
+                                     self.s.populate)
+
     def test_owner(self):
         self.assertEqual(self.s.owner, self.f.owner)
 
@@ -229,6 +238,15 @@ class StrongholdTest(FlaskTestDBWorld):
         self.s.form_squad(unit_ids=[u.uid for u in scients[4:]])
         for s in scients:
             self.assertEqual(s, self.s.units.get(s.uid))
+        self.assertEqual(len(self.s.units), len(scients))
+
+    def test_occupancy(self):
+        scients = []
+        for i in xrange(6):
+            scients.append(self.s.form_scient(E, create_comp(earth=i + 1)))
+        self.s.form_squad(unit_ids=[u.uid for u in scients[2:4]])
+        self.s.form_squad(unit_ids=[u.uid for u in scients[4:]])
+        self.assertEqual(self.s.occupancy, len(scients) * Scient.size)
 
     def test_get(self):
         loc = Hex(0, 1)
@@ -305,6 +323,11 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(self.s.silo.value(), 128 - scient.value() * 2)
         self.assertEqual(self.s.units[scient.uid], scient)
         self.assertEqual(self.s.free_units[scient.uid], scient)
+        # Occupancy met
+        self.s.max_occupancy = 1
+        self.assertExceptionContains(ValueError, 'Not enough room',
+                                     self.s.form_scient, E,
+                                     create_comp(earth=1), name='test2')
 
     def test_name_unit(self):
         unit = self.s.form_scient(E, create_comp(earth=10), name='test')
@@ -472,6 +495,22 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertNotEqual(data['defenders'], {})
         self.assertValidSchema(data, schema)
 
+    def test_add_free_unit(self):
+        self.assertEqual(len(self.s.free_units), 0)
+        unit = Scient(E, create_comp(earth=1))
+        self.s.add_free_unit(unit)
+        self.assertEqual(len(self.s.free_units), 1)
+        self.assertEqual(self.s.free_units[unit.uid], unit)
+        self.assertEqual(self.s.owner, unit.owner)
+        # Already in free units
+        self.assertExceptionContains(ValueError, 'already in free units',
+                                     self.s.add_free_unit, unit)
+        # Occupancy met
+        self.s.max_occupancy = 1
+        unit = Scient(I, create_comp(ice=1))
+        self.assertExceptionContains(ValueError, 'Not enough room',
+                                     self.s.add_free_unit, unit)
+
     def test_add_squad(self):
         sq = Squad(owner=self.player)
         self.f.owner = self.player
@@ -541,6 +580,13 @@ class StrongholdTest(FlaskTestDBWorld):
         self.assertEqual(s.stronghold, self.s)
         mock_remove.assert_called_once_with(0)
 
+    def test_move_squad_in_max_occupancy(self):
+        unit = Scient(E, create_comp(earth=1))
+        s = Squad(owner=self.s.owner, data=[unit])
+        self.s.max_occupancy = 0
+        self.assertExceptionContains(ValueError, 'Not enough room',
+                                     self.s.move_squad_in, s)
+
     def test_disband_squad(self):
         self.s.silo.imbue(create_comp(earth=100, fire=100))
         self.assertEqual(len(self.s.free_units), 0)
@@ -548,6 +594,8 @@ class StrongholdTest(FlaskTestDBWorld):
         t = self.s.form_scient(F, create_comp(fire=1))
         self.assertEqual(len(self.s.free_units), 2)
         sq = self.s.form_squad(unit_ids=(s.uid, t.uid), name='test')
+        self.assertEqual(sq.stronghold, self.s)
+        self.assertEqual(len(self.s.squads), 1)
         self.assertEqual(len(self.s.free_units), 0)
         self.assertEqual(len(sq), 2)
         self.s.disband_squad(sq.stronghold_pos)
@@ -581,7 +629,7 @@ class StrongholdTest(FlaskTestDBWorld):
 
     def test_remove_unit_from_unrelated(self):
         s = Scient(E, create_comp(earth=1))
-        self.assertExceptionContains(ValueError, 'has no relation',
+        self.assertExceptionContains(ValueError, 'is not related',
                                      self.s._remove_unit_from, Squad(), s.uid)
 
     def test_setup_default_defeneders_twice(self):

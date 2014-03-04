@@ -32,12 +32,12 @@ class Stronghold(Persistent):
                 return field.stronghold
 
     def __init__(self, field):
+        self.max_occupancy = 32
         self._defenders = None
         self.field = field
         self.silo = Silo()
         self.weapons = SparseStrongholdList(self)
         self.free_units = MappedContainer()
-        self.units = dict()
         self.squads = SparseStrongholdList(self)
         self.defenders = None
         self.stable = None
@@ -55,10 +55,26 @@ class Stronghold(Persistent):
         return self.field.owner
 
     @property
+    def units(self):
+        """ Returns the sum of free_units and squad units """
+        units = {}
+        units.update(self.free_units.map)
+        for sq in self.squads:
+            for u in sq:
+                units[u.uid] = u
+        return units
+
+    @property
+    def occupancy(self):
+        """ Returns spaces used by occupying units """
+        sizes = [sq.size for sq in self.squads]
+        return sum(sizes) + self.free_units.size
+
+    @property
     def garrisoned(self):
         """ Returns True if there are units somewhere inside the stronghold
         """
-        return bool(self.units)
+        return self.occupancy > 0
 
     def api_view(self):
         defenders = {}
@@ -84,13 +100,14 @@ class Stronghold(Persistent):
 
     def add_free_unit(self, unit):
         """ Adds a unit to the free units """
-        # TODO -- handle capacity. Must account for squads and free_units
+        if self.occupancy + unit.size > self.max_occupancy:
+            raise ValueError("Not enough room in stronghold to add unit")
+        if unit.uid in self.free_units:
+            raise ValueError("Unit is already in free units")
         if unit.container is not None:
             unit.container.remove(unit)
         unit.owner = self.owner
         self.free_units.append(unit)
-        self.free_units.append(unit)
-        self.units[unit.uid] = unit
 
     """ Defender management """
 
@@ -139,6 +156,8 @@ class Stronghold(Persistent):
 
     def move_squad_in(self, squad):
         """ Move foreign squad into here """
+        if squad.size + self.occupancy > self.max_occupancy:
+            raise ValueError("Not enough room in stronghold for squad")
         squad.stronghold.remove_squad(squad.stronghold_pos)
         self._add_squad(squad)
 
@@ -180,6 +199,8 @@ class Stronghold(Persistent):
 
     def form_scient(self, element, comp, name=None):
         """Takes a stone from stronghold and turns it into a Scient."""
+        if self.occupancy + Scient.size > self.max_occupancy:
+            raise ValueError("Not enough room in stronghold to form Scient")
         comp = self.silo.get(comp)
         scient = Scient(element, comp, name=name)
         self.add_free_unit(scient)
@@ -229,7 +250,7 @@ class Stronghold(Persistent):
         self._remove_unit_from(unit.container, unit.uid)
         remains = Stone({k: v / 2 for k, v in unit.iteritems()})
         self.silo.imbue(remains)
-        del self.units[unit_id]
+        self._remove_unit_from(unit.container, unit.uid)
 
     def feed_unit(self, unit_id):  # maybe it should take a clock.
         """Feeds a unit from the silo, most they can be fed is every 60 days"""
@@ -368,27 +389,31 @@ class Stronghold(Persistent):
         if squad.owner != self.owner:
             msg = 'Squad {0} does not have same owner as stronghold'
             raise ValueError(msg.format(squad))
+        if squad.size + self.occupancy > self.max_occupancy:
+            raise ValueError('Stronghold does not have enough room for squad')
         self.squads.append(squad)
-        for u in squad:
-            self.units[u.uid] = u
 
     def _add_unit_to(self, container, unit_id):
-        """Add unit to container."""
-        # wrapper to keep containers private.
-        container.append(self.free_units[unit_id])
-        del self.free_units[unit_id]
+        """Add unit to a container from free_units"""
+        if container.stronghold != self:
+            raise ValueError('Container is not related to stronghold')
+        unit = self.free_units.pop(unit_id)
+        container.append(unit)
 
     def _remove_unit_from(self, container, unit_id):
         """remove unit from a container, either a stronghold or a squad. """
         if container == self:
+            # If the unit is in free units, remove it from the stronghold
             del self.free_units[unit_id]
-            del self.units[unit_id]
         else:
-            if unit_id not in self.units:
-                raise ValueError('Unit container has no relation to this '
-                                 'stronghold')
-            unit = self.units[unit_id]
-            self.add_free_unit(unit)
+            # Otherwise, move the unit into the free units
+            if container.stronghold != self:
+                raise ValueError("Container is not related to stronghold")
+            unit = container.get(unit_id)
+            if unit is None:
+                raise ValueError("Unit is not related to this container")
+            container.remove(unit)
+            self.free_units.append(unit)
 
     def _get_automatic_defenders(self):
         """ Returns the highest valued squad, if one exists. Otherwise
@@ -473,6 +498,9 @@ class MappedContainer(Container):
     def __contains__(self, key):
         return (key in self.map)
 
+    def get(self, key, default=None):
+        return self.map.get(key, default)
+
     def append(self, unit):
         if unit.uid in self.map:
             pos = self.units.index(unit)
@@ -520,8 +548,8 @@ class SparseList(Persistent):
     def __repr__(self):
         return repr(list(self))
 
-    def get(self, key):
-        return self.items.get(key)
+    def get(self, key, default=None):
+        return self.items.get(key, default)
 
     def pop(self, key):
         return self.items.pop(key)
@@ -545,11 +573,11 @@ class SparseStrongholdList(SparseList):
         item.add_to_stronghold(self.stronghold, pos)
 
     def pop(self, key):
-        s = super(SparseStrongholdList, self).pop(key)
-        s.remove_from_stronghold()
-        return s
+        item = super(SparseStrongholdList, self).pop(key)
+        item.remove_from_stronghold()
+        return item
 
     def __delitem__(self, pos):
-        sq = self.items[pos]
+        item = self.items[pos]
         super(SparseStrongholdList, self).__delitem__(pos)
-        sq.remove_from_stronghold()
+        item.remove_from_stronghold()

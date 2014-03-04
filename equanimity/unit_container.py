@@ -38,6 +38,10 @@ class Container(Persistent):
     def value(self):
         return self.val
 
+    @property
+    def size(self):
+        return self.max_free_spaces - self.free_spaces
+
     def _update_value(self):
         self.val = sum([u.value() for u in self.units])
 
@@ -53,6 +57,11 @@ class Container(Persistent):
         self.free_spaces = self.max_free_spaces - needed
 
     """ List-like interface """
+
+    def get(self, unit_id):
+        for u in self.units:
+            if u.uid == unit_id:
+                return u
 
     def remove(self, unit):
         if unit.container != self:

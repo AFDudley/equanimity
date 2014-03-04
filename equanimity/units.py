@@ -144,6 +144,8 @@ class Scient(Unit):
     """
 
     type = 'scient'
+    size = 1
+    move = 4
 
     def __init__(self, element, comp, name=None, weapon=None,
                  weapon_bonus=None, sex='female'):
@@ -154,8 +156,6 @@ class Scient(Unit):
                                  "more than half the primary element's "
                                  "value.")
         super(Scient, self).__init__(element, comp, name=name, sex=sex)
-        self.size = 1
-        self.move = 4
         self.weapon = weapon
         if weapon_bonus is None:
             self.weapon_bonus = Stone()
@@ -214,11 +214,13 @@ class Nescient(Unit):
     """A non-playable unit."""
 
     type = 'nescient'
+    size = 2
+    move = 4
 
     def __init__(self, element, comp, name=None, weapon=None, sex='female',
                  facing=None, body=None):
         if body is None:
-            body = {'head':  None, 'left': None, 'right': None, 'tail': None}
+            body = {'head': None, 'left': None, 'right': None, 'tail': None}
         comp = Stone(comp)
         orth = comp.orth(element)
         if all(orth):
@@ -230,8 +232,6 @@ class Nescient(Unit):
                                  "the primary element value.")
 
         super(Nescient, self).__init__(element, comp, name=name, sex=sex)
-        self.size = 2
-        self.move = 4
         # Set nescient type.
         if self.element == 'Earth':
             self.kind = 'p'
