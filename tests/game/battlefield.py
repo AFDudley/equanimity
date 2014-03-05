@@ -21,7 +21,8 @@ class BattlefieldTest(FlaskTestDBWorld):
         if atksquad is None:
             s = Scient(E, create_comp(earth=128))
             atksquad = Squad(data=[s])
-        return Battlefield(field, defsquad, atksquad)
+        self.field = field
+        return Battlefield(field.grid, field.element, defsquad, atksquad)
 
     def test_create(self):
         s = Scient(E, create_comp(earth=128))
@@ -32,7 +33,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         bf = self.create_battlefield(field=field, defsquad=defsquad,
                                      atksquad=atksquad)
         self.assertEqual(bf.grid, field.grid)
-        self.assertEqual(bf.field, field)
+        self.assertEqual(bf.element, field.element)
         self.assertEqual(bf.graveyard, [])
         self.assertEqual(bf.defsquad, defsquad)
         self.assertEqual(bf.atksquad, atksquad)
@@ -295,7 +296,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         atksquad = Squad(data=[u])
         u.chosen_location = Hex(2, 1)
         bf = self.create_battlefield(defsquad=squad, atksquad=atksquad)
-        bf.field.rand_place_squad(squad)
+        self.field.rand_place_squad(squad)
         bf.put_squads_on_field()
         self.assertEqual(len(list(bf.grid.occupied_coords())), 3)
         self.assertEqual(bf.flush_units(), 3)

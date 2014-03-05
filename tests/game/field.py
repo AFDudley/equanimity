@@ -1,13 +1,15 @@
-from mock import MagicMock, Mock, patch
+from mock import MagicMock, Mock, patch, call
 from unittest import TestCase
 from voluptuous import Schema, Any
+from operator import attrgetter
 from equanimity.field import FieldQueue, Field
-from equanimity.unit_container import Squad
+from equanimity.unit_container import Squad, rand_squad
 from equanimity.player import Player
 from equanimity.grid import Grid, Hex
 from equanimity.battle import Battle
 from equanimity.units import Scient
 from equanimity.world import World
+from equanimity.stone import Stone
 from equanimity.const import FIELD_PRODUCE, FIELD_YIELD, FIELD_BATTLE, E, I
 from equanimity.helpers import AttributeDict
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
@@ -270,3 +272,69 @@ class FieldTest(FlaskTestDB):
         self.assertNotEqual(self.f, Field(1, self.f.world_coord, I))
         # non matching type
         self.assertNotEqual(self.f, 1)
+
+    @patch('equanimity.silo.Silo.imbue_list')
+    @patch('equanimity.field.Field.get_taken_over')
+    @patch('equanimity.stronghold.Stronghold.add_free_unit')
+    @patch('equanimity.field.Field.check_ungarrisoned')
+    def test_battle_end_attacker_wins(self, mock_garr, mock_add, mock_taken,
+                                      mock_imbue):
+        # Update with attacker wins
+        atksquad = rand_squad(size=4)
+        defsquad = rand_squad(size=4)
+        winner = atksquad
+        prisoners = [u for u in defsquad]
+        awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
+        self.f.battle_end_callback(atksquad, defsquad, winner, awards,
+                                   prisoners)
+        mock_garr.assert_called_once_with()
+        mock_add.assert_not_called()
+        mock_taken.assert_called_once_with(atksquad)
+        mock_imbue.assert_called_once_with(awards)
+
+    @patch('equanimity.silo.Silo.imbue_list')
+    @patch('equanimity.field.Field.get_taken_over')
+    @patch('equanimity.stronghold.Stronghold.add_free_unit')
+    @patch('equanimity.field.Field.check_ungarrisoned')
+    def test_battle_end_defender_wins(self, mock_garr, mock_add, mock_taken,
+                                      mock_imbue):
+        # Update with defender wins
+        atksquad = rand_squad(size=4)
+        defsquad = rand_squad(size=4)
+        winner = defsquad
+        prisoners = [u for u in atksquad]
+        awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
+        self.f.battle_end_callback(atksquad, defsquad, winner, awards,
+                                   prisoners)
+        mock_garr.assert_called_once_with()
+        prisoners = sorted(prisoners, key=attrgetter('value'),
+                           reverse=True)
+        mock_add.assert_has_calls([call(u) for u in prisoners])
+        mock_taken.assert_not_called()
+        mock_imbue.assert_called_once_with(awards)
+
+    @patch('equanimity.silo.Silo.imbue_list')
+    @patch('equanimity.field.Field.get_taken_over')
+    @patch('equanimity.stronghold.Stronghold.add_free_unit')
+    @patch('equanimity.field.Field.check_ungarrisoned')
+    def test_battle_end_defender_wins_stronghold_full(self, mock_garr,
+                                                      mock_add, mock_taken,
+                                                      mock_imbue):
+        # Update with defender wins
+        mock_add.side_effect = ValueError
+        atksquad = rand_squad(size=4)
+        defsquad = rand_squad(size=4)
+        winner = defsquad
+        prisoners = [u for u in atksquad]
+        awards = [Stone(create_comp(earth=2, ice=3, fire=1, wind=7))]
+        self.f.battle_end_callback(atksquad, defsquad, winner, awards,
+                                   prisoners)
+        mock_garr.assert_called_once_with()
+        prisoner = None
+        for p in prisoners:
+            if prisoner is None or p.value > prisoner.value:
+                prisoner = p
+        self.assertIsNotNone(prisoner)
+        mock_add.assert_called_once_with(prisoner)
+        mock_taken.assert_not_called()
+        mock_imbue.assert_called_once_with(awards)

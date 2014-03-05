@@ -7,6 +7,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 import random
 from persistent import Persistent
 from collections import OrderedDict
+from operator import attrgetter
 
 from worldtools import get_world
 from stone import Stone, get_element
@@ -246,6 +247,33 @@ class Field(Persistent):
         # the stronghold somehow.
         # happens once a year.
         return self.stronghold.silo.imbue_list(self.get_tile_comps())
+
+    def battle_end_callback(self, atksquad, defsquad, winner, awards,
+                            prisoners):
+        """ Triggered by Battle when it ends. Dead units/squads should
+        have been disbanded before calling this. """
+        # Add awards to the silo
+        self.stronghold.silo.imbue_list(awards)
+        if winner == atksquad:
+            # Attempt to capture the field. It will fail if the stronghold
+            # is still garrisoned.
+            if atksquad:
+                self.get_taken_over(atksquad)
+        else:
+            # Prisoners must be transferred from attacker to defender's
+            # stronghold's free units.
+            # If prisoners cannot fit they return to where they came from.
+            # Highest valued units are captured first, in case they don't fit.
+            prisoners = sorted(prisoners, key=attrgetter('value'),
+                               reverse=True)
+            for u in prisoners:
+                try:
+                    self.stronghold.add_free_unit(u)
+                except ValueError:
+                    # We've filled the stronghold
+                    break
+        # Allow the world to take over if the defender is vacant
+        self.check_ungarrisoned()
 
     """ Special """
 

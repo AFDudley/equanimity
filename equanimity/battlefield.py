@@ -20,12 +20,10 @@ Replace ValueError with a custom exception
 
 class Battlefield(object):
     """contains grid, units and the logic for unit damage and movement."""
-    def __init__(self, field, defsquad, atksquad):
-        self.game_id = 0
-        self.grid = field.grid
-        self.field = field
-        self.element = field.element
+    def __init__(self, grid, element, defsquad, atksquad):
+        self.grid = grid
         self.graveyard = []
+        self.element = element
         self.defsquad = defsquad
         self.atksquad = atksquad
         self.dmg_queue = {}

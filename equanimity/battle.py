@@ -292,21 +292,20 @@ class Battle(Persistent):
 
     def __init__(self, field, attacker):
         super(Battle, self).__init__()
-        self.field = field
-        self.grid = field.grid
         self.defender = field.stronghold.defenders.owner
         self.attacker = attacker.owner
-        self.battlefield = Battlefield(field, field.stronghold.defenders,
-                                       attacker)
+        self.battlefield = Battlefield(field.grid, field.element,
+                                       field.stronghold.defenders, attacker)
         units = {unit.uid: unit for unit in self.battlefield.units}
         self.map = bidict(units)
         self.units = bidict(inverted(self.map))
         self.winner = None
-        self.log = Log(self.players, self.units, self.battlefield.grid)
+        self.log = Log(self.players, self.units, field.grid)
         self.state = State(self)
         self.state.old_defsquad_hp = self.battlefield.defsquad.hp()
-        self.uid = db['battle_uid'].get_next_id()
         self.states = PersistentList()
+        self.field = field
+        self.uid = db['battle_uid'].get_next_id()
 
     def persist(self):
         db['battles'][self.uid] = self
@@ -557,31 +556,6 @@ class Battle(Persistent):
         """ Returns the dead units in squad """
         return [u for u in squad if u.hp <= 0]
 
-    def _update_field(self, atksquad, defsquad, awards, prisoners):
-        # Update field state
-        # TODO -- this maybe should be somewhere else
-        self._clean_up_dead_units([atksquad, defsquad])
-        self.field.stronghold.silo.imbue_list(awards)
-        if self.winner == self.attacker:
-            # Attempt to capture the field. It will fail if the stronghold
-            # is still garrisoned.
-            self.field.get_taken_over(atksquad)
-        else:
-            # Prisoners must be transferred from attacker to defender's
-            # stronghold's free units.
-            # If prisoners cannot fit they return to where they came from.
-            # Highest valued units are captured first, in case they don't fit.
-            prisoners = sorted(prisoners, key=attrgetter('value'),
-                               reverse=True)
-            for u in prisoners:
-                try:
-                    self.field.stronghold.add_free_unit(u)
-                except ValueError:
-                    # We've filled the stronghold
-                    break
-        # Allow the world to take over if the defender is vacant
-        self.field.check_ungarrisoned()
-
     def end(self, condition):
         """ Mame over state, handles log closing,
         writes change list for world"""
@@ -606,10 +580,16 @@ class Battle(Persistent):
                                              u(dead_defenders),
                                              awards)
 
+        self._clean_up_dead_units([self.battlefield.atksquad,
+                                   self.battlefield.defsquad])
+
         # Update the underlying field
-        self._update_field(self.battlefield.atksquad,
-                           self.battlefield.defsquad,
-                           awards, prisoners)
+        winner = self.battlefield.atksquad
+        if self.winner != winner.owner:
+            winner = self.battlefield.defsquad
+        self.field.battle_end_callback(self.battlefield.atksquad,
+                                       self.battlefield.defsquad,
+                                       winner, awards, prisoners)
 
 
 class ActionQueue(object):
