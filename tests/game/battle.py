@@ -564,7 +564,8 @@ class BattleProcessActionTest(BattleTestBase):
         return datetime.utcnow() - PLY_TIME - timedelta(minutes=5)
 
     def unit(self, num):
-        return self.battle.action_queue.get_unit_for_action(num)
+        return self.battle.action_queue.get_unit_for_action(
+            self.battle.battlefield, num)
 
     def assertActionResult(self, result, num, type, msg=None, target=Hex.null,
                            unit=None):
@@ -789,41 +790,41 @@ class ActionQueueTest(BattleTestBase):
     def aq(self):
         return self.battle.action_queue
 
-    def test_create(self):
-        self.assertEqual(self.aq.battle, self.battle)
-        self.assertEqual(len(self.aq.units), 10)
-
     def test_get_unit_for_action(self):
         # Invalid action num causes exception
-        self.assertRaises(ValueError, self.aq.get_unit_for_action, 0)
+        b = self.battle.battlefield
+        u = self.aq._get_unit_queue(b)
+        self.assertExceptionContains(ValueError, 'Invalid action number 0',
+                                     self.aq.get_unit_for_action, b, 0)
         # Check various units and their positions in the queue
         # First turn for unit 0
-        expect = self.aq.units[0]
-        self.assertEqual(self.aq.get_unit_for_action(1), expect)
-        self.assertEqual(self.aq.get_unit_for_action(2), expect)
+        expect = u[0]
+        self.assertEqual(self.aq.get_unit_for_action(b, 1), expect)
+        self.assertEqual(self.aq.get_unit_for_action(b, 2), expect)
         # First turn, for unit 5
-        expect = self.aq.units[5]
-        self.assertEqual(self.aq.get_unit_for_action(11), expect)
-        self.assertEqual(self.aq.get_unit_for_action(12), expect)
+        expect = u[5]
+        self.assertEqual(self.aq.get_unit_for_action(b, 11), expect)
+        self.assertEqual(self.aq.get_unit_for_action(b, 12), expect)
         # Next full turn, for unit 5
-        turn = len(self.aq.units) * 2
-        self.assertEqual(self.aq.get_unit_for_action(11 + turn), expect)
-        self.assertEqual(self.aq.get_unit_for_action(12 + turn), expect)
+        turn = len(u) * 2
+        self.assertEqual(self.aq.get_unit_for_action(b, 11 + turn), expect)
+        self.assertEqual(self.aq.get_unit_for_action(b, 12 + turn), expect)
         # 6 full turns, for unit 5
-        self.assertEqual(self.aq.get_unit_for_action(11 + turn * 5), expect)
-        self.assertEqual(self.aq.get_unit_for_action(12 + turn * 5), expect)
+        self.assertEqual(self.aq.get_unit_for_action(b, 11 + turn * 5), expect)
+        self.assertEqual(self.aq.get_unit_for_action(b, 12 + turn * 5), expect)
         # 6 full turns, for unit 6
-        expect = self.aq.units[6]
-        self.assertEqual(self.aq.get_unit_for_action(13 + turn * 5), expect)
-        self.assertEqual(self.aq.get_unit_for_action(14 + turn * 5), expect)
+        expect = u[6]
+        self.assertEqual(self.aq.get_unit_for_action(b, 13 + turn * 5), expect)
+        self.assertEqual(self.aq.get_unit_for_action(b, 14 + turn * 5), expect)
 
     def assertQueueOrder(self, require_all=False):
+        units = self.aq._get_unit_queue(self.battle.battlefield)
         # Verify order by induction
         value_tested = False
         prime_elem_tested = False
         pos_tested = False
         atk_tested = False
-        for a, b in pairwise(self.aq.units):
+        for a, b in pairwise(units):
             self.assertNotEqual(a, b)
             # Value <=
             self.assertLessEqual(a.value, b.value)
@@ -875,16 +876,29 @@ class ActionQueueTest(BattleTestBase):
         self.assertQueueOrder(require_all=True)
 
     def test_get_unit_key_bad_unit(self):
+        b = self.battle.battlefield
         unit = Scient(E, create_comp(earth=128))
         # neither squad nor squad_pos
-        self.assertRaises(ValueError, self.aq._get_unit_key, unit)
+        self.assertExceptionContains(ValueError, 'not in a squad',
+                                     self.aq._get_unit_key, b, unit)
         # squad, but no squad_pos
         unit.squad = self.defender.get_squads(self.world.uid)[0]
-        self.assertRaises(ValueError, self.aq._get_unit_key, unit)
+        self.assertExceptionContains(ValueError, 'not in a squad',
+                                     self.aq._get_unit_key, b, unit)
         # squad_pos, but no squad
         unit.squad = None
         unit.squad_pos = 0
-        self.assertRaises(ValueError, self.aq._get_unit_key, unit)
+        self.assertExceptionContains(ValueError, 'not in a squad',
+                                     self.aq._get_unit_key, b, unit)
         # not in a battling squad
         unit.squad = Squad(data=[unit])
-        self.assertRaises(ValueError, self.aq._get_unit_key, unit)
+        self.assertExceptionContains(ValueError, 'not in a battling squad',
+                                     self.aq._get_unit_key, b, unit)
+        # Dead
+        sq = self.defender.get_squads(self.world.uid)[0]
+        sq.append(unit)
+        self.assertIsNotNone(unit.container)
+        self.assertIsNotNone(unit.container_pos)
+        unit.hp = 0
+        self.assertExceptionContains(ValueError, 'is dead',
+                                     self.aq._get_unit_key, b, unit)

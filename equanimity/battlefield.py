@@ -48,6 +48,10 @@ class Battlefield(object):
                     units.append(unit)
         return tuple(units)
 
+    @property
+    def living_units(self):
+        return tuple(u for u in self.units if u.hp > 0)
+
     def make_parts(self, part_locs):
         new_body = {}
         for name, part in part_locs.iteritems():

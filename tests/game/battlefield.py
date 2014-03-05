@@ -62,6 +62,20 @@ class BattlefieldTest(FlaskTestDBWorld):
         bf = self.create_battlefield(atksquad=asq, defsquad=dsq)
         self.assertEqual(bf.get_units(), (dss, ass))
 
+    def test_living_units(self):
+        dss = Scient(E, (20, 0, 0, 0))
+        ass = Scient(F, (0, 20, 0, 0))
+        dsq = Squad(name='def', data=[dss])
+        asq = Squad(name='atk', data=[ass])
+        bf = self.create_battlefield(atksquad=asq, defsquad=dsq)
+        units = bf.get_units()
+        self.assertEqual(units, (dss, ass))
+        bf.units = units
+        dss.hp = 0
+        self.assertEqual(bf.living_units, (ass,))
+        ass.hp = -1
+        self.assertEqual(bf.living_units, tuple())
+
     def test_on_grid(self):
         grid = Grid(radius=4)
         field = Field(self.world, Hex(0, 0), I, grid=grid)
