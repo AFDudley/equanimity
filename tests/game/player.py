@@ -4,7 +4,7 @@ from equanimity.unit_container import Squad
 from equanimity.player import Player, WorldPlayer, PlayerGroup
 from equanimity.const import WORLD_UID, E
 from equanimity.grid import Hex
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
 

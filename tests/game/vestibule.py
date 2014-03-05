@@ -2,7 +2,7 @@ from mock import patch
 from voluptuous import Schema
 from equanimity.vestibule import Vestibule
 from equanimity.player import Player
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from ..base import FlaskTestDB
 
 

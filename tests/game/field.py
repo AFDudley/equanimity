@@ -9,7 +9,7 @@ from equanimity.battle import Battle
 from equanimity.units import Scient
 from equanimity.world import World
 from equanimity.const import FIELD_PRODUCE, FIELD_YIELD, FIELD_BATTLE, E, I
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from ..base import FlaskTestDB, FlaskTestDBWorld, create_comp
 
 
@@ -132,9 +132,9 @@ class FieldTest(FlaskTestDB):
 
     def test_in_battle(self):
         self.assertFalse(self.f.in_battle)
-        self.f.battle = AttributeDict(state=dict(game_over=False))
+        self.f.battle = AttributeDict(state=AttributeDict(game_over=False))
         self.assertTrue(self.f.in_battle)
-        self.f.battle = AttributeDict(state=dict(game_over=True))
+        self.f.battle = AttributeDict(state=AttributeDict(game_over=True))
         self.assertFalse(self.f.in_battle)
 
     def test_state(self):
@@ -142,7 +142,7 @@ class FieldTest(FlaskTestDB):
         self.assertEqual(self.f.state, FIELD_PRODUCE)
         self.f.element = E
         self.assertEqual(self.f.state, FIELD_YIELD)
-        self.f.battle = AttributeDict(state=dict(game_over=False))
+        self.f.battle = AttributeDict(state=AttributeDict(game_over=False))
         self.assertEqual(self.f.state, FIELD_BATTLE)
 
     @patch('equanimity.player.get_world')
@@ -190,7 +190,7 @@ class FieldTest(FlaskTestDB):
         self.s.silo.imbue(create_comp(earth=100))
         self.s.form_scient(E, create_comp(earth=1))
         g = self.f.battle = Battle(self.f, sq)
-        g.state['game_over'] = True
+        g.state.game_over = True
         self.f.process_battle_and_movement()
         mock_move.assert_not_called()
         mock_battle.assert_called_once_with(g.battlefield.atksquad)

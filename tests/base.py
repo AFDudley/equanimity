@@ -198,11 +198,15 @@ class FlaskTestDB(FlaskTest):
         transaction.abort()
         self.db_inited = False
         if do_init_db:
-            init_db(reset=True, square_grid=square_grid,
-                    grid_radius=grid_radius)
-            self.db_inited = True
-            transaction.commit()
+            self.init_db(reset=True, square_grid=square_grid,
+                         grid_radius=grid_radius)
         self.db = db
+
+    def init_db(self, reset=True, square_grid=True, grid_radius=2):
+        init_db(reset=reset, square_grid=square_grid,
+                grid_radius=grid_radius)
+        self.db_inited = True
+        transaction.commit()
 
     def tearDown(self):
         transaction.abort()
@@ -244,7 +248,8 @@ class FlaskTestDBWorld(FlaskTestDB):
         if init_db_reset is None:
             init_db_reset = not self.db_inited
         if init_db_reset:
-            init_db(reset=True, grid_radius=radius, square_grid=square_grid)
+            self.init_db(reset=True, grid_radius=radius,
+                         square_grid=square_grid)
         self.world = World.create(version=version, create_fields=True)
         transaction.commit()
         return self.world

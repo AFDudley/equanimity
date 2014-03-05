@@ -99,7 +99,7 @@ class Field(Persistent):
 
     @property
     def in_battle(self):
-        return (self.battle is not None and not self.battle.state['game_over'])
+        return (self.battle is not None and not self.battle.state.game_over)
 
     @property
     def state(self):
@@ -131,7 +131,7 @@ class Field(Persistent):
         """ Starts a battle if an attacker is available, otherwise moves
         a friendly squad into the stronghold if available """
         # First, check if there was a previous battle and if it is over
-        if self.battle is not None and self.battle.state['game_over']:
+        if self.battle is not None and self.battle.state.game_over:
             # If the winner is not the owner, that means the stronghold was
             # still garrisoned, and we must start a new battle
             if self.battle.winner != self.owner:

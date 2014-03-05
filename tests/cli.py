@@ -1,7 +1,7 @@
 from mock import patch
 from unittest import TestCase
 from flask import url_for
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from tools.client import EquanimityClient, get_args, process_args
 from server import create_app
 

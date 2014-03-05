@@ -37,11 +37,11 @@ class Container(Persistent):
 
     @property
     def value(self):
-        return sum([u.value for u in self.units])
+        return sum(u.value for u in self.units)
 
     @property
     def size(self):
-        return sum([u.size for u in self.units])
+        return sum(u.size for u in self.units)
 
     @property
     def full(self):
@@ -71,7 +71,7 @@ class Container(Persistent):
 
     def extend(self, units):
         if (self.max_size > 0 and
-                sum([u.size for u in units]) + self.size > self.max_size):
+                sum(u.size for u in units) + self.size > self.max_size):
             m = "There is not enough space in this container for these units"
             raise ValueError(m)
         for unit in units:

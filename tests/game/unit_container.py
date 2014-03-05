@@ -1,7 +1,7 @@
 from equanimity.unit_container import Container, Squad, MappedContainer
 from equanimity.units import Scient, Nescient
 from equanimity.const import E, F, I, W, WEP_LIST
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from ..base import create_comp, FlaskTestDB
 
 

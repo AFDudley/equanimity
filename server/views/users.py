@@ -2,7 +2,7 @@ from flask.ext.login import (login_required, login_user, logout_user,
                              current_user)
 from flask import Blueprint, g
 from equanimity.player import Player
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from server.forms.users import LoginForm, SignupForm
 from server.decorators import api
 

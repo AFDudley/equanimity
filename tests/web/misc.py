@@ -1,23 +1,8 @@
 import os
 from unittest import TestCase
 from server import create_app, attach_loggers
-from server.utils import (AttributeDict, construct_full_url, api_error,
-                          RateLimit)
+from server.utils import construct_full_url, api_error, RateLimit
 from ..base import FlaskTestDB
-
-
-class AttributeDictTest(TestCase):
-
-    def test_attribute_dict(self):
-        d = AttributeDict()
-        d['key'] = 'key'
-        self.assertEqual(d.key, 'key')
-        d.key = 'dog'
-        self.assertEqual(d['key'], 'dog')
-
-    def test_attribute_dict_error(self):
-        d = AttributeDict()
-        self.assertRaises(AttributeError, lambda: d.dog)
 
 
 class UtilsTest(TestCase):

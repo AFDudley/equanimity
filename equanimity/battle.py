@@ -12,8 +12,8 @@ and should be refactored with battle as well.
 from bidict import bidict, inverted
 from datetime import timedelta
 from persistent import Persistent
-from persistent.mapping import PersistentMapping
 from persistent.list import PersistentList
+from persistent.mapping import PersistentMapping
 from operator import attrgetter
 
 from server import db
@@ -21,7 +21,7 @@ from battlefield import Battlefield
 from units import Unit
 from grid import Hex
 from const import PLY_TIME
-from helpers import now, timestamp
+from helpers import now, timestamp, PersistentKwargs
 from worldtools import get_world
 
 
@@ -29,7 +29,7 @@ class BattleError(Exception):
     pass
 
 
-class Action(PersistentMapping):
+class Action(PersistentKwargs):
 
     """In a two player battle, two actions from a single player make a ply and
        a ply from each player makes a turn. """
@@ -41,14 +41,30 @@ class Action(PersistentMapping):
         super(Action, self).__init__(unit=unit, type=type, target=target,
                                      num=num, when=when)
 
+    def api_view(self):
+        return dict(
+            unit=self.unit,
+            type=self.type,
+            target=self.target,
+            num=self.num,
+            when=self.when,
+        )
 
-class Message(PersistentMapping):
+
+class Message(PersistentKwargs):
 
     def __init__(self, num, result):
         super(Message, self).__init__(num=num, result=result, when=now())
 
+    def api_view(self):
+        return dict(
+            num=self.num,
+            result=self.result,
+            when=self.when,
+        )
 
-class ChangeList(PersistentMapping):
+
+class ChangeList(PersistentKwargs):
     # TODO - belongs in different file
 
     def __init__(self, event, **kwargs):
@@ -63,57 +79,72 @@ class BattleChanges(ChangeList):
                                             awards=awards)
 
 
-class InitialState(PersistentMapping):
+class ActionResult(PersistentKwargs):
+
+    def __init__(self, command, response, applied=None):
+        super(ActionResult, self).__init__(command=command, response=response,
+                                           applied=applied)
+
+    def api_view(self):
+        return dict(
+            command=self.command.api_view(),
+            response=self.response.api_view(),
+            applied=getattr(self.applied, 'api_view', lambda: None)(),
+        )
+
+
+class InitialState(PersistentKwargs):
 
     """A hack for serialization."""
 
     def __init__(self, log):
-        names = tuple(player.name for player in log['players'])
+        names = tuple(player.name for player in log.players)
         super(InitialState, self).__init__(
-            init_locs=log['init_locs'], start_time=log['start_time'],
-            units=log['units'], grid=log['grid'], owners=log['owners'],
+            init_locs=log.init_locs, start_time=log.start_time,
+            units=log.units, grid=log.grid, owners=log.owners,
             player_names=names)
-        #self['owners'] = self.get_owners(log)
 
 
-class Log(PersistentMapping):
+class Log(PersistentKwargs):
 
     def __init__(self, players, units, grid):
         """Records initial battle state, timestamps log."""
         super(Log, self).__init__(players=players, units=units, grid=grid)
-        self['actions'] = PersistentList()
-        self['applied'] = PersistentList()
-        self['condition'] = None
-        self['change_list'] = None
-        self['event'] = 'battle'
-        self['end_time'] = None
-        self['init_locs'] = None
-        self['messages'] = PersistentList()
-        self['start_time'] = now()
-        self['owners'] = None
-        self['states'] = PersistentList()  # Does this really need to be here?
-        self['winner'] = None
-        self['world_coords'] = None  # set by battle_server
-        self['owners'] = self.get_owners()
+        self.actions = PersistentList()
+        self.applied = PersistentList()
+        self.condition = None
+        self.change_list = None
+        self.event = 'battle'
+        self.end_time = None
+        self.init_locs = None
+        self.messages = PersistentList()
+        self.start_time = now()
+        self.owners = None
+        self.states = PersistentList()  # Does this really need to be here?
+        self.winner = None
+        self.world_coords = None  # set by battle_server
+        self.owners = self.get_owners()
 
-    def init_locs(self):
-        self['init_locs'] = {unit.uid: unit.location for unit in self['units']}
+    def set_initial_locations(self):
+        locs = {unit.uid: unit.location for unit in self.units}
+        self.init_locs = PersistentMapping(dict=locs)
 
     def close(self, winner, condition):
         """Writes final timestamp, called when battle is over."""
-        self['end_time'] = now()
-        self['winner'] = winner
-        self['condition'] = condition
+        self.end_time = now()
+        self.winner = winner
+        self.condition = condition
 
     def get_owners(self):
         """Mapping of unit number to player/owner."""
-        return {unit.uid: unit.owner.name for unit in self['units']}
+        owners = {unit.uid: unit.owner.name for unit in self.units}
+        return PersistentMapping(dict=owners)
 
     def last_message(self):
         none = ['There was no message.']
-        if not self['messages']:
+        if not self.messages:
             return none
-        text = self['messages'][-1]['result']
+        text = self.messages[-1].result
         if text is None:
             return none
         return text
@@ -130,11 +161,11 @@ class Log(PersistentMapping):
         # Don't provide a current num to retrieve the last tip
         if current_num is None:
             try:
-                act = self['actions'][-1]
+                act = self.actions[-1]
             except IndexError:
                 return
             else:
-                if act['num'] % 2:
+                if act.num % 2:
                     term_action = -2
                 else:
                     term_action = -1
@@ -143,32 +174,32 @@ class Log(PersistentMapping):
         else:
             term_action = -2
         try:
-            return self['actions'][term_action]
+            return self.actions[term_action]
         except IndexError:
             return
 
     def get_last_terminating_action_time(self, current_num=None):
         act = self.get_last_terminating_action(current_num=current_num)
         if act is None:
-            return self['start_time']
+            return self.start_time
         else:
-            return act['when']
+            return act.when
 
     def action_timed_out(self, action):
-        start = self.get_last_terminating_action_time(action['num'])
-        return (action['when'] - start > PLY_TIME)
+        start = self.get_last_terminating_action_time(action.num)
+        return (action.when - start > PLY_TIME)
 
 
-class State(PersistentMapping):
+class State(PersistentKwargs):
 
     """A dictionary containing the current battle state."""
 
     def __init__(self, battle, num=1, pass_count=0, hp_count=0,
-                 old_defsquad_hp=0, queued=None, locs=None, HPs=None,
-                 game_over=False, **_):
+                 old_defsquad_hp=0, queued=None, locs=None, hps=None,
+                 game_over=False):
         self.battle = battle
-        if HPs is None:
-            HPs = PersistentMapping()
+        if hps is None:
+            hps = PersistentMapping()
         if queued is None:
             queued = PersistentMapping()
         if locs is None:
@@ -177,33 +208,52 @@ class State(PersistentMapping):
         super(State, self).__init__(num=num, pass_count=pass_count,
                                     hp_count=hp_count, queued=queued,
                                     old_defsquad_hp=old_defsquad_hp,
-                                    locs=locs, HPs=HPs, game_over=game_over,
+                                    locs=locs, hps=hps, game_over=game_over,
                                     whose_action=whose_action)
+
+    def _kwargs(self):
+        """ Returns the kwargs needed to reinitialize State from self """
+        return dict(
+            num=self.num,
+            pass_count=self.pass_count,
+            hp_count=self.hp_count,
+            old_defsquad_hp=self.old_defsquad_hp,
+            queued=self.queued,
+            locs=self.locs,
+            hps=self.hps,
+            game_over=self.game_over,
+        )
+
+    def snapshot(self, battle):
+        """ Creates a copy of self and battle and returns as a new state """
+        # TODO -- need to copy battle and all of its descendants?
+        s = State(battle, **self._kwargs())
+        return s
 
     def check(self, battle):
         """Checks for battle ending conditions.
         (Assumes two players and no ActionQueue.)"""
-        num = self['num']
-        last_type = battle.log['actions'][num - 1]['type']
+        num = self.num
+        last_type = battle.log.actions[num - 1].type
         if last_type == 'pass' or last_type == 'timed_out':
-            self['pass_count'] += 1
+            self.pass_count += 1
         else:
-            self['pass_count'] = 0
+            self.pass_count = 0
 
         if not num % 4:  # There are 4 actions in a turn.
             # This calcuates hp_count
             defsquad_hp = battle.battlefield.defsquad.hp()
-            if self['old_defsquad_hp'] >= defsquad_hp:
-                self['hp_count'] += 1
+            if self.old_defsquad_hp >= defsquad_hp:
+                self.hp_count += 1
             else:
-                self['hp_count'] = 0
+                self.hp_count = 0
 
             # battle over check:
-            if self['hp_count'] == 4:
+            if self.hp_count == 4:
                 battle.winner = battle.defender
                 return battle.end("Attacker failed to deal sufficent damage.")
             else:
-                self['old_defsquad_hp'] = defsquad_hp
+                self.old_defsquad_hp = defsquad_hp
 
         # check if battle is over.
         if battle.battlefield.defsquad.hp() == 0:
@@ -214,19 +264,20 @@ class State(PersistentMapping):
             battle.winner = battle.defender
             return battle.end("Attacker's squad is dead")
 
-        if self['pass_count'] >= 8:
+        if self.pass_count >= 8:
             battle.winner = battle.defender
             return battle.end("Both sides passed")
 
-        self['queued'] = battle.map_queue()
-        self['HPs'], self['locs'] = battle.update_unit_info()
+        self.queued = battle.map_queue()
+        self.hps, self.locs = battle.update_unit_info()
 
-        battle.log['states'].append(State(battle=self.battle, **self))
+        new_state = self.snapshot(battle)
+        battle.log.states.append(new_state)
 
         # battle is not over, state is stored, update state.
-        self['num'] += 1
+        self.num += 1
         aq = self.battle.action_queue
-        self['whose_action'] = aq.get_player_for_action(self['num']).uid
+        self.whose_action = aq.get_player_for_action(self.num).uid
 
 
 class Battle(Persistent):
@@ -248,8 +299,9 @@ class Battle(Persistent):
         self.log = Log(self.players, self.units, self.battlefield.grid)
         self.action_queue = ActionQueue(self)
         self.state = State(self)
-        self.state['old_defsquad_hp'] = self.battlefield.defsquad.hp()
+        self.state.old_defsquad_hp = self.battlefield.defsquad.hp()
         self.uid = db['battle_uid'].get_next_id()
+        self.states = PersistentList()
 
     def persist(self):
         db['battles'][self.uid] = self
@@ -272,14 +324,14 @@ class Battle(Persistent):
 
     def start(self):
         self.battlefield.put_squads_on_field()
-        self.log.init_locs()
+        self.log.set_initial_locations()
 
     def timer_view(self):
-        num = self.state['num']
+        num = self.state.num
         remaining = self.get_time_remaining_for_action()
         current_unit = self.action_queue.get_unit_for_action(num)
-        return dict(start_time=timestamp(self.log['start_time']),
-                    action_num=self.state['num'],
+        return dict(start_time=timestamp(self.log.start_time),
+                    action_num=self.state.num,
                     current_ply=self.action_queue.get_action_in_ply(num),
                     current_unit=current_unit.uid,
                     time_remaining=remaining.seconds)
@@ -290,8 +342,8 @@ class Battle(Persistent):
             timer=self.timer_view(),
             defender=self.defender.combatant_view(self.battlefield.defsquad),
             attacker=self.attacker.combatant_view(self.battlefield.atksquad),
-            action_num=self.state['num'],
-            game_over=self.state['game_over'],
+            action_num=self.state.num,
+            game_over=self.state.game_over,
             winner=getattr(self.winner, 'api_view', lambda: None)())
 
     def map_locs(self):
@@ -303,26 +355,22 @@ class Battle(Persistent):
                 locs[unit.uid] = loc
         return locs
 
-    def HPs(self):
+    def hps(self):
         """Hit points by unit."""
-        HPs = PersistentMapping()
-        for unit in self.units:
-            hp = unit.hp
-            if hp > 0:
-                HPs[unit.uid] = hp
-        return HPs
+        hps = {unit.uid: unit.hp for unit in self.units if unit.hp > 0}
+        return PersistentMapping(dict=hps)
 
     def update_unit_info(self):
-        """returns HPs, Locs."""
-        HPs = {}
-        locs = {}
+        """returns hps, Locs."""
+        hps = PersistentMapping()
+        locs = PersistentMapping()
         for unit in self.units:
             loc = unit.location
             # TODO (steve) -- should we also check hp > 0 ?
             if not loc.is_null():
                 locs[unit.uid] = loc
-                HPs[unit.uid] = unit.hp
-        return HPs, locs
+                hps[unit.uid] = unit.hp
+        return hps, locs
 
     def map_queue(self):
         """apply unit mapping to units in queue."""
@@ -337,13 +385,12 @@ class Battle(Persistent):
                 t[0] = t[0].uid
         return result
 
-    def map_action(self, **action):
+    def map_action(self, action):
         """replaces unit refrences to referencing their hash.
         TODO (steve) -- this may be unnecessary and cause problems """
-        new = Action(**action)
-        if new['unit'] is not None:
-            new['unit'] = new['unit'].uid
-        return new
+        if action.unit is not None:
+            action.unit = action.unit.uid
+        return action
 
     def get_time_remaining_for_action(self):
         self._fill_timed_out_actions()
@@ -364,23 +411,23 @@ class Battle(Persistent):
                 self._process_action(act)
 
     def _process_action(self, action):
-        num = self.state['num']
-        action['num'] = num
+        num = self.state.num
+        action.num = num
         try:
-            curr_unit = action['unit'].uid
+            curr_unit = action.unit.uid
         except AttributeError:
             curr_unit = None
         try:
-            prev_unit = self.log['actions'][-1]['unit'].uid
+            prev_unit = self.log.actions[-1].unit.uid
         except (KeyError, IndexError, AttributeError):
             prev_unit = None
         try:
-            prev_act = self.log['actions'][-1]
+            prev_act = self.log.actions[-1]
         except (KeyError, IndexError):
             prev_act = None
 
-        if action['type'] != 'timed_out' and self.log.action_timed_out(action):
-            action['type'] = 'timed_out'
+        if action.type != 'timed_out' and self.log.action_timed_out(action):
+            action.type = 'timed_out'
 
         if curr_unit is not None:
             expected_unit = self.action_queue.get_unit_for_action(num).uid
@@ -388,19 +435,19 @@ class Battle(Persistent):
                 msg = 'battle: unit {0} is not the expected unit {1}'
                 raise BattleError(msg.format(curr_unit, expected_unit))
 
-        if action['type'] == 'timed_out':
+        if action.type == 'timed_out':
             text = [["Failed to act."]]
             """
             #If this is the first ply, set the second ply to pass as well.
-            if action['num'] % 2 == 1:
+            if action.num % 2 == 1:
                 self.process_action(action)
             """
 
-        elif action['type'] == 'pass':
+        elif action.type == 'pass':
             text = [["Action Passed."]]
             """
             #If this is the first ply, set the second ply to pass as well.
-            if action['num'] % 2 == 1:
+            if action.num % 2 == 1:
                 self.process_action(action)
             """
 
@@ -408,49 +455,49 @@ class Battle(Persistent):
             raise BattleError("Unit from the previous action must be used "
                               "this action.")
 
-        elif action['type'] == 'move':  # TODO fix move in battlefield.
+        elif action.type == 'move':  # TODO fix move in battlefield.
             # If it's the second action in the ply and
             # it's different from this one.
             if not num % 2:  # if it's the second action in the ply.
-                if prev_act['type'] == 'move':
+                if prev_act.type == 'move':
                     raise BattleError("Second action in ply must be different "
                                       "from first.")
-                loc = action['unit'].location
-                text = self.battlefield.move_scient(loc, action['target'])
+                loc = action.unit.location
+                text = self.battlefield.move_scient(loc, action.target)
                 if text:
-                    text = [[action['unit'].uid, action['target']]]
+                    text = [[action.unit.uid, action.target]]
             else:
-                text = self.battlefield.move_scient(action['unit'].location,
-                                                    action['target'])
+                text = self.battlefield.move_scient(action.unit.location,
+                                                    action.target)
                 if text:
-                    text = [[action['unit'].uid, action['target']]]
+                    text = [[action.unit.uid, action.target]]
 
-        elif action['type'] == 'attack':
+        elif action.type == 'attack':
             # If it's the second action in the ply and
             # it's different from this one.
             if not num % 2:  # if it's the second action in the ply.
-                if prev_act['type'] == 'attack':
+                if prev_act.type == 'attack':
                     raise BattleError("Second action in ply must be different "
                                       "from first.")
-                text = self.battlefield.attack(action['unit'],
-                                               action['target'])
+                text = self.battlefield.attack(action.unit,
+                                               action.target)
             else:
-                text = self.battlefield.attack(action['unit'],
-                                               action['target'])
+                text = self.battlefield.attack(action.unit,
+                                               action.target)
         else:
             raise BattleError("Action is of unknown type")
 
-        self.log['actions'].append(self.map_action(**action))
-        self.log['messages'].append(Message(num, self.map_result(text)))
+        self.log.actions.append(self.map_action(action))
+        self.log.messages.append(Message(num, self.map_result(text)))
 
         self.state.check(self)
         if not num % 4:
             self.apply_queued()
 
-        result = dict(command=dict(self.log['actions'][-1]),
-                      response=dict(self.log['messages'][-1]))
+        result = ActionResult(command=self.log.actions[-1],
+                              response=self.log.messages[-1])
         if not num % 4:
-            result['applied'] = dict(self.log['applied'][-1])
+            result.applied = self.log.applied[-1]
         return result
 
     def process_action(self, action):
@@ -461,23 +508,8 @@ class Battle(Persistent):
     def apply_queued(self):
         """queued damage is applied to units from this state"""
         text = self.battlefield.apply_queued()
-        self.log['applied'].append(Message(self.state['num'],
-                                           self.map_result(text)))
-
-    def get_last_state(self):
-        """Returns the last state in the log."""
-        # Figure out if this is actually the *current* state or not, oops.
-        try:
-            return self.log['states'][-1]
-        except (KeyError, IndexError):
-            return
-
-    def get_states(self):
-        """Returns a list of all previous states."""
-        try:
-            return self.log['states']
-        except KeyError:
-            return
+        self.log.applied.append(Message(self.state.num,
+                                        self.map_result(text)))
 
     def initial_state(self):
         """Returns stuff to create the client side of the battle"""
@@ -541,8 +573,8 @@ class Battle(Persistent):
     def end(self, condition):
         """ Mame over state, handles log closing,
         writes change list for world"""
-        self.state['game_over'] = True
-        self.log['states'].append(self.state)
+        self.state.game_over = True
+        self.log.states.append(self.state)
         self.log.close(self.winner, condition)
 
         # Calculate awards, based on dead units
@@ -552,7 +584,7 @@ class Battle(Persistent):
         victors, prisoners = self.get_victors_and_prisoners()
 
         # Record
-        self.log['change_list'] = BattleChanges(victors, prisoners, awards)
+        self.log.change_list = BattleChanges(victors, prisoners, awards)
 
         # Update the underlying field
         self.update_field(self.battlefield.atksquad, self.battlefield.defsquad,

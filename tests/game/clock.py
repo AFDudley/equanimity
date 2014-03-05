@@ -3,7 +3,7 @@ from unittest import TestCase
 from datetime import timedelta, datetime
 from equanimity.clock import WorldClock, FieldClock
 from equanimity.const import CLOCK, ELEMENTS, E, F, FIELD_PRODUCE, FIELD_YIELD
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from ..base import BaseTest, FlaskTestDBWorld
 
 

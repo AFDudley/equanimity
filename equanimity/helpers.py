@@ -7,6 +7,7 @@ Copyright (c) 2013 A. Frederick Dudley. All rights reserved.
 """Helper functions"""
 import random
 import string
+from persistent import Persistent
 from functools import wraps
 from threading import Lock
 from const import ELEMENTS
@@ -57,3 +58,25 @@ class classproperty(object):
 
     def __get__(self, instance, owner):
         return self._getter(owner)
+
+
+class PersistentKwargs(Persistent):
+
+    """ Allows initializing of Persistent with kwargs """
+
+    def __init__(self, *args, **kwargs):
+        super(PersistentKwargs, self).__init__(*args, **kwargs)
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
+
+
+class AttributeDict(dict):
+    """ Object that allows .attr access to a dictionary """
+    def __setattr__(self, k, v):
+        return dict.__setitem__(self, k, v)
+
+    def __getattribute__(self, key):
+        try:
+            return dict.__getitem__(self, key)
+        except KeyError:
+            return object.__getattribute__(self, key)

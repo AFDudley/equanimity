@@ -4,7 +4,7 @@ from mock import MagicMock, patch, call, Mock
 from operator import attrgetter
 from datetime import timedelta, datetime
 from ..base import create_comp, FlaskTestDB, FlaskTestDBWorld, pairwise
-from server.utils import AttributeDict
+from equanimity.helpers import AttributeDict
 from equanimity.grid import Grid, Hex
 from equanimity.const import E, F, I, PLY_TIME
 from equanimity.weapons import Sword
@@ -21,11 +21,11 @@ class ActionTest(TestCase):
 
     def test_create(self):
         a = Action()
-        self.assertGreaterEqual(now(), a['when'])
-        self.assertTrue(a['target'].is_null())
-        self.assertEqual(a['type'], 'pass')
-        self.assertIs(a['unit'], None)
-        self.assertIs(a['num'], None)
+        self.assertGreaterEqual(now(), a.when)
+        self.assertTrue(a.target.is_null())
+        self.assertEqual(a.type, 'pass')
+        self.assertIs(a.unit, None)
+        self.assertIs(a.num, None)
         return a
 
 
@@ -33,51 +33,51 @@ class MessageTest(TestCase):
 
     def test_create(self):
         m = Message(1, None)
-        self.assertEqual(m['num'], 1)
-        self.assertIs(m['result'], None)
-        self.assertTrue(m['when'])
+        self.assertEqual(m.num, 1)
+        self.assertIs(m.result, None)
+        self.assertTrue(m.when)
 
 
 class ChangeListTest(TestCase):
 
     def test_create(self):
         c = ChangeList(None, something=1)
-        self.assertEqual(c['something'], 1)
-        self.assertIs(c['event'], None)
+        self.assertEqual(c.something, 1)
+        self.assertIs(c.event, None)
 
 
 class BattleChangesTest(TestCase):
 
     def test_create(self):
         b = BattleChanges([0], [1], [2], event='test')
-        self.assertEqual(b['event'], 'test')
-        self.assertEqual(b['victors'], [0])
-        self.assertEqual(b['prisoners'], [1])
-        self.assertEqual(b['awards'], [2])
+        self.assertEqual(b.event, 'test')
+        self.assertEqual(b.victors, [0])
+        self.assertEqual(b.prisoners, [1])
+        self.assertEqual(b.awards, [2])
 
 
 class InitialStateTest(TestCase):
 
     def test_create(self):
         player = AttributeDict(name='test')
-        log = dict(players=[player], init_locs=1, start_time=now(), units=[2],
-                   grid=None, owners=[7, 7])
+        log = AttributeDict(players=[player], init_locs=1, start_time=now(),
+                            units=[2], grid=None, owners=[7, 7])
         i = InitialState(log)
-        self.assertEqual(i['player_names'], ('test',))
+        self.assertEqual(i.player_names, ('test',))
         for k, v in log.iteritems():
             if k != 'players':
-                self.assertEqual(i[k], v)
+                self.assertEqual(getattr(i, k), v)
 
 
 class BattleModuleTestBase(FlaskTestDBWorld):
 
     def assertGameOver(self, winner, condition):
-        self.assertTrue(self.battle.state['game_over'])
+        self.assertTrue(self.battle.state.game_over)
         self.assertEqual(self.battle.winner, winner)
-        self.assertEqual(self.battle.log['condition'], condition)
+        self.assertEqual(self.battle.log.condition, condition)
 
     def _add_action(self, **action_kwargs):
-        self.battle.log['actions'].append(Action(**action_kwargs))
+        self.battle.log.actions.append(Action(**action_kwargs))
 
     def _add_actions(self, count, **action_kwargs):
         [self._add_action(**action_kwargs) for i in xrange(count)]
@@ -142,22 +142,22 @@ class LogTest(FlaskTestDB):
                 'end_time', 'init_locs', 'messages', 'owners', 'start_time',
                 'states', 'winner', 'world_coords', 'players', 'units', 'grid']
         for k in keys:
-            self.assertIn(k, log)
+            self.assertTrue(hasattr(log, k))
 
-    def test_init_locs(self):
+    def test_set_initial_locations(self):
         s = Scient(E, create_comp(earth=128))
         s.owner = Player('testplayer', 't@gmail.com', 'xxx')
         s.location = Hex(0, 0)
         log = Log([], {s: s.uid}, Grid())
-        log.init_locs()
-        self.assertEqual(log['init_locs'][s.uid], Hex(0, 0))
+        log.set_initial_locations()
+        self.assertEqual(log.init_locs[s.uid], Hex(0, 0))
 
     def test_close(self):
         log = Log([], {}, Grid())
         log.close('you', 'done')
-        self.assertEqual(log['winner'], 'you')
-        self.assertEqual(log['condition'], 'done')
-        self.assertGreaterEqual(now(), log['end_time'])
+        self.assertEqual(log.winner, 'you')
+        self.assertEqual(log.condition, 'done')
+        self.assertGreaterEqual(now(), log.end_time)
 
     def test_get_owners(self):
         s = Scient(E, create_comp(earth=128))
@@ -194,11 +194,11 @@ class LogTestAdvanced(BattleTestBase):
         # No messages in log, at all
         self.assertEqual(self.battle.log.last_message(), none)
         # No result in last message
-        self.battle.log['messages'].append(AttributeDict(result=None))
+        self.battle.log.messages.append(AttributeDict(result=None))
         self.assertEqual(self.battle.log.last_message(), none)
         # A result in last message
         res = ['A message']
-        self.battle.log['messages'].append(AttributeDict(result=res))
+        self.battle.log.messages.append(AttributeDict(result=res))
         self.assertEqual(self.battle.log.last_message(), res)
 
 
@@ -220,46 +220,46 @@ class StateTest(BattleModuleTestBase):
         f.stronghold._add_squad(atksquad)
         self.battle = Battle(self.field, atksquad)
         self.s = State(self.battle)
-        self.s['old_defsquad_hp'] = defsquad.hp()
+        self.s.old_defsquad_hp = defsquad.hp()
 
     def test_create(self):
-        keys = ['HPs', 'queued', 'locs', 'num', 'pass_count', 'hp_count',
+        keys = ['hps', 'queued', 'locs', 'num', 'pass_count', 'hp_count',
                 'old_defsquad_hp', 'game_over', 'whose_action']
         for k in keys:
-            self.assertIn(k, self.s)
+            self.assertTrue(hasattr(self.s, k))
 
     def test_check_single_action(self):
         self._add_action()
         self._check()
-        self.assertEqual(self.s['pass_count'], 1)
+        self.assertEqual(self.s.pass_count, 1)
 
     def test_check_nonpass_action(self):
         self._add_action(type='move')
         self._check()
-        self.assertEqual(self.s['pass_count'], 0)
+        self.assertEqual(self.s.pass_count, 0)
 
     def test_complete_turn_no_defender_damage(self):
-        self.s['num'] = 4
-        self.s['old_defsquad_hp'] = self.battle.battlefield.defsquad.hp() - 1
+        self.s.num = 4
+        self.s.old_defsquad_hp = self.battle.battlefield.defsquad.hp() - 1
         self._add_actions(4)
         self._check()
-        self.assertEqual(self.s['hp_count'], 0)
+        self.assertEqual(self.s.hp_count, 0)
 
     def test_complete_turn_defender_took_damage(self):
         self.battle.battlefield.defsquad[0].hp = 0
         self._add_actions(4)
-        self.s['num'] = 4
+        self.s.num = 4
         self._check()
-        self.assertEqual(self.s['hp_count'], 1)
+        self.assertEqual(self.s.hp_count, 1)
 
     def test_game_over_not_enough_damage(self):
         # test for game over check, where attacker was not able to kill
         self._add_actions(4)
         for i in xrange(4):
-            self.s['num'] = 4
-            self.s['old_defsquad_hp'] *= 2
+            self.s.num = 4
+            self.s.old_defsquad_hp *= 2
             self._check()
-        self.assertEqual(self.s['hp_count'], 4)
+        self.assertEqual(self.s.hp_count, 4)
         self.assertGameOver(self.defender,
                             'Attacker failed to deal sufficent damage.')
 
@@ -269,7 +269,7 @@ class StateTest(BattleModuleTestBase):
         for squad in self.defender.get_squads(self.world.uid):
             for unit in squad:
                 unit.hp = 0
-        self.s['old_defsquad_hp'] = 0
+        self.s.old_defsquad_hp = 0
         self._check()
         self.assertGameOver(self.attacker, 'Defender\'s squad is dead')
 
@@ -279,7 +279,7 @@ class StateTest(BattleModuleTestBase):
         for squad in self.attacker.get_squads(self.world.uid):
             for unit in squad:
                 unit.hp = 0
-        self.s['old_defsquad_hp'] = 0
+        self.s.old_defsquad_hp = 0
         self._check()
         self.assertGameOver(self.defender, 'Attacker\'s squad is dead')
 
@@ -287,7 +287,7 @@ class StateTest(BattleModuleTestBase):
         # test for game over, where both sides passed
         self._add_actions(8)
         for i in xrange(8):
-            self.s['num'] = i + 1
+            self.s.num = i + 1
             self._check()
         self.assertGameOver(self.defender, 'Both sides passed')
 
@@ -300,12 +300,12 @@ class GameTest(BattleTestBase):
     def test_create(self):
         self.assertEqual(self.battle.attacker, self.attacker)
         self.assertEqual(self.battle.defender, self.defender)
-        self.assertEqual(sorted(set(self.battle.log['owners'].values())),
+        self.assertEqual(sorted(set(self.battle.log.owners.values())),
                          sorted(['Atk', 'Def']))
 
     def test_put_squads_on_field(self):
         self._place_squads()
-        self.assertTrue(self.battle.log['init_locs'])
+        self.assertTrue(self.battle.log.init_locs)
         for unit in self.units:
             self.assertIsNot(unit.location, None)
             self.assertNotEqual(unit.location, Hex.null)
@@ -320,7 +320,7 @@ class GameTest(BattleTestBase):
 
     def test_hps(self):
         self._place_squads()
-        hps = self.battle.HPs()
+        hps = self.battle.hps()
         self.assertEqual(
             sorted(hps.keys()), sorted(self.battle.units.values()))
         self.assertEqual(sorted(hps.values()),
@@ -329,7 +329,7 @@ class GameTest(BattleTestBase):
     def test_update_unit_info(self):
         self._place_squads()
         hps, locs = self.battle.update_unit_info()
-        self.assertEqual(hps, self.battle.HPs())
+        self.assertEqual(hps, self.battle.hps())
         self.assertEqual(locs, self.battle.map_locs())
 
     def test_map_queue(self):
@@ -354,31 +354,17 @@ class GameTest(BattleTestBase):
 
     def test_map_action(self):
         d = self.defender.get_squads(self.world.uid)[0][0]
-        act = self.battle.map_action(unit=d)
-        self.assertEqual(act['unit'], d.uid)
+        act = self.battle.map_action(Action(unit=d))
+        self.assertEqual(act.unit, d.uid)
 
     def test_apply_queued(self):
         self._place_squads()
         self._add_actions(4)
         dfdr = self.defender.get_squads(self.world.uid)[0][0]
         self.bf.dmg_queue[dfdr].append([1, 2])
-        self.assertFalse(self.battle.log['applied'])
+        self.assertFalse(self.battle.log.applied)
         self.battle.apply_queued()
-        self.assertTrue(self.battle.log['applied'])
-
-    def test_get_last_state(self):
-        self.battle.log['states'] = [1]
-        self.assertEqual(self.battle.get_last_state(), 1)
-        self.battle.log['states'] = []
-        self.assertIs(self.battle.get_last_state(), None)
-        del self.battle.log['states']
-        self.assertIs(self.battle.get_last_state(), None)
-
-    def test_get_states(self):
-        self.battle.log['states'] = [1]
-        self.assertEqual(self.battle.get_states(), [1])
-        del self.battle.log['states']
-        self.assertIs(self.battle.get_states(), None)
+        self.assertTrue(self.battle.log.applied)
 
     def test_initial_state(self):
         init_state = self.battle.initial_state()
@@ -528,14 +514,14 @@ class GameTest(BattleTestBase):
         atk_survivors = atksquad[:1]
         self.battle.end('Defender won')
         self.assertGameOver(self.defender, 'Defender won')
-        for u in self.battle.log['change_list']['victors']:
+        for u in self.battle.log.change_list.victors:
             self.assertGreater(u.hp, 0)
-        for u in self.battle.log['change_list']['prisoners']:
+        for u in self.battle.log.change_list.prisoners:
             self.assertGreater(u.hp, 0)
         self.assertEqual(sorted(def_survivors),
-                         sorted(self.battle.log['change_list']['victors']))
+                         sorted(self.battle.log.change_list.victors))
         self.assertEqual(sorted(atk_survivors),
-                         sorted(self.battle.log['change_list']['prisoners']))
+                         sorted(self.battle.log.change_list.prisoners))
         mock_compute_awards.assert_called_once_with(
             self.battle.battlefield.squads)
         mock_imbue.assert_called_once_with(awards)
@@ -564,16 +550,16 @@ class BattleProcessActionTest(BattleTestBase):
     def assertActionResult(self, result, num, type, msg=None, target=Hex.null,
                            unit=None):
         if num % 4:
-            self.assertNotIn('applied', result)
+            self.assertIsNone(result.applied)
         else:
-            self.assertIn('applied', result)
-        self.assertEqual(result['command']['num'], num)
-        self.assertEqual(result['command']['type'], type)
-        self.assertEqual(result['command']['target'], target)
-        self.assertEqual(result['command']['unit'], unit)
-        self.assertEqual(result['response']['num'], num)
+            self.assertIsNotNone(result.applied)
+        self.assertEqual(result.command.num, num)
+        self.assertEqual(result.command.type, type)
+        self.assertEqual(result.command.target, target)
+        self.assertEqual(result.command.unit, unit)
+        self.assertEqual(result.response.num, num)
         if msg is not None:
-            self.assertEqual(result['response']['result'], [[msg]])
+            self.assertEqual(result.response.result, [[msg]])
 
     def test_doing_nothing(self):
         # with no unit, no prev_unit, no prev_act, passing
@@ -583,7 +569,7 @@ class BattleProcessActionTest(BattleTestBase):
         self.assertActionResult(ret, 1, 'pass', 'Action Passed.')
 
     def test_timeout_first_action_start_time(self):
-        self.battle.log['start_time'] = self.past
+        self.battle.log.start_time = self.past
         act = Action(type='move', num=1, unit=self.unit(1))
         self.battle.state = State(self.battle, num=1)
         ret = self.battle._process_action(act)
@@ -591,10 +577,10 @@ class BattleProcessActionTest(BattleTestBase):
                                 unit=self.unit(1).uid)
 
     def test_timeout_second_action_start_time(self):
-        self.battle.log['start_time'] = self.past
+        self.battle.log.start_time = self.past
         act = Action(type='move', unit=self.unit(2))
         self.battle.state = State(self.battle, num=2)
-        self.battle.log['actions'] = [Action(num=1, unit=self.unit(1))]
+        self.battle.log.actions = [Action(num=1, unit=self.unit(1))]
         ret = self.battle._process_action(act)
         self.assertActionResult(ret, 2, 'timed_out', 'Failed to act.',
                                 unit=self.unit(2).uid)
@@ -602,9 +588,8 @@ class BattleProcessActionTest(BattleTestBase):
     def test_timeout_first_action_after_other_action(self):
         act = Action(type='move', unit=self.unit(3))
         self.battle.state = State(self.battle, num=3)
-        self.battle.log[
-            'actions'] = [Action(unit=self.unit(1), when=self.past),
-                          Action(unit=self.unit(2), when=self.past)]
+        self.battle.log.actions = [Action(unit=self.unit(1), when=self.past),
+                                   Action(unit=self.unit(2), when=self.past)]
         ret = self.battle._process_action(act)
         self.assertActionResult(ret, 3, 'timed_out', 'Failed to act.',
                                 unit=self.unit(3).uid)
@@ -612,11 +597,11 @@ class BattleProcessActionTest(BattleTestBase):
     def test_timeout_second_action_after_other_action(self):
         act = Action(type='move', num=4, unit=self.unit(4))
         self.battle.state = State(self.battle, num=4)
-        self.battle.log['actions'] = [Action(unit=self.unit(1), num=1,
-                                             when=self.past),
-                                      Action(unit=self.unit(2), num=2,
-                                             when=self.past),
-                                      Action(unit=self.unit(3), num=3)]
+        self.battle.log.actions = [Action(unit=self.unit(1), num=1,
+                                          when=self.past),
+                                   Action(unit=self.unit(2), num=2,
+                                          when=self.past),
+                                   Action(unit=self.unit(3), num=3)]
         ret = self.battle._process_action(act)
         self.assertActionResult(ret, 4, 'timed_out', 'Failed to act.',
                                 unit=self.unit(4).uid)
@@ -628,26 +613,26 @@ class BattleProcessActionTest(BattleTestBase):
         self.assertActionResult(ret, 1, 'timed_out', 'Failed to act.')
 
     def test_fill_timed_out_actions(self):
-        start = self.battle.log['start_time']
-        self.battle.log['start_time'] = start - PLY_TIME * 3 - PLY_TIME / 2
+        start = self.battle.log.start_time
+        self.battle.log.start_time = start - PLY_TIME * 3 - PLY_TIME / 2
         self.battle._fill_timed_out_actions()
-        actions = self.battle.log['actions']
+        actions = self.battle.log.actions
         n = 6
-        self.assertEqual(self.battle.state['num'], n + 1)
+        self.assertEqual(self.battle.state.num, n + 1)
         self.assertEqual(len(actions), n)
         # All numbers should be in sequence
         for n, act in enumerate(actions):
-            self.assertEqual(n + 1, act['num'])
+            self.assertEqual(n + 1, act.num)
             # same ply whens should be equal
             if n % 2:
-                self.assertEqual(act['when'], actions[n - 1]['when'])
+                self.assertEqual(act.when, actions[n - 1].when)
         # All times should be ascending
         for i in reversed(range(1, n)):
-            self.assertGreaterEqual(actions[i]['when'],
-                                    actions[i - 1]['when'])
+            self.assertGreaterEqual(actions[i].when,
+                                    actions[i - 1].when)
         # All times should definitely be greater across plies
         for i in reversed(range(3, n, 2)):
-            self.assertGreater(actions[i]['when'], actions[i - 2]['when'])
+            self.assertGreater(actions[i].when, actions[i - 2].when)
         # Processing an action should work as expected
         act = Action(type='pass', unit=self.unit(7))
         ret = self.battle.process_action(act)
@@ -658,7 +643,7 @@ class BattleProcessActionTest(BattleTestBase):
         # get a ValueError by using two different units in a row
         act = Action(type='move', num=2, unit=self.unit(2))
         self.battle.state = State(self.battle, num=2)
-        self.battle.log['actions'] = [Action(num=4, unit=self.unit(4))]
+        self.battle.log.actions = [Action(num=4, unit=self.unit(4))]
         self.assertExceptionContains(BattleError,
                                      'Unit from the previous action',
                                      self.battle.process_action, act)
@@ -674,8 +659,8 @@ class BattleProcessActionTest(BattleTestBase):
         self.battle.state.check = MagicMock(
             side_effect=self.battle.state.check)
         ret = self.battle.process_action(act)
-        self.assertTrue(self.battle.log['actions'])
-        self.assertTrue(self.battle.log['messages'])
+        self.assertTrue(self.battle.log.actions)
+        self.assertTrue(self.battle.log.messages)
         self.battle.state.check.assert_called_with(self.battle)
         self.assertActionResult(ret, 1, 'move', target=loc, unit=d.uid)
 
@@ -689,10 +674,10 @@ class BattleProcessActionTest(BattleTestBase):
         self.battle.state = State(self.battle, num=2)
         self.battle.state.check = MagicMock(
             side_effect=self.battle.state.check)
-        self.battle.log['actions'] = [Action(num=2, unit=d, type='pass')]
+        self.battle.log.actions = [Action(num=2, unit=d, type='pass')]
         ret = self.battle.process_action(act)
-        self.assertTrue(self.battle.log['actions'])
-        self.assertTrue(self.battle.log['messages'])
+        self.assertTrue(self.battle.log.actions)
+        self.assertTrue(self.battle.log.messages)
         self.battle.state.check.assert_called_with(self.battle)
         self.assertActionResult(ret, 2, 'move', unit=d.uid, target=loc)
 
@@ -701,7 +686,7 @@ class BattleProcessActionTest(BattleTestBase):
         d = self.unit(2)
         act = Action(type='move', unit=d)
         self.battle.state = State(self.battle, num=2)
-        self.battle.log['actions'] = [Action(num=2, unit=d, type='move')]
+        self.battle.log.actions = [Action(num=2, unit=d, type='move')]
         self.assertExceptionContains(BattleError,
                                      'Second action in ply must be',
                                      self.battle.process_action, act)
@@ -744,7 +729,7 @@ class BattleProcessActionTest(BattleTestBase):
         self.battle.state = State(self.battle, num=2)
         self.battle.state.check = MagicMock(
             side_effect=self.battle.state.check)
-        self.battle.log['actions'] = [Action(num=2, unit=d, type='pass')]
+        self.battle.log.actions = [Action(num=2, unit=d, type='pass')]
         ret = self.battle.process_action(act)
         self.battle.state.check.assert_called_with(self.battle)
         self.assertActionResult(ret, 2, type='attack', unit=d.uid, target=loc)
@@ -753,7 +738,7 @@ class BattleProcessActionTest(BattleTestBase):
         d = self.unit(2)
         act = Action(type='attack', unit=d)
         self.battle.state = State(self.battle, num=2)
-        self.battle.log['actions'] = [Action(unit=d, num=2, type='attack')]
+        self.battle.log.actions = [Action(unit=d, num=2, type='attack')]
         self.assertExceptionContains(BattleError,
                                      'Second action in ply must be',
                                      self.battle.process_action, act)
@@ -762,8 +747,8 @@ class BattleProcessActionTest(BattleTestBase):
         self.battle.apply_queued = MagicMock(
             side_effect=self.battle.apply_queued)
         self.battle.state = State(self.battle, num=4)
-        self.battle.log['actions'] = [Action(num=i + 1, unit=self.unit(i + 1),
-                                             type='pass') for i in range(3)]
+        self.battle.log.actions = [Action(num=i + 1, unit=self.unit(i + 1),
+                                          type='pass') for i in range(3)]
         act = Action(type='pass', unit=self.unit(4))
         ret = self.battle.process_action(act)
         self.battle.apply_queued.assert_called_with()

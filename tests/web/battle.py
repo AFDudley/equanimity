@@ -48,7 +48,7 @@ class BattleTest(BattleTestBase):
     def test_field_not_in_battle_game_over(self):
         s, t, atksquad, defsquad = self._create_units()
         self._setup_game(atksquad, defsquad)
-        self.f.battle.state['game_over'] = True
+        self.f.battle.state.game_over = True
         r = getattr(self.proxy, 'pass')(self.world.uid, self.loc, 1)
         self.assertError(r, 'No game is active for this field')
 
