@@ -208,7 +208,7 @@ class State(PersistentKwargs):
             queued = PersistentMapping()
         if locs is None:
             locs = PersistentMapping()
-        whose_action = self.battle.action_queue.get_player_for_action(
+        whose_action = ActionQueue.get_player_for_action(
             self.battle.battlefield, num).uid
         super(State, self).__init__(num=num, pass_count=pass_count,
                                     hp_count=hp_count, queued=queued,
@@ -281,7 +281,7 @@ class State(PersistentKwargs):
 
         # battle is not over, state is stored, update state.
         self.num += 1
-        aq = self.battle.action_queue
+        aq = ActionQueue
         self.whose_action = aq.get_player_for_action(self.battle.battlefield,
                                                      self.num).uid
 
@@ -303,7 +303,6 @@ class Battle(Persistent):
         self.units = bidict(inverted(self.map))
         self.winner = None
         self.log = Log(self.players, self.units, self.battlefield.grid)
-        self.action_queue = ActionQueue()
         self.state = State(self)
         self.state.old_defsquad_hp = self.battlefield.defsquad.hp()
         self.uid = db['battle_uid'].get_next_id()
@@ -335,11 +334,11 @@ class Battle(Persistent):
     def timer_view(self):
         num = self.state.num
         remaining = self.get_time_remaining_for_action()
-        current_unit = self.action_queue.get_unit_for_action(self.battlefield,
-                                                             num)
+        current_unit = ActionQueue.get_unit_for_action(self.battlefield,
+                                                       num)
         return dict(start_time=timestamp(self.log.start_time),
                     action_num=self.state.num,
-                    current_ply=self.action_queue.get_action_in_ply(num),
+                    current_ply=ActionQueue.get_action_in_ply(num),
                     current_unit=current_unit.uid,
                     time_remaining=remaining.seconds)
 
@@ -437,7 +436,7 @@ class Battle(Persistent):
             action.type = 'timed_out'
 
         if curr_unit is not None:
-            expected_unit = self.action_queue.get_unit_for_action(
+            expected_unit = ActionQueue.get_unit_for_action(
                 self.battlefield, num).uid
             if curr_unit != expected_unit:
                 msg = 'battle: unit {0} is not the expected unit {1}'
@@ -613,16 +612,18 @@ class Battle(Persistent):
                            awards, prisoners)
 
 
-class ActionQueue(Persistent):
+class ActionQueue(object):
 
-    def get_player_for_action(self, battlefield, num):
+    @classmethod
+    def get_player_for_action(cls, battlefield, num):
         """ Returns the player controlling the unit whose action is at action
         num.
         :param units: Living units participating in the battle.
         :param num: Action number sequence """
-        return self.get_unit_for_action(battlefield, num).container.owner
+        return cls.get_unit_for_action(battlefield, num).container.owner
 
-    def get_unit_for_action(self, battlefield, num):
+    @classmethod
+    def get_unit_for_action(cls, battlefield, num):
         """ Returns the unit whose action is at action num.
         :param units: Living units participating in the battle.
         :param num: Action number sequence """
@@ -631,15 +632,17 @@ class ActionQueue(Persistent):
         # action numbers are 1-indexed, set to 0
         num -= 1
         ply = num / 2
-        units = self._get_unit_queue(battlefield)
+        units = cls._get_unit_queue(battlefield)
         queue_pos = ply % len(units)
         return units[queue_pos]
 
-    def get_action_in_ply(self, num):
+    @classmethod
+    def get_action_in_ply(cls, num):
         """ Returns either 0 or 1 """
         return (num - 1) % 2
 
-    def _get_unit_key(self, battlefield, unit):
+    @classmethod
+    def _get_unit_key(cls, battlefield, unit):
         """Returns a tuple of scalar values to be compared in order"""
         # Sanity checking
         if unit.container is None or unit.container_pos is None:
@@ -661,6 +664,7 @@ class ActionQueue(Persistent):
         is_defender = (unit.container == battlefield.defsquad)
         return (val, prime_element_val, squad_pos, is_defender)
 
-    def _get_unit_queue(self, battlefield):
+    @classmethod
+    def _get_unit_queue(cls, battlefield):
         return sorted(battlefield.living_units,
-                      key=partial(self._get_unit_key, battlefield))
+                      key=partial(cls._get_unit_key, battlefield))

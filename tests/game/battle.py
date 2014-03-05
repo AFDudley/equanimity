@@ -14,7 +14,8 @@ from equanimity.stone import Stone
 from equanimity.player import Player
 from equanimity.unit_container import Squad, rand_squad
 from equanimity.battle import (now, Action, Message, ChangeList, BattleChanges,
-                               InitialState, Log, State, Battle, BattleError)
+                               InitialState, Log, State, Battle, BattleError,
+                               ActionQueue)
 
 
 class ActionTest(TestCase):
@@ -564,8 +565,7 @@ class BattleProcessActionTest(BattleTestBase):
         return datetime.utcnow() - PLY_TIME - timedelta(minutes=5)
 
     def unit(self, num):
-        return self.battle.action_queue.get_unit_for_action(
-            self.battle.battlefield, num)
+        return ActionQueue.get_unit_for_action(self.battle.battlefield, num)
 
     def assertActionResult(self, result, num, type, msg=None, target=Hex.null,
                            unit=None):
@@ -788,7 +788,7 @@ class ActionQueueTest(BattleTestBase):
 
     @property
     def aq(self):
-        return self.battle.action_queue
+        return ActionQueue
 
     def test_get_unit_for_action(self):
         # Invalid action num causes exception
