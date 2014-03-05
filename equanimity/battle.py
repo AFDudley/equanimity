@@ -73,9 +73,12 @@ class ChangeList(PersistentKwargs):
 
 class BattleChanges(ChangeList):
 
-    def __init__(self, victors, prisoners, awards, event='battle'):
+    def __init__(self, victors, prisoners, dead_attackers, dead_defenders,
+                 awards, event='battle'):
         super(BattleChanges, self).__init__(event=event, victors=victors,
                                             prisoners=prisoners,
+                                            dead_attackers=dead_attackers,
+                                            dead_defenders=dead_defenders,
                                             awards=awards)
 
 
@@ -525,17 +528,17 @@ class Battle(Persistent):
                         awards.append(unit.weapon.extract_award())
         return awards
 
-    def clean_up_dead_units(self, squads):
+    def _clean_up_dead_units(self, squads):
         """ Removes dead units from their respective locations, and disbands
         the squad if empty """
         for s in squads:
-            remove = [u for u in s if u.hp <= 0]
+            remove = self._get_dead_units(s)
             for u in remove:
                 s.stronghold.remove_unit_from_squad(s.stronghold_pos, u.uid)
             if not s:
                 s.stronghold.disband_squad(s.stronghold_pos)
 
-    def get_victors_and_prisoners(self):
+    def _get_victors_and_prisoners(self):
         if self.winner == self.attacker:
             winner = self.battlefield.atksquad
             loser = self.battlefield.defsquad
@@ -546,9 +549,14 @@ class Battle(Persistent):
         prisoners = PersistentList([u for u in loser if u.hp > 0])
         return victors, prisoners
 
-    def update_field(self, atksquad, defsquad, awards, prisoners):
+    def _get_dead_units(self, squad):
+        """ Returns the dead units in squad """
+        return [u for u in squad if u.hp <= 0]
+
+    def _update_field(self, atksquad, defsquad, awards, prisoners):
         # Update field state
-        self.clean_up_dead_units([atksquad, defsquad])
+        # TODO -- this maybe should be somewhere else
+        self._clean_up_dead_units([atksquad, defsquad])
         self.field.stronghold.silo.imbue_list(awards)
         if self.winner == self.attacker:
             # Attempt to capture the field. It will fail if the stronghold
@@ -581,14 +589,23 @@ class Battle(Persistent):
         awards = self.compute_awards(self.battlefield.squads)
 
         # Split survivors into victors and prisoners
-        victors, prisoners = self.get_victors_and_prisoners()
+        victors, prisoners = self._get_victors_and_prisoners()
+
+        # Determine who is dead
+        dead_attackers = self._get_dead_units(self.battlefield.atksquad)
+        dead_defenders = self._get_dead_units(self.battlefield.defsquad)
 
         # Record
-        self.log.change_list = BattleChanges(victors, prisoners, awards)
+        u = lambda x: map(attrgetter('uid'), x)
+        self.log.change_list = BattleChanges(u(victors), u(prisoners),
+                                             u(dead_attackers),
+                                             u(dead_defenders),
+                                             awards)
 
         # Update the underlying field
-        self.update_field(self.battlefield.atksquad, self.battlefield.defsquad,
-                          awards, prisoners)
+        self._update_field(self.battlefield.atksquad,
+                           self.battlefield.defsquad,
+                           awards, prisoners)
 
 
 class ActionQueue(Persistent):
