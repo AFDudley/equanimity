@@ -1,3 +1,5 @@
+Fix BattleProcessActionTest such that it tests the returned against the expectedgame states. These tests will need to also verify that ActionQueue is being called properly
+
 Change "Value" to "Weight"
 Change the EFIW convention to EFWI, so that there is consistent meaning to left and right orthogonals.
 Verify that full games are completely deterministic.
