@@ -11,3 +11,4 @@ virtualenv
 zeo_dev.conf
 .cached_zodb
 *.egg-info
+btjs3
