@@ -13,7 +13,7 @@ from flask import Flask, g, Blueprint
 db = ZODB()
 
 """ JSONRPC """
-jsonrpc = JSONRPC(service_url='/api')
+jsonrpc = JSONRPC(service_url='/api', enable_web_browsable_api=True)
 
 """ Bcrypt """
 bcrypt = Bcrypt()
@@ -51,8 +51,6 @@ def register_blueprints(app):
     app.register_blueprint(battle)
     app.register_blueprint(info)
     app.register_blueprint(vestibule)
-    rpc_bp = Blueprint('jsonrpc', __name__, url_prefix='/api')
-    jsonrpc.register_blueprint(rpc_bp)
 
 
 def load_config(app, subdomain, config=None):
