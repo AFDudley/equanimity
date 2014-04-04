@@ -101,7 +101,10 @@ class EquanimityClient(object):
     def must_rpc(self, method, *params, **kwargs):
         """ Raises an exception if the rpc had error """
         r = self.rpc(method, *params, **kwargs)
-        err = r.get('error')
+        if hasattr(r, 'get'):
+            err = r.get('error')
+        else: err = r
+        
         if err is not None:
             raise ValueError(err)
         return r
