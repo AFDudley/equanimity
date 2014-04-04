@@ -103,7 +103,7 @@ class EquanimityClient(object):
         r = self.rpc(method, *params, **kwargs)
         if hasattr(r, 'get'):
             err = r.get('error')
-        else: err = r
+        else: err = json.dumps(r)
         
         if err is not None:
             raise ValueError(err)
