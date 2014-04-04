@@ -9,8 +9,7 @@ Jinja2==2.8
 MarkupSafe==0.23
 Werkzeug==0.11.3
 ZConfig==3.0.3
-ZODB3==3.10.5
-bidict==0.9.0.post1
+ZODB3==3.10.5==0.9.0.post1
 coverage==3.6
 disabledoc==0.1
 flake8==2.0
@@ -34,3 +33,10 @@ zdaemon==4.0.0
 zodburi==1.1
 zope.event==4.0.2
 zope.interface==4.0.5
+grequests
+SSEClient
+# -e git://github.com/xsleonard/flask-jsonrpc.git#egg=flask-JSONRPC
+gevent
+# ipdb # for debugging
+-e git://github.com/andymccurdy/redis-py.git@b54dee073199fff510fa068487505bf1de75310a#egg=redis
+celery[redis]

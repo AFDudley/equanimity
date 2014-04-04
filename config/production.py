@@ -1,8 +1,9 @@
-DEBUG = False
-TESTING = False
+DEBUG = True
+TESTING = True
 DEBUG_LOGGING = True
 
-SERVER_NAME = 'aequal.is'
+SERVER_NAME = 'o.aequal.is'
+#SERVER_NAME = '127.0.0.1:5000'
 
 SEASURF_INCLUDE_OR_EXEMPT_VIEWS = 'include'
 CSRF_DISABLED = True

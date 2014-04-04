@@ -67,13 +67,11 @@ class Message(PersistentKwargs):
 
 class ChangeList(PersistentKwargs):
     # TODO - belongs in different file
-
     def __init__(self, event, **kwargs):
         super(ChangeList, self).__init__(event=event, **kwargs)
 
 
 class BattleChanges(ChangeList):
-
     def __init__(self, victors, prisoners, dead_attackers, dead_defenders,
                  awards, event='battle'):
         super(BattleChanges, self).__init__(event=event, victors=victors,
@@ -84,7 +82,6 @@ class BattleChanges(ChangeList):
 
 
 class ActionResult(PersistentKwargs):
-
     def __init__(self, command, response, applied=None):
         super(ActionResult, self).__init__(command=command, response=response,
                                            applied=applied)
@@ -98,7 +95,6 @@ class ActionResult(PersistentKwargs):
 
 
 class InitialState(PersistentKwargs):
-
     """A hack for serialization."""
 
     def __init__(self, log):
@@ -110,7 +106,6 @@ class InitialState(PersistentKwargs):
 
 
 class Log(PersistentKwargs):
-
     def __init__(self, players, units, grid):
         """Records initial battle state, timestamps log."""
         super(Log, self).__init__(players=players, units=units, grid=grid)
@@ -195,9 +190,7 @@ class Log(PersistentKwargs):
 
 
 class State(PersistentKwargs):
-
     """A dictionary containing the current battle state."""
-
     def __init__(self, battle, num=1, pass_count=0, hp_count=0,
                  old_defsquad_hp=0, queued=None, locs=None, hps=None,
                  game_over=False):
@@ -226,6 +219,19 @@ class State(PersistentKwargs):
             queued=self.queued,
             locs=self.locs,
             hps=self.hps,
+            game_over=self.game_over,
+        )
+
+    def api_view(self):
+        return dict(
+            battle=self.battle.uid,
+            num=self.num,
+            pass_count=self.pass_count,
+            hp_count=self.hp_count,
+            old_defsquad_hp=self.old_defsquad_hp,
+            queued=str(self.queued),
+            locs=str(self.locs),
+            hps=str(self.hps),
             game_over=self.game_over,
         )
 
@@ -287,9 +293,7 @@ class State(PersistentKwargs):
 
 
 class Battle(Persistent):
-
     """Almost-state-machine that maintains battle state."""
-
     def __init__(self, field, attacker):
         super(Battle, self).__init__()
         self.defender = field.stronghold.defenders.owner
@@ -303,7 +307,6 @@ class Battle(Persistent):
         self.log = Log(self.players, self.units, field.grid)
         self.state = State(self)
         self.state.old_defsquad_hp = self.battlefield.defsquad.hp()
-        self.states = PersistentList()
         self.field = field
         self.uid = db['battle_uid'].get_next_id()
 
@@ -341,6 +344,15 @@ class Battle(Persistent):
                     current_unit=current_unit.uid,
                     time_remaining=remaining.seconds)
 
+    def states_view(self):
+        return [s.api_view() for s in self.log.states]
+
+    def messages_view(self):
+        return [m.api_view() for m in self.log.messages]
+
+    def actions_view(self):
+        return [a.api_view() for a in self.log.actions]
+
     def api_view(self):
         return dict(
             uid=self.uid,
@@ -349,6 +361,7 @@ class Battle(Persistent):
             attacker=self.attacker.combatant_view(self.battlefield.atksquad),
             action_num=self.state.num,
             game_over=self.state.game_over,
+            condition=self.log.condition,
             winner=getattr(self.winner, 'api_view', lambda: None)())
 
     def map_locs(self):
@@ -398,8 +411,11 @@ class Battle(Persistent):
         return action
 
     def get_time_remaining_for_action(self):
-        self._fill_timed_out_actions()
-        return self.log.get_time_remaining_for_action()
+        if self.log.end_time == None:
+            self._fill_timed_out_actions()
+            return self.log.get_time_remaining_for_action()
+        else:
+            return timedelta(seconds=0)
 
     def _fill_timed_out_actions(self):
         # Fills the action log with any needed timed_out actions since our
@@ -580,8 +596,7 @@ class Battle(Persistent):
                                              u(dead_defenders),
                                              awards)
 
-        self._clean_up_dead_units([self.battlefield.atksquad,
-                                   self.battlefield.defsquad])
+        self._clean_up_dead_units(self.battlefield.squads)
 
         # Update the underlying field
         winner = self.battlefield.atksquad
@@ -627,9 +642,10 @@ class ActionQueue(object):
         # Sanity checking
         if unit.container is None or unit.container_pos is None:
             raise ValueError('Unit {0} is not in a squad'.format(unit))
-        if unit.container not in battlefield.squads:
-            msg = 'Unit {0} is not in a battling squad'
-            raise ValueError(msg.format(unit))
+        # TODO -- removing this check 'fixed' bad must_rpc logic in demo. -rix
+        #if unit.container not in battlefield.squads:
+        #    msg = 'Unit {0} is not in a battling squad'
+        #    raise ValueError(msg.format(unit))
         if unit.hp <= 0:
             raise ValueError('Unit {} is dead'.format(unit))
         # Lower valued units go first

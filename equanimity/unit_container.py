@@ -12,7 +12,7 @@ from operator import attrgetter
 from stone import Stone
 from const import ELEMENTS, WEP_LIST, OPP, ORTH
 from units import Scient, rand_unit
-from weapons import rand_weapon, weapons
+from weapons import weapons
 from helpers import validate_length, rand_string, rand_element
 
 
@@ -271,12 +271,19 @@ def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8,
         while squad.max_size - squad.size >= 2:
             squad.append(rand_unit(element=element, max_value=max_value))
         if squad.max_size - squad.size == 1:
-            squad.append(rand_unit(element=element, kind='Scient',
-                                   max_value=max_value))
+            # hack for demo
+            s = Stone()
+            s[element] = 4
+            s.set_opp(element, 0)
+            s.set_orth(element, 2)
+            squad.append(Scient(element=element, comp=s))
     if equip:
         for unit in squad:
             if isinstance(unit, Scient):
-                wep = rand_weapon(element=element, max_value=unit.value // 2)
+                #wep = rand_weapon(element=element, max_value=unit.value // 2)
+                # hack to give everyone swords.
+                from weapons import Sword
+                wep = Sword(element=element, comp=Stone())
                 unit.equip(wep)
     return squad
 

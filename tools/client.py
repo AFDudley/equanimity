@@ -2,12 +2,14 @@
 
 from common import hack_syspath
 hack_syspath(__file__)
-import requests
+import grequests
 from uuid import uuid1
 from argparse import ArgumentParser
 from flask import json
 from flask.ext.jsonrpc.proxy import ServiceProxy
 from urlparse import urljoin
+
+from sseclient import SSEClient
 
 
 """ Example CLI Usage:
@@ -45,8 +47,8 @@ class ClientServiceProxy(ServiceProxy):
         })
 
     def send_payload(self, params, **kwargs):
-        return requests.post(self.service_url, data=self._make_payload(params),
-                             **kwargs)
+        return grequests.post(self.service_url, data=self._make_payload(params),
+                             **kwargs).send()
 
     def __call__(self, params, **kwargs):
         resp = self.send_payload(params, **kwargs)
@@ -90,6 +92,14 @@ class EquanimityClient(object):
         self.player = None
         return r
 
+    def events(self):
+        url = urljoin(self.url, '/events')
+        print "events"
+        events = SSEClient(url, cookies=self.cookies)
+        for msg in events:
+            #print vars(msg)
+            yield msg
+
     def rpc(self, method, *params, **kwargs):
         methods = method.split('.')
         action = self.proxy
@@ -101,20 +111,26 @@ class EquanimityClient(object):
     def must_rpc(self, method, *params, **kwargs):
         """ Raises an exception if the rpc had error """
         r = self.rpc(method, *params, **kwargs)
-        err = r.get('error')
+        if hasattr(r, 'get'):
+            err = r.get('error')
+        else:
+            err = json.dumps(r)
+
         if err is not None:
-            raise ValueError(err)
+            if len(err) > 2:
+                raise ValueError(err)
         return r
 
     def _post(self, *args, **kwargs):
         kwargs.setdefault('cookies', {}).update(self.cookies)
-        r = requests.post(*args, **kwargs)
+        r = grequests.post(*args, **kwargs).send()
         self.cookies = dict(r.cookies)
         return r
 
+
     def _get(self, *args, **kwargs):
         kwargs.setdefault('cookies', {}).update(self.cookies)
-        r = requests.get(*args, **kwargs)
+        r = grequests.get(*args, **kwargs).send()
         self.cookies = dict(r.cookies)
         return r
 
@@ -123,7 +139,7 @@ def print_result(r):
     if r.get('error'):
         print r['error']['message']
     else:
-        print r['result']
+        print json.dumps(r['result'])
 
 
 def get_args():
@@ -148,6 +164,12 @@ def process_args(args):
             print 'Must provide email for signup'
         else:
             print c.signup(args.username, args.password, args.params[0]).json()
+    elif args.method == 'events':
+        c.signup('atkr', 'atkrpassword', 'atkr@example.com')
+        c.login('atkr', 'atkrpassword')
+        events = c.events()
+        while True:
+            print events.next()
     else:
         c.login(args.username, args.password)
         print_result(c.rpc(args.method, *args.params))

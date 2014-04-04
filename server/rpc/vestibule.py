@@ -5,7 +5,7 @@ from server import jsonrpc
 from server.decorators import require_login, commit
 from server.rpc.common import get_thing
 from server import db
-
+from worker.world_tasks import start_world
 
 vestibule = Blueprint('vestibule', __name__, url_prefix='/api/vestibule')
 
@@ -30,7 +30,7 @@ def _get_vestibule(uid, is_member=None, no_world=True):
     return v
 
 
-@jsonrpc.method('vestibule.create() -> dict', validate=True)
+@jsonrpc.method('vestibule.create() -> int', validate=True)
 @require_login
 @commit
 def create_vestibule():
@@ -71,6 +71,7 @@ def start_vestibule(vestibule_id):
     if leader != p:
         raise ValueError('You cannot start this vestibule')
     w = v.start()
+    start_world.delay(w.uid)
     return dict(world=dict(uid=w.uid))
 
 

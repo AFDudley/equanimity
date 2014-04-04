@@ -24,9 +24,8 @@ from db import AutoID
 from server import db
 
 
-def init_db(reset=False, verbose=False, grid_radius=8, square_grid=False):
+def init_db(reset=False, verbose=False, grid_radius=1, square_grid=False):
     """ Creates top level datastructures in the ZODB """
-
     if square_grid:
         grid = lambda: SquareGrid(radius=grid_radius)
     else:
@@ -70,22 +69,24 @@ class World(Persistent):
     @classmethod
     def create(cls, **kwargs):
         w = cls(**kwargs)
-        print 'Creating world'
+        print 'Initializing world...'
         w.persist()
         return w
 
-    def __init__(self, version=0.0, create_fields=True, players=None):
+    def __init__(self, version=0.0, create_fields=False, players=None):
         self.players = PlayerGroup()
         self.player = WorldPlayer.get_or_create()
         self.player.persist()
         self.players.add(self.player)
         self.uid = db['world_uid'].get_next_id()
         self.version = version
-        self.clock = WorldClock()
+        self.clock = None
         self.grid = db['grid']
         self.fields = frozendict()
+        self.has_fields = False
         if create_fields:
-            self._create_fields()
+            self.create_fields()
+            self.has_fields = True
 
     def persist(self):
         """ Saves the world to the ZODB """
@@ -99,8 +100,17 @@ class World(Persistent):
 
     def start(self):
         """ Starts the game """
-        self._distribute_fields_to_players()
-        self._populate_fields()
+        if self.clock is None:
+            if not self.has_fields:
+                self.create_fields()
+                self.has_fields = True
+            self._distribute_fields_to_players()
+            self._populate_fields()
+            self.clock = WorldClock()
+            self.persist()
+            print "World {0} persisted.".format(self.uid)
+        else:
+            raise ValueError("World already started.")
 
     def _distribute_fields_to_players(self):
         """ Assigns fields to participating players """
@@ -166,9 +176,10 @@ class World(Persistent):
             c[x] = randrange(10, 20)
         return Grid(comp=Stone(c), radius=self.grid.radius)
 
-    def _create_fields(self):
+    def create_fields(self):
         """ Creates all fields used in a game. """
         from field import Field
+        print "Creating fields..."
         fields = {}
         for coord in self.grid.iter_coords():
             """
@@ -183,4 +194,5 @@ class World(Persistent):
             e = self._choose_initial_field_element(coord)
             grid = self._choose_initial_field_grid(e, coord)
             fields[coord] = Field(self, coord, e, owner=self.player, grid=grid)
+        print "Freezing fields..."
         self.fields = frozendict(fields)

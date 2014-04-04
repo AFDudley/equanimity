@@ -156,7 +156,7 @@ class Grid(Stone):
         r = Hex._make(r)
         return (q - r) in cls.inverted_vectors
 
-    def __init__(self, comp=None, radius=8, tiles=None):
+    def __init__(self, comp=None, radius=1, tiles=None):
         if radius <= 0:
             raise ValueError('Invalid hex grid radius {0}'.format(radius))
         self.size = self.compute_size(radius)

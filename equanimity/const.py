@@ -33,18 +33,18 @@ SEX = ('female', 'male')
 OPPSEX = {'female': 'male', 'male': 'female'}
 
 WORLD_UID = 0
-
-PLY_TIME = timedelta(minutes=4)
+PLY_MINUTES=4
+PLY_TIME = timedelta(minutes=PLY_MINUTES)
 
 LETTERS = {E[0]: E, F[0]: F, I[0]: I, W[0]: W}
 
 CLOCK = dict(
-    generation=timedelta(days=14),
-    year=timedelta(days=1),
-    season=timedelta(hours=8),
-    month=timedelta(hours=2),
-    week=timedelta(minutes=24),
-    day=timedelta(minutes=4)
+    generation=timedelta(minutes=PLY_MINUTES*5040),
+    year=timedelta(minutes=PLY_MINUTES*360),
+    season=timedelta(minutes=PLY_MINUTES*120),
+    month=timedelta(minutes=PLY_MINUTES*30),
+    week=timedelta(minutes=PLY_MINUTES*6),
+    day=timedelta(minutes=PLY_MINUTES)
 )
 
 FIELD_PRODUCE = 'produce'

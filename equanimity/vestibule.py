@@ -23,7 +23,7 @@ class Vestibule(Persistent):
             leader = leader.uid
         world = self.world
         if world is not None:
-            world = self.world.uid
+            world = getattr(self.world, 'uid', self.world)
         return dict(players=[p.uid for p in self.players], uid=self.uid,
                     leader=leader, world=world)
 
@@ -34,7 +34,6 @@ class Vestibule(Persistent):
         """ Create a World for these players """
         w = World.create()
         w.players.add_all(self.players.players.values())
-        w.start()
         self.world = w.uid
         return w
 

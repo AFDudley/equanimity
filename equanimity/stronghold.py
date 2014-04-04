@@ -19,7 +19,6 @@ from clock import now
 
 
 class Stronghold(Persistent):
-
     @classmethod
     def get(self, world, field_location):
         w = get_world(world)
@@ -97,6 +96,7 @@ class Stronghold(Persistent):
         """ Adds an initial squad of scients to the stronghold """
         if self.garrisoned:
             raise ValueError("Stronghold is already occupied")
+
         squad = rand_squad(owner=self.owner, element=self.field.element,
                            max_value=self.field.grid.value, size=size,
                            kind=kind, equip=True)
