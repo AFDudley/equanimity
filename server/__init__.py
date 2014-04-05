@@ -35,11 +35,7 @@ def setup_login_manager(app):
 
     @login_manager.user_loader
     def load_user(uid):
-        print 'UID', uid;
-        p = Player.get(uid);
-        print 'Player', p;
-        return p
-        #return Player.get(uid)
+        return Player.get(uid)
 
 
 def register_blueprints(app):
