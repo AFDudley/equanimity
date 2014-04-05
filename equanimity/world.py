@@ -101,6 +101,7 @@ class World(Persistent):
         """ Starts the game """
         self._distribute_fields_to_players()
         self._populate_fields()
+        print "Game started."
 
     def _distribute_fields_to_players(self):
         """ Assigns fields to participating players """
@@ -143,6 +144,7 @@ class World(Persistent):
         To be called only after assigning initial fields to all players,
         and before the game begins.
         """
+        print "Populating fields..."
         for f in self.fields.values():
             kind = None
             if f.owner != self.player:
@@ -159,6 +161,7 @@ class World(Persistent):
         """Decide what stones to populate a grid's tiles with and return
         the grid
         """
+        print "Placing stones in grid..."
         c = Composition()
         c[element] = randrange(20, 40)
         c.set_opp(element, randrange(5, 10))
@@ -169,6 +172,7 @@ class World(Persistent):
     def _create_fields(self):
         """ Creates all fields used in a game. """
         from field import Field
+        print "Creating fields..."
         fields = {}
         for coord in self.grid.iter_coords():
             """
