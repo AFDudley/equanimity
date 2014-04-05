@@ -276,7 +276,10 @@ def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8,
     if equip:
         for unit in squad:
             if isinstance(unit, Scient):
-                wep = rand_weapon(element=element, max_value=unit.value // 2)
+                #wep = rand_weapon(element=element, max_value=unit.value // 2)
+                # hack to give everyone swords.
+                from weapons import Sword
+                wep = Sword(element=element, max_value=unit.value // 2)
                 unit.equip(wep)
     return squad
 
