@@ -271,8 +271,12 @@ def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8,
         while squad.max_size - squad.size >= 2:
             squad.append(rand_unit(element=element, max_value=max_value))
         if squad.max_size - squad.size == 1:
-            squad.append(rand_unit(element=element, kind='Scient',
-                                   max_value=max_value))
+            # hack for demo
+            s = Stone()
+            s[element] = 4
+            s.set_opp(element, 0)
+            s.set_orth(element, 2)
+            squad.append(Scient(element=element, comp=s))
     if equip:
         for unit in squad:
             if isinstance(unit, Scient):
