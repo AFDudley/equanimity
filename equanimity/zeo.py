@@ -47,4 +47,4 @@ class Zeo(object):
 
 if __name__ == '__main__':
     zc = Zeo()
-    vest = zc.root
+    uni = zc.root
