@@ -14,7 +14,7 @@ from collections import defaultdict
 from frozendict import frozendict
 from BTrees.OOBTree import OOBTree
 from BTrees.IOBTree import IOBTree
-from random import randrange, sample, shuffle, randint
+from random import choice, randrange, sample, shuffle, randint
 from clock import WorldClock
 from const import ELEMENTS, ORTH
 from stone import Stone, Composition
@@ -153,13 +153,18 @@ class World(Persistent):
         """ Decide what element to assign a field based on coordinate """
         # For now, just choose a random element. Later, distribute the
         # elements by a heuristic
-        return ELEMENTS[0] # 'Earth'
-        
+        return choice(ELEMENTS)
+
     def _choose_initial_field_grid(self, element, coord):
         """Decide what stones to populate a grid's tiles with and return
         the grid
         """
-        return Grid(comp=Stone(), radius=self.grid.radius)
+        c = Composition()
+        c[element] = randrange(20, 40)
+        c.set_opp(element, randrange(5, 10))
+        for x in ORTH[element]:
+            c[x] = randrange(10, 20)
+        return Grid(comp=Stone(c), radius=self.grid.radius)
 
     def _create_fields(self):
         """ Creates all fields used in a game. """
