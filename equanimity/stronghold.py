@@ -97,8 +97,10 @@ class Stronghold(Persistent):
         """ Adds an initial squad of scients to the stronghold """
         if self.garrisoned:
             raise ValueError("Stronghold is already occupied")
+        
+        # changed max_value for demo purposes
         squad = rand_squad(owner=self.owner, element=self.field.element,
-                           max_value=self.field.grid.value, size=size,
+                           max_value=8, size=size,
                            kind=kind, equip=True)
         self._add_squad(squad)
 
