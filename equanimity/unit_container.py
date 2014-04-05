@@ -279,7 +279,8 @@ def rand_squad(owner=None, element=None, kind='Scient', max_value=255, size=8,
                 #wep = rand_weapon(element=element, max_value=unit.value // 2)
                 # hack to give everyone swords.
                 from weapons import Sword
-                wep = Sword(element=element, max_value=unit.value // 2)
+                from stone import Stone
+                wep = Sword(element=element, comp=Stone())
                 unit.equip(wep)
     return squad
 
