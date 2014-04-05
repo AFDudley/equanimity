@@ -103,10 +103,12 @@ class EquanimityClient(object):
         r = self.rpc(method, *params, **kwargs)
         if hasattr(r, 'get'):
             err = r.get('error')
-        else: err = json.dumps(r)
-        
+        else:
+            err = json.dumps(r)
+
         if err is not None:
-            raise ValueError(err)
+            if len(err) > 2:
+                raise ValueError(err)
         return r
 
     def _post(self, *args, **kwargs):
