@@ -70,7 +70,7 @@ class World(Persistent):
     @classmethod
     def create(cls, **kwargs):
         w = cls(**kwargs)
-        print 'Creating world'
+        print 'Creating world...'
         w.persist()
         return w
 
@@ -85,6 +85,7 @@ class World(Persistent):
         self.grid = db['grid']
         self.fields = frozendict()
         if create_fields:
+            print "Creating fields..."
             self._create_fields()
 
     def persist(self):
@@ -101,7 +102,6 @@ class World(Persistent):
         """ Starts the game """
         self._distribute_fields_to_players()
         self._populate_fields()
-        print "Game started."
 
     def _distribute_fields_to_players(self):
         """ Assigns fields to participating players """
@@ -144,7 +144,6 @@ class World(Persistent):
         To be called only after assigning initial fields to all players,
         and before the game begins.
         """
-        print "Populating fields..."
         for f in self.fields.values():
             kind = None
             if f.owner != self.player:
@@ -161,7 +160,7 @@ class World(Persistent):
         """Decide what stones to populate a grid's tiles with and return
         the grid
         """
-        print "Placing stones in grid..."
+        print "populating grid %s with stones..." %coord
         c = Composition()
         c[element] = randrange(20, 40)
         c.set_opp(element, randrange(5, 10))
@@ -172,7 +171,6 @@ class World(Persistent):
     def _create_fields(self):
         """ Creates all fields used in a game. """
         from field import Field
-        print "Creating fields..."
         fields = {}
         for coord in self.grid.iter_coords():
             """
@@ -187,4 +185,5 @@ class World(Persistent):
             e = self._choose_initial_field_element(coord)
             grid = self._choose_initial_field_grid(e, coord)
             fields[coord] = Field(self, coord, e, owner=self.player, grid=grid)
+        print "Freezing fields..."
         self.fields = frozendict(fields)
