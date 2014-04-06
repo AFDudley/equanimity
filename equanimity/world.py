@@ -24,7 +24,7 @@ from db import AutoID
 from server import db
 
 
-def init_db(reset=False, verbose=False, grid_radius=4, square_grid=False):
+def init_db(reset=False, verbose=False, grid_radius=1, square_grid=False):
     """ Creates top level datastructures in the ZODB """
 
     if square_grid:
