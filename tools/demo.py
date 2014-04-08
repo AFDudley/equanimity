@@ -40,7 +40,7 @@ def start_game(p, q):
     print 'Join vestibule'
     q.rpc('vestibule.join', id)
     print 'Start vestibule'
-    world = p.must_rpc('vestibule.start', id, timeout=120)
+    world = p.must_rpc('vestibule.start', id, timeout=240)
     return world['result']['world']
 
 
