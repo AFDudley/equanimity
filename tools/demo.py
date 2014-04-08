@@ -40,6 +40,9 @@ def start_game(p, q):
     v = p.must_rpc('vestibule.create')
     vid = v['result']['vestibule']['uid']
     print 'Join vestibule'
+    timeout = 10
+    print 'Sleeping for {0} seconds'.format(timeout)
+    time.sleep(timeout)
     q.rpc('vestibule.join', vid)
     print 'Start vestibule'
     try:
