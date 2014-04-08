@@ -39,10 +39,10 @@ def start_game(p, q):
     print 'Create vestibule'
     v = p.must_rpc('vestibule.create')
     vid = v['result']['vestibule']['uid']
-    print 'Join vestibule'
     timeout = 10
-    print 'Sleeping for {0} seconds'.format(timeout)
+    print 'Waiting {0} seconds for vestibule creation to complete.'.format(timeout)
     time.sleep(timeout)
+    print 'Join vestibule'
     q.rpc('vestibule.join', vid)
     print 'Start vestibule'
     try:
@@ -268,7 +268,8 @@ def run_demo(config, url):
     # Update the world clock so that the battle starts
     print 'Forcing battle start'
     script(config=config)(force_start_battle)(world, df)
-
+    timeout = 45
+    print 'Waiting {0} seconds for battle to start.'.format(timeout)
     battle(world, df, p, q)
 
 if __name__ == '__main__':
