@@ -160,7 +160,6 @@ class World(Persistent):
         """Decide what stones to populate a grid's tiles with and return
         the grid
         """
-        print "populating grid {0} with stones...".format(coord)
         c = Composition()
         c[element] = randrange(20, 40)
         c.set_opp(element, randrange(5, 10))
