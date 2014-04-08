@@ -13,6 +13,7 @@ from equanimity.field import Field
 from server.decorators import script
 import ipdb
 import sys
+import time
 
 def get_args():
     p = ArgumentParser(prog='Equanimity Demo')
@@ -50,6 +51,7 @@ def start_game(p, q):
 
 def get_world(p):
     """gets the world that p started."""
+    pass
     
 def force_start_battle(world, df):
     # Field clock must tick.  There is no RPC to force the clock to tick,
@@ -250,7 +252,12 @@ def run_demo(config, url):
     create_player(q, 'dfdr', 'dfdrpassword', 'dfdr@example.com')
     # Start the game via the vestibule
     vid = start_game(p, q)
-    world = get_world(p)
+    
+    # magic
+    timeout = 180
+    print 'sleeping for {0} seconds'.format(timeout)
+    time.sleep(timeout)
+    world = {'uid': 1}
     print 'World', world
 
     _, df = setup_battle(world, p, q)
