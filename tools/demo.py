@@ -11,7 +11,7 @@ from client import EquanimityClient
 from equanimity.grid import Grid, Hex
 from equanimity.field import Field
 from server.decorators import script
-
+import ipdb
 
 def get_args():
     p = ArgumentParser(prog='Equanimity Demo')

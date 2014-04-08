@@ -15,6 +15,7 @@ requests
 uwsgi
 logilab-constraint
 frozendict
+ipdb # for debugging
 
 # Test modules:
 flake8      # static analysis and pep8 conformance
