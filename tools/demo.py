@@ -12,6 +12,7 @@ from equanimity.grid import Grid, Hex
 from equanimity.field import Field
 from server.decorators import script
 import ipdb
+import sys
 
 def get_args():
     p = ArgumentParser(prog='Equanimity Demo')
@@ -36,14 +37,20 @@ def start_game(p, q):
     # Setup the vestibule
     print 'Create vestibule'
     v = p.must_rpc('vestibule.create')
-    id = v['result']['vestibule']['uid']
+    vid = v['result']['vestibule']['uid']
     print 'Join vestibule'
-    q.rpc('vestibule.join', id)
+    q.rpc('vestibule.join', vid)
     print 'Start vestibule'
-    world = p.must_rpc('vestibule.start', id, timeout=240)
-    return world['result']['world']
+    try:
+        p.rpc('vestibule.start', vid)
+    except Exception as e:
+        print e
+        sys.exc_clear()
+    return vid
 
-
+def get_world(p):
+    """gets the world that p started."""
+    
 def force_start_battle(world, df):
     # Field clock must tick.  There is no RPC to force the clock to tick,
     # so we import it here.  We also bypass the time counting, and forecfully
@@ -242,7 +249,8 @@ def run_demo(config, url):
     create_player(p, 'atkr', 'atkrpassword', 'atkr@example.com')
     create_player(q, 'dfdr', 'dfdrpassword', 'dfdr@example.com')
     # Start the game via the vestibule
-    world = start_game(p, q)
+    vid = start_game(p, q)
+    world = get_world(p)
     print 'World', world
 
     _, df = setup_battle(world, p, q)

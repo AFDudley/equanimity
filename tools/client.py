@@ -45,10 +45,7 @@ class ClientServiceProxy(ServiceProxy):
         })
 
     def send_payload(self, params, **kwargs):
-        s = requests.Session()
-        a = requests.adapters.HTTPAdapter(max_retries=3)
-        s.mount(self.service_url, a)
-        return s.post(self.service_url, data=self._make_payload(params),
+        return requests.post(self.service_url, data=self._make_payload(params),
                              **kwargs)
 
     def __call__(self, params, **kwargs):
