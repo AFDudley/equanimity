@@ -43,7 +43,7 @@ def start_game(p, q):
     print 'Waiting {0} seconds for vestibule creation to complete.'.format(timeout)
     time.sleep(timeout)
     print 'Join vestibule'
-    q.rpc('vestibule.join', vid)
+    q.must_rpc('vestibule.join', vid)
     print 'Start vestibule'
     try:
         p.rpc('vestibule.start', vid)
