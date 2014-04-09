@@ -39,9 +39,9 @@ def start_game(p, q):
     print 'Create vestibule'
     v = p.must_rpc('vestibule.create')
     vid = v['result']['vestibule']['uid']
-    timeout = 10
-    print 'Waiting {0} seconds for vestibule creation to complete.'.format(timeout)
-    time.sleep(timeout)
+    #timeout = 10
+    #print 'Waiting {0} seconds for vestibule creation to complete.'.format(timeout)
+    #time.sleep(timeout)
     print 'Join vestibule'
     q.must_rpc('vestibule.join', vid)
     print 'Start vestibule'
@@ -257,9 +257,9 @@ def run_demo(config, url):
     vid = start_game(p, q)
     
     # magic
-    timeout = 180
-    print 'sleeping for {0} seconds'.format(timeout)
-    time.sleep(timeout)
+    #timeout = 180
+    #print 'sleeping for {0} seconds'.format(timeout)
+    #time.sleep(timeout)
     world = {'uid': 1}
     print 'World', world
 

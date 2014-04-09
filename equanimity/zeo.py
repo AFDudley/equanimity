@@ -19,7 +19,7 @@ class Zeo(object):
         self.conn = self.db.open()
         self.root = self.conn.root()
 
-    def __init__(self, addr=('localhost', 9100)):
+    def __init__(self, addr=('127.0.0.1', 9100)):
         self.addr = addr
         self.storage = ClientStorage.ClientStorage(self.addr)
         self.db = DB(self.storage)

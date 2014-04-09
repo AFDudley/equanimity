@@ -5,7 +5,7 @@ from server import jsonrpc
 from server.decorators import require_login, commit
 from server.rpc.common import get_thing
 from server import db
-
+from worker.tasks import start_vestibule_task
 
 vestibule = Blueprint('vestibule', __name__, url_prefix='/api/vestibule')
 
@@ -64,16 +64,10 @@ def leave_vestibule(vestibule_id):
 @require_login
 @commit
 def start_vestibule(vestibule_id):
-    v = _get_vestibule(vestibule_id, is_member=True)
-    # Only the leader can create the vestibule
-    leader = v.players.get_leader(allow_world=False)
-    p = current_user._get_current_object()
-    if leader != p:
-        raise ValueError('You cannot start this vestibule')
-    w = v.start()
-    return dict(world=dict(uid=w.uid))
-
-
+    player_id = current_user._get_current_object().uid
+    result = start_vestibule_task.delay(vestibule_id, player_id)
+    return result.wait() # I am pretty sure this completely defeats the purpose
+    
 @jsonrpc.method('vestibule.get(int) -> dict', validate=True)
 @require_login
 def get_vestibule(vestibule_id):
