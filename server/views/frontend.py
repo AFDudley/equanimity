@@ -9,7 +9,13 @@ frontend = Blueprint('frontend', __name__, url_prefix='')
 
 @frontend.route('/')
 def index():
-    return render_template('btjs3/client.html')
+    gitinfo = ['error\n', 'error\n']
+    gi = 'gitinfo.txt'
+    if os.path.isfile(gi):
+        with open(gi, 'r') as f:
+            gitinfo = f.readlines()
+    else: print "no file: {0}".format(os.getcwd())
+    return render_template('btjs3/client.html', gitinfo=gitinfo)
 
 
 # Serve the js from here until nginx handles the static content
