@@ -48,7 +48,8 @@ def start_game(p, q):
         print e
         sys.exc_clear()
     return vid
-    
+
+
 def force_start_battle(wid, df):
     # Field clock must tick.  There is no RPC to force the clock to tick,
     # so we import it here.  We also bypass the time counting, and forecfully
@@ -58,7 +59,6 @@ def force_start_battle(wid, df):
         raise ValueError("Field queue is empty")
     f.clock.change_day(f)
     transaction.commit()
-
 
 def find_first(predicate, seq):
     return next(ifilter(predicate, seq), None)
@@ -70,16 +70,16 @@ def get_adjacent_enemy_fields(fields, p, q):
     df = find_first(lambda f: f['owner'] == q.player['uid'], fields)
     if df is None:
         raise ValueError('No defender found to be attacked')
-
+    
     # Pick any field of the attacker's that is adjacent
     def matches(f):
         adj = Grid.is_adjacent(f['coordinate'], df['coordinate'])
         return f['owner'] == p.player['uid'] and adj
-
+    
     af = find_first(matches, fields)
     if af is None:
         raise ValueError('No adjacent attacking field for chosen defender')
-
+    
     return df, af
 
 
@@ -114,42 +114,39 @@ def _setup_battle(wid, p, q):
     # Get world info so we can choose two fields with enemies adjacent
     world = p.must_rpc('info.world', wid)['result']['world']
     fields = world['visible_fields']
-    print "Fields: {0}".format(fields)
     # Get two adjacent fields, so p can attack
     df, af = get_adjacent_enemy_fields(fields, p, q)
-
+    
     # Get the attacker's stronghold info
     astr = p.must_rpc('info.stronghold', wid, af['coordinate'])
     astr = astr['result']['stronghold']
-
+    
     # Get the attacking squad
     asq = get_stronghold_squad(wid, astr, p)
-
+    
     # Choose the attacking scient's position on the field
     for i, uid in enumerate(asq['units']):
         p.must_rpc('stronghold.place_unit', uid, [i + 1, 0])
-
+    
     # Get the defender's stronghold info
     dstr = q.must_rpc('info.stronghold', wid, df['coordinate'])
     dstr = dstr['result']['stronghold']
-
+    
     # Get the defending squad
     dsq = get_stronghold_squad(wid, dstr, q)
-
+    
     # Choose the defender's position on the field so that it is easy to kill
     for i, uid in enumerate(dsq['units']):
         q.must_rpc('stronghold.place_unit', uid, [i + 1, 0])
-
+    
     # Move squad from p's field to q's
     move_squad(wid, asq, df, af, p)
-
+    
     # Make sure we see the attacking squad in the defending field queue
     df = q.must_rpc('info.field', wid, df['coordinate'])
     df = df['result']['field']
-    print "attacking squad: {0}".format(df['queue'])
     if not df['queue']:
         raise ValueError("No attacking squad in defending field queue")
-
     return af, df
 
 
@@ -198,17 +195,17 @@ def _battle(wid, df, p, q, battle):
     dsq = battle['defender']['squad']
     au = asq['units'][0]
     du = dsq['units'][0]
-
+    
     t = p.must_rpc('info.battle_timer', battle['uid'])
     t = t['result']['battle']['timer']
-
+    
     actions = [
         lambda: attack_or_move(wid, df, p, au, du),
         lambda: pass_all(wid, df, q, du),
     ]
     if t['current_unit'] == du['uid']:
         actions.reverse()
-
+    
     # Move around until we are in range
     while True:
         for a in actions:
@@ -224,37 +221,64 @@ def _battle(wid, df, p, q, battle):
 
 def battle(wid, df, p, q):
     # p kills everything of q's
-
+    
     # Get battle, field info
     # Move sword from to q's units, attacking when possible
     # Have q pass every turn
     # Once we've won, we should own the stronghold
-
+    
     print 'Getting battle info'
-    battle = p.must_rpc('info.field_battle', wid, df['coordinate'])
-    battle = battle['result']['battle']
-    print battle
+    def get_battle_info(wid, df, p):
+        battle = p.rpc('info.field_battle', wid, df['coordinate'])
+        if sorted(battle.keys())[0] == 'error':
+            print "Waiting 5 seconds for battle."
+            time.sleep(5)
+            return get_battle_info(wid, df, p)
+        else:
+            print "got battle info."
+            return battle['result']['battle']
+    battle = get_battle_info(wid, df, p)
+    
     print 'Attacker unit count:', len(battle['attacker']['squad']['units'])
     print 'Defender unit count:', len(battle['defender']['squad']['units'])
-
+    
     print 'Attacking'
     _battle(wid, df, p, q, battle)
 
 
-def setup_battle(wid, p, q):
+def setup_battle(wid, p, q, config):
     """checks if world has fields"""
-    print p.must_rpc('info.world_has_fields', wid)['result']['has_fields']
     if p.must_rpc('info.world_has_fields', wid)['result']['has_fields']:
         _, df = _setup_battle(wid, p, q)
-        print "df inside setup battle: {0}".format(df)
         return df
     else:
         print "checking for fields in 5 seconds..."
         time.sleep(5)
-        setup_battle(wid, p, q)        
-   
-    
+        return setup_battle(wid, p, q, config)
+
+
 def run_demo(config, url):
+    p = EquanimityClient(url=url)
+    q = EquanimityClient(url=url)
+    # Create two players
+    create_player(p, 'atkr', 'atkrpassword', 'atkr@example.com')
+    create_player(q, 'dfdr', 'dfdrpassword', 'dfdr@example.com')
+    # Start the game via the vestibule
+    vid = start_game(p, q)
+    wid = p.must_rpc('vestibule.get', vid)['result']['vestibule']['world']
+    df = setup_battle(wid, p, q, config)
+    # Update the world clock so that the battle starts
+    print 'Forcing battle start'
+    script(config=config)(force_start_battle)(wid, df)
+    battle(wid, df, p, q)
+
+
+if __name__ == '__main__':
+    args = get_args()
+    run_demo(args.config, args.url)
+    """
+    url = 'http://127.0.0.1:8080'
+    config = 'dev'
     p = EquanimityClient(url=url)
     q = EquanimityClient(url=url)
     # Create two players
@@ -265,12 +289,11 @@ def run_demo(config, url):
     
     wid = p.must_rpc('vestibule.get', vid)['result']['vestibule']['world']
     world = p.must_rpc('info.world', wid)['result']['world']
-    df = setup_battle(wid, p, q)
+    df = setup_battle(wid, p, q, config)
     # Update the world clock so that the battle starts
     print 'Forcing battle start'
-    script(config=config)(force_start_battle)(world, df)
-    battle(world, df, p, q)
-
-if __name__ == '__main__':
-    args = get_args()
-    run_demo(args.config, args.url)
+    print "df: %s" %df
+    script(config=config)(force_start_battle)(wid, df)
+    print "sleeping for battle."
+    battle(wid, df, p, q)
+    """
