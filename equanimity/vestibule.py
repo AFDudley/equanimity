@@ -34,7 +34,6 @@ class Vestibule(Persistent):
         """ Create a World for these players """
         w = World.create()
         w.players.add_all(self.players.players.values())
-        w.start()
         self.world = w.uid
         return w
 

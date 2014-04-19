@@ -8,6 +8,10 @@ from server.rpc.common import (get_field, get_unit, get_stronghold, get_world,
 
 info = Blueprint('info', __name__, url_prefix='/api/info')
 
+@jsonrpc.method('info.world_has_fields(int) -> bool', valdiate=True)
+@require_login
+def world_has_fields(world_id):
+    return dict(has_fields=get_world(world_id).has_fields)
 
 @jsonrpc.method('info.world(int) -> dict', validate=True)
 @require_login

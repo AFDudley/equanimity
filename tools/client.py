@@ -58,7 +58,7 @@ class ClientServiceProxy(ServiceProxy):
 
 class EquanimityClient(object):
 
-    def __init__(self, url='http://127.0.0.1:5000', service_name=''):
+    def __init__(self, url='http://127.0.0.1:8080', service_name=''):
         self.url = url
         self.proxy = ClientServiceProxy(urljoin(url, '/api'),
                                         service_name=service_name)
@@ -135,7 +135,7 @@ def get_args():
     p = ArgumentParser(prog='Equanimity')
     p.add_argument('--config', default='dev', help='Server config file to use')
 
-    p.add_argument('--url', default='http://127.0.0.1:5000/',
+    p.add_argument('--url', default='http://127.0.0.1:8080/',
                    help='URL of server')
     p.add_argument('username', help='User to perform action as')
     p.add_argument('password', help='Password for user authentication')
