@@ -53,7 +53,24 @@ def battle_timer_info(battle_id):
     battle = get_battle_by_id(battle_id)
     return dict(battle=dict(uid=battle.uid, timer=battle.timer_view()))
 
+@jsonrpc.method('info.battle_states(int) -> dict', validate=True)
+@require_login
+def battle_state_info(battle_id):
+    battle = get_battle_by_id(battle_id)
+    return dict(battle=dict(uid=battle.uid, states=battle.states_view()))
 
+@jsonrpc.method('info.battle_messages(int) -> dict', validate=True)
+@require_login
+def battle_state_info(battle_id):
+    battle = get_battle_by_id(battle_id)
+    return dict(battle=dict(uid=battle.uid, messages=battle.messages_view()))
+
+@jsonrpc.method('info.battle_actions(int) -> dict', validate=True)
+@require_login
+def battle_state_info(battle_id):
+    battle = get_battle_by_id(battle_id)
+    return dict(battle=dict(uid=battle.uid, actions=battle.actions_view()))
+    
 @jsonrpc.method('info.unit(int) -> dict', validate=True)
 @require_login
 def unit_info(unit_id):

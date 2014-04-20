@@ -179,7 +179,7 @@ def attack_or_move(wid, df, p, au, du):
             print 'Couldn\'t move, doing an extra pass'
             p.must_rpc('battle.pass', wid, df['coordinate'],
                        au['uid'])
-    p.must_rpc('battle.pass', wid, df['coordinate'], au['uid'])
+    p.rpc('battle.pass', wid, df['coordinate'], au['uid'])
 
 
 def pass_all(wid, df, q, du):
@@ -214,8 +214,7 @@ def _battle(wid, df, p, q, battle):
         r = p.must_rpc('info.battle', battle['uid'])
         battle = r['result']['battle']
         if battle['game_over']:
-            print 'Battle is over'
-            print battle
+            print 'Battle is over: %s' %battle['condition']
             break
 
 

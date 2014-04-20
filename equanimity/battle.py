@@ -108,7 +108,6 @@ class InitialState(PersistentKwargs):
             units=log.units, grid=log.grid, owners=log.owners,
             player_names=names)
 
-
 class Log(PersistentKwargs):
 
     def __init__(self, players, units, grid):
@@ -129,6 +128,8 @@ class Log(PersistentKwargs):
         self.world_coords = None  # set by battle_server
         self.owners = self.get_owners()
 
+
+    
     def set_initial_locations(self):
         locs = {unit.uid: unit.location for unit in self.units}
         self.init_locs = PersistentMapping(dict=locs)
@@ -229,6 +230,20 @@ class State(PersistentKwargs):
             game_over=self.game_over,
         )
 
+    def api_view(self):
+        return dict(
+            battle=self.battle.uid,
+            num=self.num,
+            pass_count=self.pass_count,
+            hp_count=self.hp_count,
+            old_defsquad_hp=self.old_defsquad_hp,
+            queued=str(self.queued),
+            locs=str(self.locs),
+            hps=str(self.hps),
+            game_over=self.game_over,
+            
+        )
+    
     def snapshot(self, battle):
         """ Creates a copy of self and battle and returns as a new state """
         # TODO -- need to copy battle and all of its descendants?
@@ -303,7 +318,6 @@ class Battle(Persistent):
         self.log = Log(self.players, self.units, field.grid)
         self.state = State(self)
         self.state.old_defsquad_hp = self.battlefield.defsquad.hp()
-        self.states = PersistentList()
         self.field = field
         self.uid = db['battle_uid'].get_next_id()
 
@@ -341,6 +355,15 @@ class Battle(Persistent):
                     current_unit=current_unit.uid,
                     time_remaining=remaining.seconds)
 
+    def states_view(self):
+        return [s.api_view() for s in self.log.states]
+    
+    def messages_view(self):
+        return [m.api_view() for m in self.log.messages]
+    
+    def actions_view(self):
+        return [a.api_view() for a in self.log.actions]
+    
     def api_view(self):
         return dict(
             uid=self.uid,
@@ -349,6 +372,7 @@ class Battle(Persistent):
             attacker=self.attacker.combatant_view(self.battlefield.atksquad),
             action_num=self.state.num,
             game_over=self.state.game_over,
+            condition=self.log.condition,
             winner=getattr(self.winner, 'api_view', lambda: None)())
 
     def map_locs(self):
@@ -627,9 +651,10 @@ class ActionQueue(object):
         # Sanity checking
         if unit.container is None or unit.container_pos is None:
             raise ValueError('Unit {0} is not in a squad'.format(unit))
-        if unit.container not in battlefield.squads:
-            msg = 'Unit {0} is not in a battling squad'
-            raise ValueError(msg.format(unit))
+        # TODO -- removing this check 'fixed' bad must_rpc logic in demo. -rix
+        #if unit.container not in battlefield.squads:
+        #    msg = 'Unit {0} is not in a battling squad'
+        #    raise ValueError(msg.format(unit))
         if unit.hp <= 0:
             raise ValueError('Unit {} is dead'.format(unit))
         # Lower valued units go first
