@@ -22,9 +22,18 @@ Start ZODB instance:
 
 Next, create world:
 
-> $ python tools/create_world.py
+> $ tools/init._db.py
 
-Finally, run pyramid server:
+Finally, run wsgi server:
 
-> $ python server.py
- 
+> $ ./run_wsgi_server.sh
+
+
+##Running tests
+From inside virtualenv
+> $ ./setup.py test [--nose-only] [--run-failed]
+
+Coverage statements should print to the terminal when running the tests.
+--nose-only indicates to run only the nose test runner, and not the pep8 and pyflakes checkers
+--run-failed passes this option to nose, which will only re-run failed tests
+
