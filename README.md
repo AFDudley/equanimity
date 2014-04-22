@@ -31,7 +31,7 @@ Run wsgi server:
 Start redis
 
 Start celery worker:
-> $ celery -A worker.tasks worker
+> $ celery -A worker.world_tasks worker
 
 Finally, run demo:
 
