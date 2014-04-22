@@ -1,18 +1,15 @@
-ZODB3
-#cython
-#https://github.com/surfly/gevent/archive/1.0rc2.tar.gz
-#pyramid_sockjs
-#pyramid_rpc
-flask
+ZODB3==3.10.5
+
+flask==0.10.1
 flask-login
 flask-bcrypt
 flask-seasurf
 flask-ZODB
 -e git://github.com/xsleonard/formencode.git@24bfafbb5e03afdbfd5f99afdae381e57e9d2984#egg=FormEncode-dev
 bidict
-requests
+requests==1.2.3
 -e git://github.com/xsleonard/flask-jsonrpc.git#egg=flask-JSONRPC
-uwsgi
+uWSGI==1.9.17.1
 logilab-constraint
 frozendict
 
