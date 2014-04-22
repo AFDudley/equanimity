@@ -24,10 +24,13 @@ Next, create world:
 
 > $ tools/init._db.py
 
-Finally, run wsgi server:
+Run wsgi server:
 
 > $ ./run_wsgi_server.sh
 
+Finally, run demo:
+
+> & tools/demo.py --url=http://127.0.0.1:8080
 
 ##Running tests
 From inside virtualenv
