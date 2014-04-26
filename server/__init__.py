@@ -6,7 +6,7 @@ from flask.ext.zodb import ZODB
 from flask.ext.bcrypt import Bcrypt
 from flask.ext.login import LoginManager
 from flask.ext.jsonrpc import JSONRPC
-from flask import Flask, g, Blueprint
+from flask import Flask, g
 
 
 """ ZODB """

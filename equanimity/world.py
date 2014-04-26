@@ -22,11 +22,10 @@ from grid import Grid, SquareGrid
 from player import WorldPlayer, PlayerGroup
 from db import AutoID
 from server import db
-from worker.world_tasks import start_task
+
 
 def init_db(reset=False, verbose=False, grid_radius=1, square_grid=False):
     """ Creates top level datastructures in the ZODB """
-
     if square_grid:
         grid = lambda: SquareGrid(radius=grid_radius)
     else:
@@ -101,7 +100,7 @@ class World(Persistent):
 
     def start(self):
         """ Starts the game """
-        if self.clock == None:
+        if self.clock is None:
             if not self.has_fields:
                 self.create_fields()
                 self.has_fields = True
@@ -112,7 +111,7 @@ class World(Persistent):
             print "World {0} persisted.".format(self.uid)
         else:
             raise ValueError("World already started.")
-                        
+
     def _distribute_fields_to_players(self):
         """ Assigns fields to participating players """
         # Setup a player, field_count list

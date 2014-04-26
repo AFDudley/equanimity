@@ -8,10 +8,12 @@ from server.rpc.common import (get_field, get_unit, get_stronghold, get_world,
 
 info = Blueprint('info', __name__, url_prefix='/api/info')
 
+
 @jsonrpc.method('info.world_has_fields(int) -> bool', valdiate=True)
 @require_login
 def world_has_fields(world_id):
     return dict(has_fields=get_world(world_id).has_fields)
+
 
 @jsonrpc.method('info.world(int) -> dict', validate=True)
 @require_login
@@ -53,24 +55,28 @@ def battle_timer_info(battle_id):
     battle = get_battle_by_id(battle_id)
     return dict(battle=dict(uid=battle.uid, timer=battle.timer_view()))
 
+
 @jsonrpc.method('info.battle_states(int) -> dict', validate=True)
 @require_login
-def battle_state_info(battle_id):
+def battle_states_info(battle_id):
     battle = get_battle_by_id(battle_id)
     return dict(battle=dict(uid=battle.uid, states=battle.states_view()))
 
+
 @jsonrpc.method('info.battle_messages(int) -> dict', validate=True)
 @require_login
-def battle_state_info(battle_id):
+def battle_messages_info(battle_id):
     battle = get_battle_by_id(battle_id)
     return dict(battle=dict(uid=battle.uid, messages=battle.messages_view()))
 
+
 @jsonrpc.method('info.battle_actions(int) -> dict', validate=True)
 @require_login
-def battle_state_info(battle_id):
+def battle_actions_info(battle_id):
     battle = get_battle_by_id(battle_id)
     return dict(battle=dict(uid=battle.uid, actions=battle.actions_view()))
-    
+
+
 @jsonrpc.method('info.unit(int) -> dict', validate=True)
 @require_login
 def unit_info(unit_id):

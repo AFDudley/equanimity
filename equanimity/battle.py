@@ -67,13 +67,11 @@ class Message(PersistentKwargs):
 
 class ChangeList(PersistentKwargs):
     # TODO - belongs in different file
-
     def __init__(self, event, **kwargs):
         super(ChangeList, self).__init__(event=event, **kwargs)
 
 
 class BattleChanges(ChangeList):
-
     def __init__(self, victors, prisoners, dead_attackers, dead_defenders,
                  awards, event='battle'):
         super(BattleChanges, self).__init__(event=event, victors=victors,
@@ -84,7 +82,6 @@ class BattleChanges(ChangeList):
 
 
 class ActionResult(PersistentKwargs):
-
     def __init__(self, command, response, applied=None):
         super(ActionResult, self).__init__(command=command, response=response,
                                            applied=applied)
@@ -98,7 +95,6 @@ class ActionResult(PersistentKwargs):
 
 
 class InitialState(PersistentKwargs):
-
     """A hack for serialization."""
 
     def __init__(self, log):
@@ -108,8 +104,8 @@ class InitialState(PersistentKwargs):
             units=log.units, grid=log.grid, owners=log.owners,
             player_names=names)
 
-class Log(PersistentKwargs):
 
+class Log(PersistentKwargs):
     def __init__(self, players, units, grid):
         """Records initial battle state, timestamps log."""
         super(Log, self).__init__(players=players, units=units, grid=grid)
@@ -128,8 +124,6 @@ class Log(PersistentKwargs):
         self.world_coords = None  # set by battle_server
         self.owners = self.get_owners()
 
-
-    
     def set_initial_locations(self):
         locs = {unit.uid: unit.location for unit in self.units}
         self.init_locs = PersistentMapping(dict=locs)
@@ -196,9 +190,7 @@ class Log(PersistentKwargs):
 
 
 class State(PersistentKwargs):
-
     """A dictionary containing the current battle state."""
-
     def __init__(self, battle, num=1, pass_count=0, hp_count=0,
                  old_defsquad_hp=0, queued=None, locs=None, hps=None,
                  game_over=False):
@@ -241,9 +233,8 @@ class State(PersistentKwargs):
             locs=str(self.locs),
             hps=str(self.hps),
             game_over=self.game_over,
-            
         )
-    
+
     def snapshot(self, battle):
         """ Creates a copy of self and battle and returns as a new state """
         # TODO -- need to copy battle and all of its descendants?
@@ -302,9 +293,7 @@ class State(PersistentKwargs):
 
 
 class Battle(Persistent):
-
     """Almost-state-machine that maintains battle state."""
-
     def __init__(self, field, attacker):
         super(Battle, self).__init__()
         self.defender = field.stronghold.defenders.owner
@@ -357,13 +346,13 @@ class Battle(Persistent):
 
     def states_view(self):
         return [s.api_view() for s in self.log.states]
-    
+
     def messages_view(self):
         return [m.api_view() for m in self.log.messages]
-    
+
     def actions_view(self):
         return [a.api_view() for a in self.log.actions]
-    
+
     def api_view(self):
         return dict(
             uid=self.uid,

@@ -12,7 +12,7 @@ from operator import attrgetter
 from stone import Stone
 from const import ELEMENTS, WEP_LIST, OPP, ORTH
 from units import Scient, rand_unit
-from weapons import rand_weapon, weapons
+from weapons import weapons
 from helpers import validate_length, rand_string, rand_element
 
 
