@@ -8,3 +8,4 @@ logging.basicConfig(stream=sys.stderr)
 sys.stdout = sys.stderr
 
 application = create_app(config='production')
+application = create_app(config='dev')
