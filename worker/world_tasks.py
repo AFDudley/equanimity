@@ -9,6 +9,9 @@ celery.conf.update(
     CELERY_RESULT_BACKEND='redis://localhost:6379/0'
 )
 
+from redis import Redis, ConnectionPool
+r = Redis(connection_pool=ConnectionPool(host='localhost', port=6379, db=1))
+
 @celery.task()
 def start_task(world_id):
     """ Starts the game """
@@ -23,6 +26,9 @@ def start_task(world_id):
             world._populate_fields()
             world.clock = WorldClock()
             world.persist()
+            for uid in world.players.players.keys():
+                print 'user.{}.worlds'.format(uid)
+                r.publish('user.{}.worlds'.format(uid), "World {0} persisted.".format(world_id))
             print "World {0} persisted.".format(world_id)
         else:
             raise ValueError("World already started.")

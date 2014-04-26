@@ -15,3 +15,4 @@ tools/init_db.py
 
 #restart server
 ./run_wsgi_server.sh
+

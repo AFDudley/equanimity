@@ -1,8 +1,3 @@
-ZODB3
-#cython
-#https://github.com/surfly/gevent/archive/1.0rc2.tar.gz
-#pyramid_sockjs
-#pyramid_rpc
 flask
 flask-login
 flask-bcrypt
@@ -13,9 +8,12 @@ bidict
 requests
 -e git://github.com/xsleonard/flask-jsonrpc.git#egg=flask-JSONRPC
 uwsgi
+gevent
 logilab-constraint
 frozendict
 ipdb # for debugging
+-e git://github.com/andymccurdy/redis-py.git#egg=redis
+celery[redis]
 
 # Test modules:
 flake8      # static analysis and pep8 conformance
