@@ -1,6 +1,7 @@
 import os
+import time
 from flask import (Blueprint, render_template, send_file, stream_with_context,
-                   Response, json)
+                   Response, request, json)
 from flask.ext.login import login_required, current_user
 from server import csrf
 from server.decorators import api
@@ -31,16 +32,17 @@ def static_proxy(path):
 @frontend.route('/events')
 @login_required
 def stream():
-    event = r.pubsub()
-    event.psubscribe('user.{}.*'.format(current_user.uid))
-    listener = event.listen()
-    def events():
-        print "server _stream"
-        yield 'data: ' + json.dumps(listener.next()) + '\n\n'
-    return Response(stream_with_context(events()),
-                    mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache',
-                             'Connection': 'keep-alive'})
+    if request.headers.get('accept') == 'text/event-stream':
+        event = r.pubsub()
+        event.psubscribe('user.{}.*'.format(current_user.uid))
+        listener = event.listen()
+        def events():
+            print "server _stream"
+            yield 'data: ' + json.dumps(listener.next()) + '\n\n'
+            time.sleep(1)
+        return Response(events(), mimetype='text/event-stream',
+                        headers={'Cache-Control': 'no-cache',
+                                 'Connection': 'keep-alive'})
 
 
 @csrf.include
