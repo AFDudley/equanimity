@@ -38,8 +38,9 @@ def stream():
         listener = event.listen()
         def events():
             print "server _stream"
-            yield 'data: ' + json.dumps(listener.next()) + '\n\n'
-            time.sleep(1)
+            while True:
+                yield 'data: ' + json.dumps(listener.next()) + '\n\n'
+                time.sleep(1)
         return Response(events(), mimetype='text/event-stream',
                         headers={'Cache-Control': 'no-cache',
                                  'Connection': 'keep-alive'})
