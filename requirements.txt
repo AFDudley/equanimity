@@ -5,14 +5,14 @@ flask-seasurf
 flask-ZODB
 -e git://github.com/xsleonard/formencode.git@24bfafbb5e03afdbfd5f99afdae381e57e9d2984#egg=FormEncode-dev
 bidict
-requests
+grequests
 -e git://github.com/xsleonard/flask-jsonrpc.git#egg=flask-JSONRPC
 uwsgi
 gevent
 logilab-constraint
 frozendict
 ipdb # for debugging
--e git://github.com/andymccurdy/redis-py.git#egg=redis
+-e git://github.com/andymccurdy/redis-py.git@b54dee073199fff510fa068487505bf1de75310a#egg=redis
 celery[redis]
 
 # Test modules:
