@@ -28,18 +28,16 @@ def static_proxy(path):
     return send_file(path)
 
 
-def _stream():
-    event = r.pubsub()
-    event.psubscribe('user.{}.*'.format(current_user.uid))
-    listener = event.listen()
-    print "server _stream"
-    yield 'data: ' + json.dumps(listener.next()) + '\n\n'
-
-
 @frontend.route('/events')
 @login_required
 def stream():
-    return Response(stream_with_context(_stream()),
+    event = r.pubsub()
+    event.psubscribe('user.{}.*'.format(current_user.uid))
+    listener = event.listen()
+    def events():
+        print "server _stream"
+        yield 'data: ' + json.dumps(listener.next()) + '\n\n'
+    return Response(events(),
                     mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache',
                              'Connection': 'keep-alive'})
