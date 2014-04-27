@@ -12,7 +12,7 @@ gevent
 logilab-constraint
 frozendict
 ipdb # for debugging
--e git://github.com/andymccurdy/redis-py.git#egg=redis
+-e git://github.com/andymccurdy/redis-py.git@b54dee073199fff510fa068487505bf1de75310a#egg=redis
 celery[redis]
 
 # Test modules:
