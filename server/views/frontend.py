@@ -28,15 +28,15 @@ def static_proxy(path):
     return send_file(path)
 
 
-@stream_with_context
 def _stream():
     event = r.pubsub()
     event.psubscribe('user.{}.*'.format(current_user.uid))
     listener = event.listen()
-    while True:
-        yield 'data: ' + json.dumps(listener.next()) + '\n\n'
+    print "server _stream"
+    yield 'data: ' + json.dumps(listener.next()) + '\n\n'
 
 
+@stream_with_context
 @frontend.route('/events')
 @login_required
 def stream():
