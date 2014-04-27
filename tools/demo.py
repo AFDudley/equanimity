@@ -276,7 +276,7 @@ if __name__ == '__main__':
     args = get_args()
     run_demo(args.config, args.url)
     """
-    url = 'http://127.0.0.1:8080'
+    url = 'http://127.0.0.1:5000'
     config = 'dev'
     p = EquanimityClient(url=url)
     q = EquanimityClient(url=url)

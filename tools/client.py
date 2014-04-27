@@ -2,7 +2,7 @@
 
 from common import hack_syspath
 hack_syspath(__file__)
-import requests
+import grequests
 from uuid import uuid1
 from argparse import ArgumentParser
 from flask import json
@@ -45,8 +45,8 @@ class ClientServiceProxy(ServiceProxy):
         })
 
     def send_payload(self, params, **kwargs):
-        return requests.post(self.service_url, data=self._make_payload(params),
-                             **kwargs)
+        return grequests.post(self.service_url, data=self._make_payload(params),
+                             **kwargs).send()
 
     def __call__(self, params, **kwargs):
         resp = self.send_payload(params, **kwargs)
@@ -58,7 +58,7 @@ class ClientServiceProxy(ServiceProxy):
 
 class EquanimityClient(object):
 
-    def __init__(self, url='http://127.0.0.1:8080', service_name=''):
+    def __init__(self, url='http://127.0.0.1:5000', service_name=''):
         self.url = url
         self.proxy = ClientServiceProxy(urljoin(url, '/api'),
                                         service_name=service_name)
@@ -90,6 +90,17 @@ class EquanimityClient(object):
         self.player = None
         return r
 
+    def events(self):
+        url = urljoin(self.url, '/events')
+        print "events"
+        r = grequests.get(url, stream=True, cookies=self.cookies).send()
+        self.cookies = dict(r.cookies)
+        while True:
+            for line in r.iter_lines():
+                if line:
+                    print "_stream"
+                    yield line
+
     def rpc(self, method, *params, **kwargs):
         methods = method.split('.')
         action = self.proxy
@@ -113,13 +124,14 @@ class EquanimityClient(object):
 
     def _post(self, *args, **kwargs):
         kwargs.setdefault('cookies', {}).update(self.cookies)
-        r = requests.post(*args, **kwargs)
+        r = grequests.post(*args, **kwargs).send()
         self.cookies = dict(r.cookies)
         return r
 
+
     def _get(self, *args, **kwargs):
         kwargs.setdefault('cookies', {}).update(self.cookies)
-        r = requests.get(*args, **kwargs)
+        r = grequests.get(*args, **kwargs).send()
         self.cookies = dict(r.cookies)
         return r
 
@@ -135,7 +147,7 @@ def get_args():
     p = ArgumentParser(prog='Equanimity')
     p.add_argument('--config', default='dev', help='Server config file to use')
 
-    p.add_argument('--url', default='http://127.0.0.1:8080/',
+    p.add_argument('--url', default='http://127.0.0.1:5000/',
                    help='URL of server')
     p.add_argument('username', help='User to perform action as')
     p.add_argument('password', help='Password for user authentication')
@@ -153,6 +165,12 @@ def process_args(args):
             print 'Must provide email for signup'
         else:
             print c.signup(args.username, args.password, args.params[0]).json()
+    elif args.method == 'events':
+        c.signup('atkr', 'atkrpassword', 'atkr@example.com')
+        c.login('atkr', 'atkrpassword')
+        events = c.events()
+        while True:
+            print events.next()
     else:
         c.login(args.username, args.password)
         print_result(c.rpc(args.method, *args.params))

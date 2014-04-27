@@ -13,6 +13,12 @@ runzeo -C zeo/zeoWorld.conf &
 #create new db
 tools/init_db.py
 
+#restart worker
+if [ -f celeryd.pid ]; then
+    kill $(cat celeryd.pid)
+fi
+
+./celery -A worker.world_tasks worker --detach
+
 #restart server
 ./run_wsgi_server.sh
-
