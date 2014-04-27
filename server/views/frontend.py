@@ -36,11 +36,10 @@ def _stream():
     yield 'data: ' + json.dumps(listener.next()) + '\n\n'
 
 
-@stream_with_context
 @frontend.route('/events')
 @login_required
 def stream():
-    return Response(_stream(),
+    return Response(stream_with_context(_stream()),
                     mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache',
                              'Connection': 'keep-alive'})
