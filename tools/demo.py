@@ -13,8 +13,9 @@ from equanimity.field import Field
 from server.decorators import script
 import ipdb
 import sys
-import time
 
+import time
+import gevent
 def get_args():
     p = ArgumentParser(prog='Equanimity Demo')
     p.add_argument('--config', default='dev', help='Server config file to use')
@@ -231,7 +232,7 @@ def battle(wid, df, p, q):
         battle = p.rpc('info.field_battle', wid, df['coordinate'])
         if sorted(battle.keys())[0] == 'error':
             print "Waiting 5 seconds for battle."
-            time.sleep(5)
+            gevent.sleep(5)
             return get_battle_info(wid, df, p)
         else:
             print "got battle info."
@@ -247,12 +248,20 @@ def battle(wid, df, p, q):
 
 def setup_battle(wid, p, q, config):
     """checks if world has fields"""
-    if p.must_rpc('info.world_has_fields', wid)['result']['has_fields']:
+    message = p.events().next()
+    if message == 'World {} persisted.'.format(wid):
+        # TODO improve
+        # The world hasn't actually persisted when the task says it has.
+        # Not sure how to fix. runzeo staleness seems to play a role.
+        has_fields = p.must_rpc('info.world_has_fields', wid)['result']['has_fields']
+        while has_fields == False:
+            time.sleep(1)
+            print "World {0} has fields? {1}".format(wid, has_fields)
+            has_fields = p.must_rpc('info.world_has_fields', wid)['result']['has_fields']
+        print "World {0} has fields? {1}".format(wid, has_fields)
         _, df = _setup_battle(wid, p, q)
         return df
     else:
-        print "checking for fields in 5 seconds..."
-        time.sleep(5)
         return setup_battle(wid, p, q, config)
 
 

@@ -1,3 +1,4 @@
+import sys
 import transaction
 from equanimity.clock import WorldClock
 from server import db, create_app
@@ -16,7 +17,8 @@ r = Redis(connection_pool=ConnectionPool(host='localhost', port=6379, db=1))
 def start_task(world_id):
     """ Starts the game """
     print "Starting World..."
-    with create_app(config='production').test_request_context():
+    app = create_app(config='production')
+    with app.test_request_context():
         world = db['worlds'].get(world_id)
         if world.clock == None:
             if not world.has_fields:
@@ -25,8 +27,10 @@ def start_task(world_id):
             world._distribute_fields_to_players()
             world._populate_fields()
             world.clock = WorldClock()
+            uids = world.players.players.keys()
             world.persist()
-            for uid in world.players.players.keys():
+            app.do_teardown_request()
+            for uid in uids:
                 print 'user.{}.worlds'.format(uid)
                 r.publish('user.{}.worlds'.format(uid), "World {0} persisted.".format(world_id))
             print "World {0} persisted.".format(world_id)

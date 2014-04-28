@@ -1,5 +1,5 @@
 import os
-import time
+import gevent
 from flask import (Blueprint, render_template, send_file, stream_with_context,
                    Response, request, json)
 from flask.ext.login import login_required, current_user
@@ -29,21 +29,29 @@ def static_proxy(path):
     return send_file(path)
 
 
+@stream_with_context
+def _stream():
+    event = r.pubsub(ignore_subscribe_messages=True)
+    pattern = 'user.{}.*'.format(current_user.uid)
+    event.psubscribe(pattern)
+    #pid = os.getpid()
+    while True:
+        #print "server _stream: {}".format(pid)
+        message = event.get_message()
+        out = '_'
+        if message:
+            #print "event! {0} {1}".format(pid, message)
+            yield 'data: ' + json.dumps(message['data']) + '\n\n'
+        gevent.sleep(.1)
+
+
 @frontend.route('/events')
 @login_required
 def stream():
-    if request.headers.get('accept') == 'text/event-stream':
-        event = r.pubsub()
-        event.psubscribe('user.{}.*'.format(current_user.uid))
-        listener = event.listen()
-        def events():
-            print "server _stream"
-            while True:
-                yield 'data: ' + json.dumps(listener.next()) + '\n\n'
-                time.sleep(1)
-        return Response(events(), mimetype='text/event-stream',
-                        headers={'Cache-Control': 'no-cache',
-                                 'Connection': 'keep-alive'})
+    return Response(_stream(),
+                    mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache',
+                             'Connection': 'keep-alive'})
 
 
 @csrf.include

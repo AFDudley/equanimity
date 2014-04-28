@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python -u
 
 from common import hack_syspath
 hack_syspath(__file__)
@@ -8,6 +8,8 @@ from argparse import ArgumentParser
 from flask import json
 from flask.ext.jsonrpc.proxy import ServiceProxy
 from urlparse import urljoin
+
+from sseclient import SSEClient
 
 
 """ Example CLI Usage:
@@ -93,13 +95,9 @@ class EquanimityClient(object):
     def events(self):
         url = urljoin(self.url, '/events')
         print "events"
-        r = grequests.get(url, stream=True, cookies=self.cookies).send()
-        self.cookies = dict(r.cookies)
-        while True:
-            for line in r.iter_lines():
-                if line:
-                    print "_stream"
-                    yield line
+        messages = SSEClient(url, cookies=self.cookies)
+        for msg in messages:
+            yield str(msg.data).strip('"')
 
     def rpc(self, method, *params, **kwargs):
         methods = method.split('.')
