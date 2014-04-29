@@ -36,3 +36,4 @@ def start_task(world_id):
             print "World {0} persisted.".format(world_id)
         else:
             raise ValueError("World already started.")
+    print "World Start Task Completed."

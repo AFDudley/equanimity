@@ -14,7 +14,13 @@ frontend = Blueprint('frontend', __name__, url_prefix='')
 
 @frontend.route('/')
 def index():
-    return render_template('btjs3/client.html')
+    gitinfo = ['error\n', 'error\n']
+    gi = 'gitinfo.txt'
+    if os.path.isfile(gi):
+        with open(gi, 'r') as f:
+            gitinfo = f.readlines()
+    else: print "no file: {0}".format(os.getcwd())
+    return render_template('btjs3/client.html', gitinfo=gitinfo)
 
 
 @frontend.route('/users/login.html')
@@ -31,18 +37,22 @@ def static_proxy(path):
 
 @stream_with_context
 def _stream():
-    event = r.pubsub(ignore_subscribe_messages=True)
+    #event = r.pubsub(ignore_subscribe_messages=True)
+    event = r.pubsub()
     pattern = 'user.{}.*'.format(current_user.uid)
     event.psubscribe(pattern)
-    #pid = os.getpid()
+    pid = os.getpid()
     while True:
-        #print "server _stream: {}".format(pid)
+        print "server _stream: {}".format(pid)
         message = event.get_message()
         out = '_'
         if message:
-            #print "event! {0} {1}".format(pid, message)
+            print "event! {0} {1}".format(pid, message)
             yield 'data: ' + json.dumps(message['data']) + '\n\n'
-        gevent.sleep(.1)
+        else:
+            print "no message"
+            yield 'data: ' + 'no message' + '\n\n'
+        gevent.sleep(5)
 
 
 @frontend.route('/events')

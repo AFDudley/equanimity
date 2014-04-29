@@ -6,6 +6,7 @@ flask-ZODB
 -e git://github.com/xsleonard/formencode.git@24bfafbb5e03afdbfd5f99afdae381e57e9d2984#egg=FormEncode-dev
 bidict
 grequests
+SSEClient
 -e git://github.com/xsleonard/flask-jsonrpc.git#egg=flask-JSONRPC
 uwsgi
 gevent
