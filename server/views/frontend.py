@@ -37,8 +37,8 @@ def static_proxy(path):
 
 @stream_with_context
 def _stream():
-    #event = r.pubsub(ignore_subscribe_messages=True)
-    event = r.pubsub()
+    event = r.pubsub(ignore_subscribe_messages=True)
+    #event = r.pubsub()
     pattern = 'user.{}.*'.format(current_user.uid)
     event.psubscribe(pattern)
     pid = os.getpid()
@@ -49,9 +49,6 @@ def _stream():
         if message:
             print "event! {0} {1}".format(pid, message)
             yield 'data: ' + json.dumps(message['data']) + '\n\n'
-        else:
-            print "no message"
-            yield 'data: ' + 'no message' + '\n\n'
         gevent.sleep(5)
 
 
