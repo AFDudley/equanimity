@@ -43,7 +43,7 @@ def _stream():
     event.psubscribe(pattern)
     pid = os.getpid()
     while True:
-        print "server _stream: {}".format(pid)
+        #print "server _stream: {}".format(pid)
         message = event.get_message()
         out = '_'
         if message:
