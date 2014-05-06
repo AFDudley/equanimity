@@ -1,9 +1,13 @@
 import sys
+from datetime import datetime
 import transaction
+from equanimity.const import CLOCK
 from equanimity.clock import WorldClock
 from server import db, create_app
 from celery import Celery
 import config
+import gevent
+
 celery = Celery(broker='redis://localhost:6379/0')
 celery.conf.update(
     CELERY_BROKER_URL='redis://localhost:6379/0',
@@ -14,7 +18,7 @@ from redis import Redis, ConnectionPool
 r = Redis(connection_pool=ConnectionPool(host='localhost', port=6379, db=1))
 
 @celery.task()
-def start_task(world_id):
+def start_world(world_id):
     """ Starts the game """
     print "Starting World..."
     app = create_app(config='production')
@@ -37,3 +41,19 @@ def start_task(world_id):
         else:
             raise ValueError("World already started.")
     print "World Start Task Completed."
+    return tick_tock.delay(world_id)
+
+@celery.task()
+def tick_tock(world_id):
+    """Takes a world ID and advances the clock of that world"""
+    while True:
+        gevent.sleep(CLOCK['day'].seconds)
+        print "Tick for World {0} started at: {1}".format(world_id, datetime.utcnow())
+        app = create_app(config='production')
+        with app.test_request_context():
+            world = db['worlds'].get(world_id)
+            world.clock.tick(world.fields)
+            world.persist()
+            app.do_teardown_request()
+        print "Tick for World {0} ended at: {1}".format(world_id, datetime.utcnow())
+
