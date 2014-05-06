@@ -72,7 +72,7 @@ def tick_tock(world_id):
     os.setsid()
     signal.signal(signal.SIGTERM, sigterm_handler)
     while True:
-        gevent.sleep(.5)
+        gevent.sleep(CLOCK['day'].seconds)
         print "Tick for World {0} started at: {1}".format(world_id, datetime.utcnow())
         with app_n.test_request_context():
             db.connection.sync()
