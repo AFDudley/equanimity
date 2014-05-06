@@ -10,8 +10,6 @@ from itertools import ifilter
 from client import EquanimityClient
 from equanimity.grid import Grid, Hex
 from equanimity.field import Field
-from server.decorators import script
-import ipdb
 import sys
 
 import time
@@ -51,16 +49,12 @@ def start_game(p, q):
     return vid
 
 
-def force_start_battle(wid, df):
+def force_start_battle(wid, df, p):
     # Field clock must tick.  There is no RPC to force the clock to tick,
     # so we import it here.  We also bypass the time counting, and forecfully
     # advance the field's day (this only processes the field queue)
-    f = Field.get(wid, df['coordinate'])
-    if not f.queue.queue:
-        raise ValueError("Field queue is empty")
-    f.clock.change_day(f)
-    transaction.commit()
-
+    p.must_rpc('field.tick', wid, df['coordinate'])
+    
 def find_first(predicate, seq):
     return next(ifilter(predicate, seq), None)
 
@@ -277,31 +271,10 @@ def run_demo(config, url):
     df = setup_battle(wid, p, q, config)
     # Update the world clock so that the battle starts
     print 'Forcing battle start'
-    script(config=config)(force_start_battle)(wid, df)
+    force_start_battle(wid, df, p)
     battle(wid, df, p, q)
 
 
 if __name__ == '__main__':
     args = get_args()
     run_demo(args.config, args.url)
-    """
-    url = 'http://127.0.0.1:5000'
-    config = 'dev'
-    p = EquanimityClient(url=url)
-    q = EquanimityClient(url=url)
-    # Create two players
-    create_player(p, 'atkr', 'atkrpassword', 'atkr@example.com')
-    create_player(q, 'dfdr', 'dfdrpassword', 'dfdr@example.com')
-    # Start the game via the vestibule
-    vid = start_game(p, q)
-    
-    wid = p.must_rpc('vestibule.get', vid)['result']['vestibule']['world']
-    world = p.must_rpc('info.world', wid)['result']['world']
-    df = setup_battle(wid, p, q, config)
-    # Update the world clock so that the battle starts
-    print 'Forcing battle start'
-    print "df: %s" %df
-    script(config=config)(force_start_battle)(wid, df)
-    print "sleeping for battle."
-    battle(wid, df, p, q)
-    """
