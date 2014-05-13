@@ -243,7 +243,8 @@ def battle(wid, df, p, q):
 def setup_battle(wid, p, q, config):
     """checks if world has fields"""
     message = p.events().next()
-    if message == 'World {} persisted.'.format(wid):
+    print message
+    if 'world' is in message:
         # TODO improve
         # The world hasn't actually persisted when the task says it has.
         # Not sure how to fix. runzeo staleness seems to play a role.

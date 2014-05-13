@@ -3,6 +3,8 @@ import sys
 import signal
 from datetime import datetime
 import transaction
+from flask import json
+from equanimity.helpers import now
 from equanimity.const import CLOCK
 from equanimity.clock import WorldClock
 from server import db, create_app
@@ -58,8 +60,11 @@ def start_world(world_id):
             db.connection.close() 
             for uid in uids:
                 print 'user.{}.worlds'.format(uid)
-                r.publish('user.{}.worlds'.format(uid), "World {0} persisted.".format(world_id))
-            print "World {0} persisted.".format(world_id)
+                event = json.dumps(dict(world=dict(uid=world_id,
+                                        event="persisted",
+                                        when=when)))
+                r.publish('user.{}.worlds'.format(uid), event)
+            print event
         else:
             raise ValueError("World already started.")
     print "World Start Task Completed."
