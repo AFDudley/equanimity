@@ -138,7 +138,7 @@ def print_result(r):
     if r.get('error'):
         print r['error']['message']
     else:
-        print r['result']
+        print json.dumps(r['result'])
 
 
 def get_args():
