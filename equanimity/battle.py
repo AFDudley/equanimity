@@ -411,8 +411,11 @@ class Battle(Persistent):
         return action
 
     def get_time_remaining_for_action(self):
-        self._fill_timed_out_actions()
-        return self.log.get_time_remaining_for_action()
+        if self.log.end_time == None:
+            self._fill_timed_out_actions()
+            return self.log.get_time_remaining_for_action()
+        else:
+            return timedelta(seconds=0)
 
     def _fill_timed_out_actions(self):
         # Fills the action log with any needed timed_out actions since our
@@ -593,8 +596,7 @@ class Battle(Persistent):
                                              u(dead_defenders),
                                              awards)
 
-        self._clean_up_dead_units([self.battlefield.atksquad,
-                                   self.battlefield.defsquad])
+        self._clean_up_dead_units(self.battlefield.squads)
 
         # Update the underlying field
         winner = self.battlefield.atksquad
