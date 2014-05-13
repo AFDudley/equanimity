@@ -45,10 +45,11 @@ def _stream():
     while True:
         #print "server _stream: {}".format(pid)
         message = event.get_message()
-        out = '_'
         if message:
-            print "event! {0} {1}".format(pid, message)
-            yield 'data: ' + json.dumps(message['data']) + '\n\n'
+            #print "event! {0} {1}".format(pid, message)
+            # get object from json over redis
+            new_msg = dict(channel=message['channel'], data=json.loads(message['data']))
+            yield 'event: ' + json.dumps(new_msg) + '\n\n'
         gevent.sleep(5)
 
 

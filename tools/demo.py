@@ -11,9 +11,10 @@ from client import EquanimityClient
 from equanimity.grid import Grid, Hex
 from equanimity.field import Field
 import sys
-
 import time
 import gevent
+from flask import json
+
 def get_args():
     p = ArgumentParser(prog='Equanimity Demo')
     p.add_argument('--config', default='dev', help='Server config file to use')
@@ -242,21 +243,23 @@ def battle(wid, df, p, q):
 
 def setup_battle(wid, p, q, config):
     """checks if world has fields"""
-    message = p.events().next()
-    print message
-    if 'world' is in message:
-        # TODO improve
-        # The world hasn't actually persisted when the task says it has.
-        # Not sure how to fix. runzeo staleness seems to play a role.
-        has_fields = p.must_rpc('info.world_has_fields', wid)['result']['has_fields']
-        while has_fields == False:
-            time.sleep(1)
-            print "World {0} has fields? {1}".format(wid, has_fields)
+    event = json.loads(p.events().next())
+    if 'worlds' in event['channel']:
+        if event['data']['persisted']['uid'] == wid:
+            # TODO improve
+            # The world hasn't actually persisted when the task says it has.
+            # Not sure how to fix. runzeo staleness seems to play a role.
             has_fields = p.must_rpc('info.world_has_fields', wid)['result']['has_fields']
-        print "World {0} has fields? {1}".format(wid, has_fields)
-        _, df = _setup_battle(wid, p, q)
-        return df
-    else:
+            while has_fields == False:
+                time.sleep(1)
+                print "World {0} has fields? {1}".format(wid, has_fields)
+                has_fields = p.must_rpc('info.world_has_fields', wid)['result']['has_fields']
+            print "World {0} has fields? {1}".format(wid, has_fields)
+            _, df = _setup_battle(wid, p, q)
+            return df
+        else: #  some other world was persisted.
+            return setup_battle(wid, p, q, config)
+    else: #  some other event occured
         return setup_battle(wid, p, q, config)
 
 

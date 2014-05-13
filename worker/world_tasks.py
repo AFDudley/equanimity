@@ -45,7 +45,6 @@ def start_world(world_id):
         while world == None:
             db.connection.sync()
             world = db['worlds'].get(world_id)
-            print "Waiting .25 seconds for ZODB."
             gevent.sleep(.25)
         if world.clock == None:
             if not world.has_fields:
@@ -57,12 +56,11 @@ def start_world(world_id):
             uids = world.players.players.keys()
             world.persist()
             app_n.do_teardown_request()
-            db.connection.close() 
+            db.connection.close()
+            when = now().isoformat()
             for uid in uids:
                 print 'user.{}.worlds'.format(uid)
-                event = json.dumps(dict(world=dict(uid=world_id,
-                                        event="persisted",
-                                        when=when)))
+                event = json.dumps(dict(persisted=dict(uid=world_id,when=when)))
                 r.publish('user.{}.worlds'.format(uid), event)
             print event
         else:
@@ -74,11 +72,13 @@ def start_world(world_id):
 def tick_tock(world_id):
     """Takes a world ID and advances the clock of that world"""
     global app_n
+    if app_n == None:
+        app_n = create_app(config='production')
     os.setsid()
     signal.signal(signal.SIGTERM, sigterm_handler)
     while True:
         gevent.sleep(CLOCK['day'].seconds)
-        print "Tick for World {0} started at: {1}".format(world_id, datetime.utcnow())
+        print "Tick for World {0} started at: {1}".format(world_id, now().isoformat())
         with app_n.test_request_context():
             db.connection.sync()
             world = db['worlds'].get(world_id)
