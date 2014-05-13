@@ -7,9 +7,9 @@ sudo service celeryd stop
 find . -type f -name '*.pyc' | xargs rm
 
 # clean up zodb
-sudo pkill -9f runzeo
-rm ~/DBs/world/*
-runzeo -C zeo/zeoDO.conf &
+supervisorctl stop zeo
+rm -fr ~/DBs/world/*
+supervisorctl start zeo
 
 #create new db
 tools/init_db.py
