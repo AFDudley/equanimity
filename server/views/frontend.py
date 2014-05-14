@@ -48,7 +48,7 @@ def _stream():
         if message:
             #print "event! {0} {1}".format(pid, message)
             # get object from json over redis
-            new_msg = dict(channel=message['channel'], data=json.loads(message['data']))
+            new_msg = dict(channel=message['channel'], message=json.loads(message['data']))
             yield 'data: ' + json.dumps(new_msg) + '\n\n' #  this MUST be "data: "
         gevent.sleep(5)
 

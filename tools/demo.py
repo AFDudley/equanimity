@@ -245,7 +245,7 @@ def setup_battle(wid, p, q, config):
     """checks if world has fields"""
     event = json.loads(p.events().next().data)
     if 'worlds' in event['channel']:
-        if event['data']['persisted']['uid'] == wid:
+        if event['message']['persisted']['uid'] == wid:
             # TODO improve
             # The world hasn't actually persisted when the task says it has.
             # Not sure how to fix. runzeo staleness seems to play a role.
