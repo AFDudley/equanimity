@@ -95,10 +95,9 @@ class EquanimityClient(object):
     def events(self):
         url = urljoin(self.url, '/events')
         print "events"
-        messages = SSEClient(url, cookies=self.cookies)
-        for msg in messages:
-            #yield msg
-            yield str(msg.event).strip('"')
+        events = SSEClient(url, cookies=self.cookies)
+        for msg in events:
+            yield msg
 
     def rpc(self, method, *params, **kwargs):
         methods = method.split('.')

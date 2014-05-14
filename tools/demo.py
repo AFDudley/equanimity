@@ -243,7 +243,7 @@ def battle(wid, df, p, q):
 
 def setup_battle(wid, p, q, config):
     """checks if world has fields"""
-    event = json.loads(p.events().next())
+    event = json.loads(p.events().next().data)
     if 'worlds' in event['channel']:
         if event['data']['persisted']['uid'] == wid:
             # TODO improve
