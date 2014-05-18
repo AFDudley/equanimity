@@ -5,6 +5,8 @@ from flask import (Blueprint, render_template, send_file, stream_with_context,
 from flask.ext.login import login_required, current_user
 from server import csrf
 from server.decorators import api
+from equanimity.helpers import now
+from datetime import timedelta
 
 from redis import Redis, ConnectionPool
 r = Redis(connection_pool=ConnectionPool(host='localhost', port=6379, db=1))
@@ -42,6 +44,7 @@ def _stream():
     pattern = 'user.{}.*'.format(current_user.uid)
     event.psubscribe(pattern)
     pid = os.getpid()
+    retry = 1000
     while True:
         #print "server _stream: {}".format(pid)
         message = event.get_message()
@@ -49,9 +52,10 @@ def _stream():
             #print "event! {0} {1}".format(pid, message)
             # get object from json over redis
             new_msg = dict(channel=message['channel'], message=json.loads(message['data']))
-            yield 'data: ' + json.dumps(new_msg) + '\n\n' #  this MUST be "data: "
-        gevent.sleep(5)
-
+            #yield 'retry: {}\n'.format(retry) + 
+            yield 'data: ' + json.dumps(new_msg) + '\n\n'
+    event.unsubscribe()
+    return
 
 @frontend.route('/events')
 @login_required

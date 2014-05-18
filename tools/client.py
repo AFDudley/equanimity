@@ -97,6 +97,7 @@ class EquanimityClient(object):
         print "events"
         events = SSEClient(url, cookies=self.cookies)
         for msg in events:
+            #print vars(msg)
             yield msg
 
     def rpc(self, method, *params, **kwargs):

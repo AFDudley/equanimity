@@ -74,6 +74,7 @@ class WorldClock(Persistent):
 
     def change_day(self, fields):
         for field in fields.values():
+            print "FROM CLOCK.PY: changing day to {} on Field {} in world {}".format(self._current['day'], field.world_coord, field.world.uid)
             field.clock.change_day(field)
 
     def change_season(self, fields):

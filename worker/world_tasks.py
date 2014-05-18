@@ -1,7 +1,7 @@
 import os
 import sys
 import signal
-from datetime import datetime
+from datetime import datetime, timedelta
 import transaction
 from flask import json
 from equanimity.helpers import now
@@ -18,7 +18,14 @@ celery.conf.update(
     CELERY_BROKER_URL='redis://localhost:6379/0',
     CELERY_RESULT_BACKEND='redis://localhost:6379/0',
     CELERY_DISABLE_RATE_LIMITS = True,
-    CELERYBEAT_SCHEDULE = {} #  TODO put tick tock on the scheduler
+    CELERY_TIMEZONE = 'UTC',
+    CELERYBEAT_SCHEDULE = {
+        'tick-worlds': {
+            'task': 'world_tasks.tick_worlds',
+            'schedule': CLOCK['day'] / 2
+            #'schedule': timedelta(seconds=.1)
+        },
+    }
 )
 
 from redis import Redis, ConnectionPool
@@ -30,6 +37,7 @@ def sigterm_handler(signum, frame):
     print >>sys.stderr, "SIGTERM handler.  Shutting Down."
     os.killpg(0, signal.SIGTERM)
     sys.exit()
+
 
 @celery.task(name='world_tasks.start_world', ignore_result=True)
 def start_world(world_id):
@@ -66,25 +74,42 @@ def start_world(world_id):
         else:
             raise ValueError("World already started.")
     print "World Start Task Completed."
-    return tick_tock.delay(world_id)
+    return
 
-@celery.task(name='world_tasks.tick_tock', ignore_result=True)
-def tick_tock(world_id):
-    """Takes a world ID and advances the clock of that world"""
+@celery.task(name='world_tasks.tick_worlds', ignore_result=True)
+def tick_worlds():
+    print "Ticking worlds."
     global app_n
     if app_n == None:
         app_n = create_app(config='production')
-    os.setsid()
-    signal.signal(signal.SIGTERM, sigterm_handler)
-    while True:
-        gevent.sleep(CLOCK['day'].seconds)
-        print "Tick for World {0} started at: {1}".format(world_id, now().isoformat())
-        with app_n.test_request_context():
-            db.connection.sync()
-            world = db['worlds'].get(world_id)
-            world.clock.tick(world.fields)
-            world.persist()
+    with app_n.test_request_context():
+        update = False
+        for world in db['worlds'].values():
+            if world.has_fields:
+                print "\tTicking World {}.".format(world.uid)
+                update = True
+                world.clock.tick(world.fields)
+                world.persist()
+        if update:
             app_n.do_teardown_request()
             db.connection.close()
-        print "Tick for World {0} ended at: {1}".format(world_id, datetime.utcnow())
+    print "Worlds ticked."
+    return
 
+
+@celery.task(name='heartbeat', ignore_result=True)
+def heartbeat():
+    global app_n
+    if app_n == None:
+        app_n = create_app(config='production')
+    with app_n.test_request_context():
+        for player in db['players'].values():
+            if player.login_count > 0:
+                pid = player.uid
+                when = now().isoformat()
+                event = json.dumps(dict(ping=dict(uid=0, when=when)))
+                r.publish('user.{}.heartbeat'.format(pid), event)
+                print "Sent uid {} heartbeat.".format(pid)
+        app_n.do_teardown_request()
+        db.connection.close()
+    return
