@@ -14,7 +14,8 @@ def index():
     if os.path.isfile(gi):
         with open(gi, 'r') as f:
             gitinfo = f.readlines()
-    else: print "no file: {0}".format(os.getcwd())
+    else:
+        print "no file: {0}".format(os.getcwd())
     return render_template('btjs3/client.html', gitinfo=gitinfo)
 
 
