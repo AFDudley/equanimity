@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from time import sleep
 from common import hack_syspath
 hack_syspath(__file__)
 
@@ -154,7 +155,7 @@ def attack_or_move(world, df, p, au, du):
               du['location'])
     if r.get('error') is not None:
         print 'Failed to attack:'
-        print r['error']
+        # print r['error']
         print 'Moving instead'
         # Move and pass
         pos = au['location']
@@ -210,6 +211,7 @@ def _battle(world, df, p, q, battle):
         print 'Checking battle status'
         r = p.must_rpc('info.battle', battle['uid'])
         battle = r['result']['battle']
+        print 'action num', battle['action_num']
         if battle['game_over']:
             print 'Battle is over'
             print battle
@@ -225,9 +227,17 @@ def battle(world, df, p, q):
     # Once we've won, we should own the stronghold
 
     print 'Getting battle info'
-    battle = p.must_rpc('info.field_battle', world['uid'], df['coordinate'])
+    battle = None
+    # SIGH, this is a huge issue.
+    while battle == None:
+        try:
+            battle = p.must_rpc('info.field_battle', world['uid'], df['coordinate'])
+        except:
+            print 'battle is None, sleeping'
+            sleep(4)
+
     battle = battle['result']['battle']
-    print battle
+
     print 'Attacker unit count:', len(battle['attacker']['squad']['units'])
     print 'Defender unit count:', len(battle['defender']['squad']['units'])
 
