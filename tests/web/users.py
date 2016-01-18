@@ -69,8 +69,8 @@ class UserTestMixin(object):
         self.assert200(r)
         self.assertNotIn(self.username, r.data)
         self.assertNotIn('Logout', r.data)
-        self.assertIn('Login', r.data)
-        self.assertIn('Signup', r.data)
+        # self.assertIn('Login', r.data)
+        # self.assertIn('Signup', r.data)
 
     def assertUserCount(self, ct):
         self.assertEqual(self.db['player_uid'].uid, ct)
