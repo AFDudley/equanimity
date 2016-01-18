@@ -8,4 +8,8 @@ RUN apt-get update && \
 RUN virtualenv venv
 #RUN ls
 ADD . /equanimity
-RUN cd equanimity && git checkout docker && source /venv/bin/activate; pip install -r requirements.txt 
+WORKDIR /equanimity
+RUN git checkout docker
+RUN . /venv/bin/activate; pip install -r requirements.txt
+# RUN . /venv/bin/activate; ./setup.py test --nose-only
+
