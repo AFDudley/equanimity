@@ -44,4 +44,3 @@ From inside virtualenv
 Coverage statements should print to the terminal when running the tests.
 --nose-only indicates to run only the nose test runner, and not the pep8 and pyflakes checkers
 --run-failed passes this option to nose, which will only re-run failed tests
->>>>>>> 23e2726... Worker support.
