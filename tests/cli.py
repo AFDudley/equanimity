@@ -112,10 +112,11 @@ class EquanimityClientTest(TestCase):
         self.assertEqual(r, resp)
         mock_send_payload.assert_called_with(params, cookies=self.c.cookies)
 
-    @patch('tools.client.requests.post')
+    @patch('tools.client.grequests.post')
     def test_rpc_service_name(self, mock_post):
         resp = 2
         mock_post.return_value = AttributeDict(json=lambda: resp)
+        mock_post.return_value.send = lambda *args: mock_post.return_value
         self.c.cookies = dict(token='xxx')
         params = (0, 'string', [1, 2])
         method = 'stronghold.name_unit'
@@ -125,22 +126,24 @@ class EquanimityClientTest(TestCase):
         service_name = '.'.join([self.service_name, method])
         self.assertIn(service_name, mock_post.call_args[1]['data'])
 
-    @patch('tools.client.requests.post')
+    @patch('tools.client.grequests.post')
     def test_post(self, mock_post):
         resp = AttributeDict(cookies=dict(token=88))
         mock_post.return_value = resp
         self.c.cookies = dict(csrf='yyy')
+        resp.send = lambda *args: resp
         r = self.c._post(self.url, cookies=dict(token='xxx'))
         self.assertEqual(r, resp)
         self.assertEqual(self.c.cookies, resp.cookies)
         mock_post.assert_called_with(self.url, cookies=dict(token='xxx',
                                                             csrf='yyy'))
 
-    @patch('tools.client.requests.get')
+    @patch('tools.client.grequests.get')
     def test_get(self, mock_get):
         resp = AttributeDict(cookies=dict(token=77))
         mock_get.return_value = resp
         self.c.cookies = dict(csrf='yyy')
+        resp.send = lambda *args: resp
         r = self.c._get(self.url, cookies=dict(token='xxx'))
         self.assertEqual(r, resp)
         self.assertEqual(self.c.cookies, resp.cookies)
