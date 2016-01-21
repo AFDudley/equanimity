@@ -28,7 +28,6 @@ itsdangerous==0.24
 kombu==3.0.33
 logilab-constraint==0.5.0
 mccabe==0.2.1
-meld3==1.0.2
 mock==1.0.1
 mockredis==0.1.3.dev0
 nose==1.3.0
@@ -39,7 +38,6 @@ pytz==2015.7
 requests==1.2.3
 six==1.10.0
 sseclient==0.0.11
-supervisor==3.2.0
 transaction==1.4.1
 uWSGI==2.0.12
 voluptuous==0.8.1

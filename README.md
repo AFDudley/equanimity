@@ -22,7 +22,7 @@ Start ZODB instance:
 
 Next, create world:
 
-> $ tools/init._db.py
+> $ tools/init_db.py
 
 Run wsgi server:
 
