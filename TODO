@@ -1,3 +1,7 @@
+01-20-2016:
+make sure grid radius in tests are as small as possible.
+
+??-??-201?
 Fix BattleProcessActionTest such that it tests the returned against the expectedgame states. These tests will need to also verify that ActionQueue is being called properly
 
 Change "Value" to "Weight"
