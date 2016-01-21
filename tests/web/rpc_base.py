@@ -62,6 +62,7 @@ class RPCTestBase(FlaskTestDBWorld, UserTestMixin):
         return self._proxy
 
     def assertNoError(self, r):
+        print r.get('error')
         self.assertFalse(r.get('error'))
 
     def assertError(self, r, msg=None):

@@ -50,14 +50,10 @@ class VestibuleTest(FlaskTestDB):
         x = AttributeDict(uid=v.uid)
         self.assertNotEqual(v, x)
 
-    @patch('equanimity.vestibule.World.start')
-    @patch('equanimity.vestibule.World.persist')
-    def test_start(self, mock_world_persist, mock_world_start):
+    def test_start(self):
         v = Vestibule()
         p = Player('xxx', 'yyy@gmail.com', 'sdadwadawda')
         v.players.add(p)
         w = v.start()
         self.assertIn(p.uid, w.players.players)
         self.assertEqual(w.uid, v.uid)
-        mock_world_persist.assert_called_once_with()
-        mock_world_start.assert_called_once_with()

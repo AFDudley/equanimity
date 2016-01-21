@@ -48,6 +48,7 @@ class InfoTest(BattleTestBase):
             timer=self._battle_timer_schema, defender=self.combatant_schema,
             attacker=self.combatant_schema, action_num=int, game_over=bool,
             winner=Any(None, self.combatant_schema), uid=int,
+            condition=Any(None, unicode)
         )))
         self.field_battle_schema = self.battle_schema
         self._squad_schema = Schema(dict(
@@ -101,6 +102,7 @@ class InfoTest(BattleTestBase):
         self.assertEqual(expect, data['field'])
 
     def test_clock_info(self):
+        self.world.start()
         self._test('clock', self.world.uid)
 
     def test_field_battle_info(self):

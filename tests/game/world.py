@@ -12,12 +12,12 @@ class WorldTest(FlaskTestDB):
         x = World.get(w.uid)
         self.assertEqual(w, x)
 
-    @patch.object(World, '_create_fields')
+    @patch.object(World, 'create_fields')
     def test_create(self, mock_persist):
-        World.create()
+        World.create(create_fields=True)
         mock_persist.assert_called_once_with()
 
-    @patch.object(World, '_create_fields')
+    @patch.object(World, 'create_fields')
     def test_init(self, mock_create):
         World(create_fields=False)
         mock_create.assert_not_called()
@@ -40,7 +40,7 @@ class WorldTest(FlaskTestDB):
                                      w.award_field, p, loc)
 
     def test_award_field(self):
-        w = World()
+        w = World(create_fields=True)
         loc = (0, 0)
         self.assertEqual(w.player, w.fields[loc].owner)
         p = Player('xxx', 'xxx@example.com', 'xxxpassword')
@@ -93,7 +93,7 @@ class WorldTest(FlaskTestDB):
         grid = w._choose_initial_field_grid(I, (0, 0))
         mock_grid.return_value = grid
         self.assertEqual(len(w.fields), 0)
-        w._create_fields()
+        w.create_fields()
         self.assertEqual(len(list(w.grid.iter_coords())), len(w.fields))
         for c, f in w.fields.iteritems():
             self.assertTrue(w.grid.in_bounds(c))
@@ -105,7 +105,7 @@ class WorldTest(FlaskTestDB):
         mock_grid.assert_has_calls([call(I, c) for c in w.grid.iter_coords()])
 
     def test_distribute_fields_to_players_one_player(self):
-        w = World()
+        w = World(create_fields=True)
         p = Player('xxx', 'xxx@example.com', 'xxxpassword')
         w.players.add(p)
         w._distribute_fields_to_players()
@@ -121,7 +121,7 @@ class WorldTestRealGrid(FlaskTestDB):
         super(WorldTestRealGrid, self).setUp(grid_radius=4, square_grid=False)
 
     def test_distribute_fields_to_players_two_players(self):
-        w = World()
+        w = World(create_fields=True)
         p = Player('xxx', 'xxx@example.com', 'xxxpassword')
         q = Player('yyy', 'yyy@example.com', 'yyypassword')
         w.players.add(p)

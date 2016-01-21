@@ -1,4 +1,5 @@
--e git://github.com/xsleonard/formencode.git@24bfafbb5e03afdbfd5f99afdae381e57e9d2984#egg=FormEncode-master
+-e git://github.com/andymccurdy/redis-py.git@b54dee073199fff510fa068487505bf1de75310a#egg=redis
+-e git://github.com/xsleonard/formencode.git@24bfafbb5e03afdbfd5f99afdae381e57e9d2984#egg=FormEncode
 Flask-Bcrypt==0.5.2
 Flask-JSONRPC==0.3
 Flask-Login==0.2.7
@@ -10,20 +11,33 @@ MarkupSafe==0.23
 Werkzeug==0.11.3
 ZConfig==3.0.3
 ZODB3==3.10.5
+amqp==1.4.9
+anyjson==0.3.3
+bidict==0.9.0.post1
+billiard==3.3.0.22
+celery==3.1.19
 coverage==3.6
 disabledoc==0.1
 flake8==2.0
 frozendict==0.4
+gevent==1.0.2
+greenlet==0.4.9
+grequests==0.2.0
 gunicorn==18.0
 itsdangerous==0.24
+kombu==3.0.33
 logilab-constraint==0.5.0
 mccabe==0.2.1
 mock==1.0.1
+mockredis==0.1.3.dev0
 nose==1.3.0
 pep8==1.4.6
 py-bcrypt==0.4
 pyflakes==0.7.3
+pytz==2015.7
 requests==1.2.3
+six==1.10.0
+sseclient==0.0.11
 transaction==1.4.1
 uWSGI==2.0.12
 voluptuous==0.8.1
@@ -33,10 +47,3 @@ zdaemon==4.0.0
 zodburi==1.1
 zope.event==4.0.2
 zope.interface==4.0.5
-grequests
-SSEClient
-# -e git://github.com/xsleonard/flask-jsonrpc.git#egg=flask-JSONRPC
-gevent
-# ipdb # for debugging
--e git://github.com/andymccurdy/redis-py.git@b54dee073199fff510fa068487505bf1de75310a#egg=redis
-celery[redis]

@@ -106,7 +106,7 @@ class BattlefieldTest(FlaskTestDBWorld):
 
     def test_body_on_grid(self):
         bf = self.create_battlefield()
-        body = bf.make_body((4, 4), 'North')
+        body = bf.make_body((0, 0), 'North')
         self.assertTrue(bf.body_on_grid(body))
         for p in body.itervalues():
             p.location = map(lambda x: x - 200, p.location)
@@ -114,7 +114,7 @@ class BattlefieldTest(FlaskTestDBWorld):
 
     def test_can_move_nescient(self):
         bf = self.create_battlefield()
-        body = bf.make_body((4, 4), 'North')
+        body = bf.make_body((0, 0), 'North')
         nes = Nescient(E, create_comp(earth=128))
         self.assertTrue(bf.can_move_nescient(body, nes))
         x, y = body.values()[0].location
@@ -125,7 +125,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         bf = self.create_battlefield()
         nes = Nescient(E, create_comp(earth=128))
         nes.take_body = MagicMock(side_effect=nes.take_body)
-        body = bf.make_body((4, 4), 'North')
+        body = bf.make_body((0, 0), 'North')
         self.assertTrue(bf.move_nescient(body, nes))
         nes.take_body.assert_called_with(body)
         self.assertEqual(nes.location, body['right'].location)
@@ -153,7 +153,7 @@ class BattlefieldTest(FlaskTestDBWorld):
         self.assertRaises(ValueError, bf.place_nescient, nes)
 
         # Valid placement
-        nes.chosen_location = (2, 2)
+        nes.chosen_location = (0, 0)
         self.assertTrue(bf.place_nescient(nes))
 
         # Replacement
@@ -176,9 +176,10 @@ class BattlefieldTest(FlaskTestDBWorld):
         self.assertEqual(sorted(bf.get_rotations(nes)), dirs)
 
     def test_rotate(self):
-        bf = self.create_battlefield()
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=2))
+        bf = self.create_battlefield(f)
         nes = Nescient(E, create_comp(earth=128))
-        nes.body = bf.make_body((4, 4), 'North')
+        nes.body = bf.make_body((0, 0), 'North')
         self.assertTrue(bf.rotate(nes, 'Northeast'))
         self.assertEqual(nes.facing, 'Northeast')
 
@@ -219,7 +220,8 @@ class BattlefieldTest(FlaskTestDBWorld):
         self.assertEqual(sorted(list(expect)), sorted(list(map(tuple, got))))
 
     def test_place_object(self):
-        bf = self.create_battlefield()
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=16))
+        bf = self.create_battlefield(f)
         # bad obj
         self.assertRaises(TypeError, bf.place_object, None)
         # scient placement
@@ -241,17 +243,17 @@ class BattlefieldTest(FlaskTestDBWorld):
         # something at dest
         s = Scient(E, create_comp(earth=128))
         bf.grid[0][0].contents = s
-        bf.grid[2][2].contents = Scient(E, create_comp(earth=128))
-        self.assertRaises(ValueError, bf.move_scient, (0, 0), (2, 2))
+        bf.grid[1][0].contents = Scient(E, create_comp(earth=128))
+        self.assertRaises(ValueError, bf.move_scient, (0, 0), (1, 0))
         # moving too far
         self.assertRaises(ValueError, bf.move_scient, (0, 0), (15, 15))
 
         # Valid move
         self.assertEqual(bf.grid[0][0].contents, s)
-        self.assertTrue(bf.move_scient((0, 0), (1, 1)))
+        self.assertTrue(bf.move_scient((0, 0), (-1, 0)))
         self.assertIs(bf.grid[0][0].contents, None)
-        self.assertEqual(bf.grid[1][1].contents, s)
-        self.assertEqual(s.location, Hex(1, 1))
+        self.assertEqual(bf.grid[-1][0].contents, s)
+        self.assertEqual(s.location, Hex(-1, 0))
 
     def test_place_scient(self):
         bf = self.create_battlefield()
@@ -282,9 +284,9 @@ class BattlefieldTest(FlaskTestDBWorld):
         bf = self.create_battlefield()
         bf.place_object(s)
         s = Scient(E, create_comp(earth=128))
-        s.chosen_location = Hex(2, 2)
+        s.chosen_location = Hex(0, -1)
         bf.place_object(s)
-        self.assertEqual(list(bf.grid.occupied_coords()), [(0, 0), (2, 2)])
+        self.assertEqual(list(bf.grid.occupied_coords()), [(0, 0), (0, -1)])
 
     def test_flush_units(self):
         s = Scient(E, create_comp(earth=128))
@@ -295,7 +297,8 @@ class BattlefieldTest(FlaskTestDBWorld):
         u = Scient(E, create_comp(earth=128))
         atksquad = Squad(data=[u])
         u.chosen_location = Hex(2, 1)
-        bf = self.create_battlefield(defsquad=squad, atksquad=atksquad)
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=3)) 
+        bf = self.create_battlefield(field=f, defsquad=squad, atksquad=atksquad)
         self.field.rand_place_squad(squad)
         bf.put_squads_on_field()
         self.assertEqual(len(list(bf.grid.occupied_coords())), 3)
@@ -332,11 +335,13 @@ class BattlefieldTest(FlaskTestDBWorld):
         self.assertRaises(ValueError, bf.dmg, s, t)
 
     def test_calc_aoe(self):
-        bf = self.create_battlefield()
+        f = Field(self.world, Hex(0, 0), I, grid=Grid(radius=2))
+        bf = self.create_battlefield(f)
         s = Scient(E, create_comp(earth=128))
         s.chosen_location = Hex(0, 0)
         bf.place_object(s)
         expect = sorted([(2, -2), (2, -1), (2, 0)])
+        print bf.calc_aoe(s, (2, -2))
         self.assertEqual(sorted(bf.calc_aoe(s, (2, -2))), expect)
         self.assertEqual(sorted(bf.calc_aoe(s, (2, -1))), expect)
         self.assertEqual(bf.calc_aoe(s, (-100, -100)), set())

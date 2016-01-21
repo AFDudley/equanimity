@@ -151,8 +151,8 @@ class HexGridTest(FlaskTestDB):
 
     def test_create(self):
         h = Grid()
-        self.assertEqual(h.radius, 8)
-        self.assertEqual(h.size, 217)
+        self.assertEqual(h.radius, 2)
+        self.assertEqual(h.size, 19)
         self.assertEqual(len(list(h.iter_coords())), h.size)
         self.assertEqual(h._count_tiles(h.tiles), h.size)
         self.assertEqual(len(h.directions), 6)

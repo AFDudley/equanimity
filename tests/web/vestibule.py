@@ -3,7 +3,8 @@ from server.rpc.vestibule import _get_vestibule
 from ..base import FlaskTestDB
 from users import UserTestMixin
 from rpc_base import RPCTestBase
-
+from mock import patch
+from mockredis import redis
 
 class VestibuleToolsTest(FlaskTestDB, UserTestMixin):
 
@@ -91,7 +92,8 @@ class VestibuleTest(RPCTestBase):
         r = self.proxy.leave(v['uid'])
         self.assertError(r)
 
-    def test_start_vestibule(self):
+    @patch('redis.Redis')
+    def test_start_vestibule(self, mock_redis_client):
         v = self.test_create_vestibule()
         r = self.proxy.start(v['uid'])
         self.assertNoError(r)

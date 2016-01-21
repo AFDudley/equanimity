@@ -478,7 +478,7 @@ class GameTest(BattleTestBase):
         mock_compute_awards.assert_called_once_with(
             self.battle.battlefield.squads)
         mock_imbue.assert_called_once_with(awards)
-        mock_clean.assert_called_once_with([atksquad, defsquad])
+        mock_clean.assert_called_once_with(tuple([defsquad, atksquad]))
 
 
 class BattleProcessActionTest(BattleTestBase):

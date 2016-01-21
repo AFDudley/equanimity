@@ -643,9 +643,9 @@ class ActionQueue(object):
         if unit.container is None or unit.container_pos is None:
             raise ValueError('Unit {0} is not in a squad'.format(unit))
         # TODO -- removing this check 'fixed' bad must_rpc logic in demo. -rix
-        #if unit.container not in battlefield.squads:
-        #    msg = 'Unit {0} is not in a battling squad'
-        #    raise ValueError(msg.format(unit))
+        if unit.container not in battlefield.squads:
+            msg = 'Unit {0} is not in a battling squad'
+            raise ValueError(msg.format(unit))
         if unit.hp <= 0:
             raise ValueError('Unit {} is dead'.format(unit))
         # Lower valued units go first

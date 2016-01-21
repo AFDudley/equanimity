@@ -8,5 +8,5 @@ logging.basicConfig(stream=sys.stderr)
 # capture print statements instead of crashing wsgi
 sys.stdout = sys.stderr
 
-application = create_app(config=os.getenv('ENVIRONMENT', 'production'))
+application = create_app(config=os.getenv('ENVIRONMENT', 'dev'))
 
