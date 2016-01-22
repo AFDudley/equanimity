@@ -18,7 +18,7 @@ BCRYPT_LOG_ROUNDS = 12
 
 REMEMBER_COOKIE_DOMAIN = '127.0.0.1'
 
-ZODB_STORAGE = 'zeo://localhost:9100'
+ZODB_STORAGE = 'zeo://127.0.0.1:9100'
 
 REDIS_HOST = 'localhost'
 #REDIS_PASSWORD = 'password'
