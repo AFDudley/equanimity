@@ -4,26 +4,38 @@ Equanimity is a world building game with a heavy emphasis on squad-based turn-ba
 
 ## Installation
 
-From inside cloned repo:
+First, create a virtualenv, clone the repository into the env, cd into repo.
 
-> git checkout dev-docker
+Then, install dependencies:
 
-> docker build -t aequalis .
+> $ pip install -r requirements.txt
 
-> docker run -p 8080:8080 aequalis
+Then, make directories:
 
-If you haven't already, you'll need to NAT the port in order to connect:
+> $ mkdir logs
 
-> VBoxManage controlvm local0 natpf1 "aequalis,tcp,127.0.0.1,8080,,8080"
+> $ mkdir -p DBs/World
 
-Then with a web browser navigate to 127.0.0.1:8080 (currently this is address is baked in.)
-If everything is configured correct a page should appear.
+Start ZODB instance:
+
+> $ runzeo -C zeo/zeoWorld.conf &
+
+Next, create world:
+
+> $ tools/init_db.py
+
+Run wsgi server:
+
+> $ ./run_wsgi_server.sh
+
+Start redis
+
+Start celery worker:
+> $ celery -A worker.world_tasks worker
 
 Finally, run demo:
 
 > $ tools/demo.py --url=http://127.0.0.1:8080
-
-Currently, the demo does not always exit cleanly, but if everything is configured correctly it will work.
 
 ##Running tests
 From inside virtualenv
