@@ -13,10 +13,10 @@ from celery.task.control import revoke
 import config
 import gevent
 
-celery = Celery(broker='redis://localhost:6379/0')
+celery = Celery(broker='redis://127.0.0.1:6379/0')
 celery.conf.update(
-    CELERY_BROKER_URL='redis://localhost:6379/0',
-    CELERY_RESULT_BACKEND='redis://localhost:6379/0',
+    CELERY_BROKER_URL='redis://127.0.0.1:6379/0',
+    CELERY_RESULT_BACKEND='redis://127.0.0.1:6379/0',
     CELERY_DISABLE_RATE_LIMITS = True,
     CELERY_TIMEZONE = 'UTC',
     CELERYBEAT_SCHEDULE = {
@@ -29,7 +29,7 @@ celery.conf.update(
 )
 
 from redis import Redis, ConnectionPool
-r = Redis(connection_pool=ConnectionPool(host='localhost', port=6379, db=1))
+r = Redis(connection_pool=ConnectionPool(host='127.0.0.1', port=6379, db=1))
 
 app_n = None
 

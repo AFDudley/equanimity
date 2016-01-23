@@ -8,10 +8,10 @@ from server import db, create_app
 from celery import Celery
 import config
 
-celery = Celery(broker='redis://localhost:6379/0')
+celery = Celery(broker='redis://127.0.0.1:6379/0')
 celery.conf.update(
-    CELERY_BROKER_URL='redis://localhost:6379/0',
-    CELERY_RESULT_BACKEND='redis://localhost:6379/0'
+    CELERY_BROKER_URL='redis://127.0.0.1:6379/0',
+    CELERY_RESULT_BACKEND='redis://127.0.0.1:6379/0'
 )
 
 vestibule = Blueprint('vestibule', __name__, url_prefix='/api/vestibule')
