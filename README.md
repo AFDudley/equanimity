@@ -6,17 +6,18 @@ Equanimity is a world building game with a heavy emphasis on squad-based turn-ba
 
 From inside cloned repo:
 
-> git checkout dev-docker
+> $ git checkout dev-docker
 
-> docker build -t aequalis .
+> $ docker build -t aequalis .
 
-> docker run -p 8080:8080 aequalis
+> $ docker run -p 8080:8080 aequalis
 
 If you haven't already, you'll need to NAT the port in order to connect:
 
-> VBoxManage controlvm local0 natpf1 "aequalis,tcp,127.0.0.1,8080,,8080"
+> $ VBoxManage controlvm local0 natpf1 "aequalis,tcp,127.0.0.1,8080,,8080"
 
 Then with a web browser navigate to 127.0.0.1:8080 (currently this is address is baked in.)
+
 If everything is configured correct a page should appear.
 
 Finally, run demo:
