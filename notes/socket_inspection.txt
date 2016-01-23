@@ -1,0 +1,2 @@
+mv /tmp/equanimity.sock /tmp/equanmity.sock.old
+socat -t100 -x -v UNIX-LISTEN:/tmp/equanimity.sock,mode=777,reuseaddr,fork UNIX-CONNECT:/tmp/equanimity.sock.old
