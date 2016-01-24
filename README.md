@@ -14,7 +14,7 @@ From inside cloned repo:
 
 If you haven't already, you'll need to NAT the port in order to connect:
 
-> $ VBoxManage controlvm local0 natpf1 "aequalis,tcp,127.0.0.1,8080,,8080"
+> $ VBoxManage controlvm <name of your docker-machine env here> natpf1 "aequalis,tcp,127.0.0.1,8080,,8080"
 
 Then with a web browser navigate to 127.0.0.1:8080 (currently this is address is baked in.)
 
