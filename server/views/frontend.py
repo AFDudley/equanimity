@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, send_file
+from flask import Blueprint, render_template, send_file, safe_join
 from server import csrf
 from server.decorators import api
 
@@ -21,7 +21,7 @@ def index():
 # Serve the js from here until nginx handles the static content
 @frontend.route('/js/<path:path>')
 def static_proxy(path):
-    path = os.path.join('templates/btjs3/js', path)
+    path = safe_join('templates/btjs3/js', path)
     return send_file(path)
 
 
